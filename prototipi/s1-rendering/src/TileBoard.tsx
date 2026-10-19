@@ -1,18 +1,16 @@
-import { memo, useEffect, useMemo } from 'react';
-import { Canvas, Group, LinearGradient, RoundedRect, Shadow, vec, type SkSVG } from '@shopify/react-native-skia';
+import { memo, useEffect, useMemo, useRef } from 'react';
+import { Canvas, Group, Image, RoundedRect, vec, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
-import { boardMetrics, drawOrder, hitTest, tileRect, type Metrics, type Tile } from './board';
+import { boardMetrics, drawOrder, hitTest, tileRect, type Metrics, type Rect, type Tile } from './board';
 import { SvgAt } from './SvgAt';
-
-// Tavolozza del livello 20 dell'originale: [feltro chiaro, feltro scuro, accento, bordo, bordo scuro].
-export const PALETTE = ['#e0742a', '#6a1f4a', '#fff1a8', '#f09a3a', '#8a3a1f'];
+import { BODY_PAD, PALETTE, TileBody, useBodyImage } from './TileBody';
 
 type SpriteProps = {
-  tile: Tile;
-  rect: { x: number; y: number; w: number; h: number };
+  rect: Rect;
   radius: number;
   svg: SkSVG | null;
+  body: SkImage | null;
   phase: number;
   delay: number;
   pulse: SharedValue<number>;
@@ -21,7 +19,7 @@ type SpriteProps = {
   shadow: boolean;
 };
 
-const TileSprite = memo(function TileSprite({ rect, radius, svg, phase, delay, pulse, entrance, selected, shadow }: SpriteProps) {
+const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, delay, pulse, entrance, selected, shadow }: SpriteProps) {
   const { x, y, w, h } = rect;
   const transform = useDerivedValue(() => {
     const p = Math.min(1, Math.max(0, (entrance.value - delay) / 0.5));
@@ -39,14 +37,13 @@ const TileSprite = memo(function TileSprite({ rect, radius, svg, phase, delay, p
 
   return (
     <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity}>
-      <RoundedRect x={x + 2} y={y + 3} width={w + 2} height={h + 2} r={radius + 1} color={PALETTE[4]} />
-      <RoundedRect x={x + 3} y={y + 4} width={w} height={h} r={radius} color={PALETTE[3]}>
-        {shadow ? <Shadow dx={4} dy={6} blur={5} color="rgba(0,0,0,0.45)" /> : null}
-      </RoundedRect>
-      <RoundedRect x={x} y={y} width={w} height={h} r={radius}>
-        <LinearGradient start={vec(x, y)} end={vec(x + w, y + h)} colors={['#fffdf3', '#f6edd2', '#eadcb4']} positions={[0, 0.6, 1]} />
-      </RoundedRect>
-      <RoundedRect x={x + 0.75} y={y + 0.75} width={w - 1.5} height={h - 1.5} r={radius} style="stroke" strokeWidth={1.5} color="rgba(120,95,40,0.35)" />
+      {body ? (
+        <Group transform={[{ translateX: x - BODY_PAD }, { translateY: y - BODY_PAD }]}>
+          <Image image={body} x={0} y={0} width={w + 2 * BODY_PAD} height={h + 2 * BODY_PAD} fit="fill" />
+        </Group>
+      ) : (
+        <TileBody x={x} y={y} w={w} h={h} radius={radius} shadow={shadow} />
+      )}
       <SvgAt svg={svg} x={x + 4 + (iw - dw) / 2} y={y + 3 + (ih - dh) / 2} width={dw} height={dh} />
       {selected ? <RoundedRect x={x + 1.5} y={y + 1.5} width={w - 3} height={h - 3} r={radius} style="stroke" strokeWidth={3} color={PALETTE[2]} /> : null}
     </Group>
@@ -62,13 +59,18 @@ export type BoardProps = {
   shadow: boolean;
   entranceKey: number;
   selected: number | null;
+  /** `true`: il corpo delle tessere è un'immagine disegnata una volta sola (ombra e sfumatura non si ricalcolano a ogni fotogramma). */
+  cache: boolean;
+  /** `true`: proprietà stabili tra un render e l'altro (sprite memorizzati). `false`: riproduce il comportamento della prima versione, per il confronto. */
+  stable: boolean;
   onTap: (index: number | null, metrics: Metrics) => void;
 };
 
 /** Tavola in un unico canvas Skia; il tocco si risolve con `hitTest` del dominio, non con viste per tessera. */
-export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranceKey, selected, onTap }: BoardProps) {
+export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranceKey, selected, stable, cache, onTap }: BoardProps) {
   const metrics = useMemo(() => boardMetrics(tiles, width, height), [tiles, width, height]);
   const order = useMemo(() => drawOrder(tiles), [tiles]);
+  const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
   const pulse = useSharedValue(0);
   const entrance = useSharedValue(1);
   const maxDelay = useMemo(() => Math.max(...tiles.map((t) => t.z * 0.12 + t.y * 0.03 + t.x * 0.02)) || 1, [tiles]);
@@ -88,9 +90,24 @@ export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranc
   }, [entranceKey, entrance]);
 
   const radius = Math.max(4, metrics.tw * 0.14);
-  const tap = Gesture.Tap()
+  const body = useBodyImage(cache, metrics.tw - 3, metrics.th - 3, radius, shadow);
+  // Il gesto si crea una sola volta e legge sempre i dati più recenti da un ref.
+  const latest = useRef({ tiles, metrics, order, onTap });
+  latest.current = { tiles, metrics, order, onTap };
+  const stableTap = useMemo(
+    () =>
+      Gesture.Tap()
+        .runOnJS(true)
+        .onEnd((e) => {
+          const l = latest.current;
+          l.onTap(hitTest(l.tiles, l.metrics, e.x, e.y, 0, l.order), l.metrics);
+        }),
+    [],
+  );
+  const freshTap = Gesture.Tap()
     .runOnJS(true)
     .onEnd((e) => onTap(hitTest(tiles, metrics, e.x, e.y, 0, order), metrics));
+  const tap = stable ? stableTap : freshTap;
 
   return (
     <GestureDetector gesture={tap}>
@@ -98,10 +115,10 @@ export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranc
         {order.map((i, k) => (
           <TileSprite
             key={i}
-            tile={tiles[i]}
-            rect={tileRect(metrics, tiles[i])}
+            rect={stable ? rects[i] : tileRect(metrics, tiles[i])}
             radius={radius}
             svg={svgs[tiles[i].type] ?? null}
+            body={body}
             phase={k / order.length}
             delay={((tiles[i].z * 0.12 + tiles[i].y * 0.03 + tiles[i].x * 0.02) / maxDelay) * 0.5}
             pulse={pulse}

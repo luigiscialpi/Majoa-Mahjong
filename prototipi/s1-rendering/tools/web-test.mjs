@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { boardMetrics, gameColumn, hitTest, tileRect, visibleFraction } from '../src/board.ts';
+import { HEADER_H } from '../src/layout.ts';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -14,7 +15,6 @@ const dist = new URL('../dist/', import.meta.url).pathname;
 const out = process.argv[2] ?? 's1-output';
 mkdirSync(out, { recursive: true });
 const tiles = JSON.parse(readFileSync(new URL('../src/data/level20.json', import.meta.url), 'utf8')).tiles;
-const HEADER_H = 150;
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.json': 'application/json' };
 
 const server = createServer((req, res) => {
@@ -88,6 +88,16 @@ for (const [w, h] of [[390, 844], [1280, 800]]) {
   await page.getByTestId('btn-galleria').click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: join(out, `galleria-${w}x${h}.png`) });
+  await page.getByTestId('btn-tavola').click();
+
+  // Prova automatica (solo telefono): 4 configurazioni × memo no/sì. In web JS e rendering condividono il thread:
+  // i valori non sono rappresentativi, ma il confronto memo no/sì sì.
+  if (w < 600) {
+    await page.getByTestId('btn-prova').click();
+    await page.getByTestId('bench-result').filter({ hasText: /^completata/ }).waitFor({ timeout: 180000 });
+    r.bench = (await page.getByTestId('bench-result').innerText()).split('\n').slice(1);
+    await page.screenshot({ path: join(out, `prova-${w}x${h}.png`) });
+  }
   r.errors = errors;
   report.push(r);
   await page.close();
