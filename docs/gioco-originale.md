@@ -6,7 +6,7 @@ Questo capitolo descrive che cosa fa il gioco HTML/CSS/JavaScript originale «Ma
 
 L'originale è un solitario di abbinamento di tessere in stile mahjong, a tema animali e oggetti, con un «viaggio» a isole, 100 livelli, 10 rompicapi bonus, un album da collezione e una mascotte, in francese, inglese e italiano. Il codice non dichiara un pubblico di destinazione. Serve solo come riferimento: la nuova app si scrive da zero e non riusa il suo codice. Il capitolo descrive il comportamento dell'originale; le scelte della nuova app che se ne discostano stanno in «Vincoli e scartato», nel README (sezione 5) e in `docs/motore-livelli.md`.
 
-La copia di sola lettura dell'originale si conserva nel repository in `reference/majoa-originale/` (`DRAFT`: cartella da creare).
+La copia di sola lettura dell'originale sta nel repository in `reference/majoa-originale/` (`Majoa Mahjong.html` e `TEST_majoa.js`).
 
 | File | Contenuto |
 |---|---|
@@ -487,7 +487,7 @@ Idee dei manuali approvate ma non sviluppate: zoom della tavola, più preset per
 ## Verifica
 
 - **Coperto da test**: la suite `TEST_majoa.js` ha 25 sezioni: sintassi; lingue; livelli iniziali, isole e mappa; isola (forme, tessere d'oro, combo, effetti); nebbia, difficoltà, mappa con nebbia, gettoni; rompicapi Memory, Pezzo mancante, Sudoku; mascotte e parole degli effetti; nuove isole e Tris; rompicapi scorrevole, labirinto, differenze, barattoli, coppie, parole, puntini; album; rompicapi (generazione ripetuta, schermo 360 × 640, aiuti e spiegazioni); modali delle novità; annulla dopo il rimescolo; stelle e aiuti; pausa; guida; tessere bloccate; impostazioni; piccoli aiuti; Modalità comoda; salvataggio e ripresa; intestazione su schermi stretti; tutti i 20 livelli con click reali.
-- **Come eseguirli**: `node TEST_majoa.js <file.html> [--quick] [--shots=cartella]`, con Playwright e Chromium disponibili. `--quick` salta la partita completa dei 20 livelli (circa 1 minuto invece di 4-5).
+- **Come eseguirli**: da `reference/majoa-originale/`, `node TEST_majoa.js "Majoa Mahjong.html" [--quick] [--shots=cartella]`, con Playwright e Chromium disponibili. `--quick` salta la partita completa dei 20 livelli (circa 1 minuto invece di 4-5).
 - **Verificato** su questo capitolo: lettura integrale del codice; esecuzione in Chromium headless, con un gancio di debug inserito in una copia del file, per contare livelli, tessere, disegni e chiavi di testo (129 disegni; 254 chiavi per lingua, coerenti tra FR, EN e IT); riproduzione del difetto 1; **142 controlli della suite superati senza fallimenti nelle prime 8 sezioni su 25**, in modalità rapida.
 - **Non verificato**: le altre 17 sezioni della suite e il suo riepilogo finale (l'esecuzione è stata interrotta per un limite di tempo); la frequenza del fallback di generazione (i manuali dicono «mai visto»); il comportamento su dispositivi reali.
 

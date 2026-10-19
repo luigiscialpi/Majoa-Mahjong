@@ -1,6 +1,6 @@
-# Decisioni tecniche — Majoa Mahjong (fase 2, proposta)
+# Decisioni tecniche — Majoa Mahjong
 
-> **Stato: CONFERMATO (17/10/2026).** La sintesi vigente è nel README, sezione 5; questo documento conserva il ragionamento esteso. Nessuna decisione è ancora scritta nel README. Dopo la conferma, la tabella della sezione 14 diventa la sezione 5 del README (fase 3).
+> **Stato: CONFERMATO (17/10/2026).** La sintesi vigente è nel README, sezione 5; questo documento conserva il ragionamento esteso.
 
 Lo scopo di questo documento è fissare le scelte tecniche per la nuova app, ciascuna con il suo motivo e con le alternative scartate, prima di scrivere qualsiasi codice. Le scelte rispondono ai requisiti emersi nella fase 1 (sezione 1) e seguono la struttura a quattro livelli del template (dominio, applicazione, infrastruttura, UI).
 
@@ -78,18 +78,18 @@ Conseguenze tecniche già decise, indipendenti da come si ridisegna la progressi
 - Le spiegazioni al primo incontro dell'originale (livelli 1, 3, 4, 8, 11, 13, 16, 19, 23, 33, 91) diventano spiegazioni legate alla **prima comparsa della meccanica**, non al numero di livello: l'unico modo per funzionare con livelli infiniti.
 - Le isole non possono più essere blocchi a soglia fissa di stelle su un numero finito di livelli.
 
-**[Da decidere] — progressione e isole.** Il motore infinito rende obsoleta la struttura a isole finite con soglie fisse. Un vincolo ricavato dall'originale: la soglia per aprire un'isola lascia sempre un **margine costante di 40 stelle** sul massimo disponibile (80 stelle su 120 possibili nei primi 40 livelli, poi 110 su 150, 140 su 180, 170 su 210, 200 su 240). Su isole infinite una regola così richiede in percentuale sempre più stelle, fino a quasi tre stelle ovunque: va sostituita, non estesa.
+**[Deciso] — progressione e isole.** Il motore infinito rende obsoleta la struttura a isole finite con soglie fisse. Un vincolo ricavato dall'originale: la soglia per aprire un'isola lascia sempre un **margine costante di 40 stelle** sul massimo disponibile (80 stelle su 120 possibili nei primi 40 livelli, poi 110 su 150, 140 su 180, 170 su 210, 200 su 240). Su isole infinite una regola così richiede in percentuale sempre più stelle, fino a quasi tre stelle ovunque: va sostituita, non estesa.
 
 Alternative a confronto:
 
 | Id | Alternativa | Vantaggi | Limiti |
 |---|---|---|---|
 | A | Un solo asse di livelli; i temi ruotano ogni N livelli, senza blocchi | Il più semplice; nessuna mappa da costruire; progressione continua | Si perdono il «viaggio» e le isole come traguardi; regali e album legati a eventi diversi |
-| **B** | **Isole infinite con temi** (la tua idea): ogni isola è un capitolo da **20 livelli di difficoltà crescente** prodotto da un modello di tema (14 disegni, tavolozze, nomi tradotti, mascotte, 14 carte d'album); le prime 7 isole sono quelle dell'originale, dall'ottava in poi si generano da temi in sequenza; finiti i temi, si ripetono con varianti | Conserva viaggio, boss, regali ✨ e album per isola; si estende con nuovi temi via OTA; il percorso originale resta intatto | Serve una nuova regola di sblocco; la mappa diventa un elenco illimitato (da virtualizzare); serve produrre temi con continuità (disegni e nomi in tutte le lingue) |
+| **B** | **Isole infinite con temi** (idea dello sviluppatore): ogni isola è un capitolo da **20 livelli di difficoltà crescente** prodotto da un modello di tema (14 disegni, tavolozze, nomi tradotti, mascotte, 14 carte d'album); le prime 7 isole sono quelle dell'originale, dall'ottava in poi si generano da temi in sequenza; finiti i temi, si ripetono con varianti | Conserva viaggio, boss, regali ✨ e album per isola; si estende con nuovi temi via OTA; il percorso originale resta intatto | Serve una nuova regola di sblocco; la mappa diventa un elenco illimitato (da virtualizzare); serve produrre temi con continuità (disegni e nomi in tutte le lingue) |
 | C | Campagna fissa dell'originale (100 livelli) più una «Modalità infinita» separata | Nessun ridisegno della campagna; il motore infinito resta isolato | Due progressioni e due economie da collegare; l'infinito non è «il gioco» |
 | D | Solo campagna fissa, con isole nuove aggiunte a mano via OTA | Qualità controllata di ogni isola | Non è infinito: ogni livello nuovo va prodotto a mano |
 
-**Proposta: B.** È l'unica che rende infinite le isole senza perdere la struttura dell'originale, e si combina con gli aggiornamenti OTA (sezione 10). In termini tecnici:
+**Decisione: B**, con isole da 20 livelli (`docs/motore-livelli.md`). È l'unica che rende infinite le isole senza perdere la struttura dell'originale, e si combina con gli aggiornamenti OTA (sezione 10). In termini tecnici:
 - L'isola diventa un dato, `IslandSpec` (tema, regole di generazione, carte, regalo, indici dei boss), e una funzione pura `islandForIndex(i)` la restituisce: tabella fissa per le prime 7, generata dal tema `i mod T` con una variante per le successive.
 - I livelli di un'isola generata usano il motore con seme `(isola, livello, difficoltà)`; le meccaniche compaiono per posizione dentro l'isola, come nell'Isola degli animali dell'originale (oro dal livello 3, nascoste dall'11, nebbia dal 13, boss ai livelli 5, 10, 15 e 20). L'indice di difficoltà e le isole dell'originale estese a 20 livelli sono definiti in `docs/motore-livelli.md`.
 - Sblocco dell'isola successiva: isola precedente completata **e** una percentuale (da calibrare) delle stelle della sola isola precedente, al posto della soglia cumulativa. Un criterio di stelle unico (decisione 3 della fase 1) alimenta sia lo sblocco sia l'album.
@@ -162,7 +162,7 @@ Alternative a confronto:
 
 | Alternativa | Perché non va |
 |---|---|
-| Layout orizzontali con pannelli laterali su tablet | Esclusi dalla tua richiesta: l'interfaccia resta verticale. |
+| Layout orizzontali con pannelli laterali su tablet | Esclusi dal requisito di interfaccia sempre verticale. |
 | `supportsTablet: false` (su iPad l'app gira in una finestra da telefono) | Niente supporto vero ai tablet, contrario alla decisione 6; rendering ingrandito e meno nitido. |
 | `UIRequiresFullScreen` per forzare lo schermo intero su iPad | Deprecata da iPadOS 26 e destinata a essere ignorata. |
 | Opt-out Android `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` | Temporaneo, rimosso con le app che puntano a `targetSdk 37` (agosto 2027); per un gioco con `appCategory` non serve. |
@@ -259,7 +259,7 @@ La proposta segue le regole di progettazione del flusso utente: ogni annuncio st
 **Alternative scartate (per ora).**
 - *Mediazione con altre reti*: più SDK, più peso dell'app e più implicazioni di privacy; si rivaluta con dati reali.
 - *Solo banner*: ricavi bassi e rischio di tocchi accidentali sulla tavola.
-- *App a pagamento o abbonamento*: contraddice la scelta free-to-play dei tuoi progetti simili e non si abbina a un motore di livelli infiniti.
+- *App a pagamento o abbonamento*: contraddice il modello gratuito con pubblicità scelto per il progetto e non si abbina a un motore di livelli infiniti.
 - *Acquisto «Rimuovi pubblicità»*: non c'è nell'originale; richiede una libreria di acquisti **[Da decidere]**.
 
 ## 10. Contenuti e aggiornamenti OTA
@@ -284,10 +284,10 @@ La proposta segue le regole di progettazione del flusso utente: ogni annuncio st
 | Mezzo | Vantaggi | Limiti |
 |---|---|---|
 | **EAS Update** | Nessuna infrastruttura propria; versioni e canali (anteprima, produzione); firma del codice; aggiorna anche codice JavaScript | Dipende dal servizio Expo; limiti e costi del piano da verificare; ogni aggiornamento passa dal ciclo di pubblicazione di Expo |
-| Pacchetti di contenuto remoti (JSON e SVG firmati su storage proprio, ad esempio Supabase Storage già nel tuo stack) | Solo dati, nessuna questione sul codice scaricato; indipendenti dalle build; si possono scaricare a richiesta | Più codice da scrivere e mantenere (manifesto, versioni, firma, cache, comportamento offline) |
+| Pacchetti di contenuto remoti (JSON e SVG firmati su storage proprio, ad esempio Supabase Storage, già usato dallo sviluppatore) | Solo dati, nessuna questione sul codice scaricato; indipendenti dalle build; si possono scaricare a richiesta | Più codice da scrivere e mantenere (manifesto, versioni, firma, cache, comportamento offline) |
 | Solo release su store | Nessuna complessità aggiuntiva | Lento; una revisione per ogni isola |
 
-**Proposta.** Partire con **EAS Update**, tenendo i contenuti dietro un'interfaccia `ContentRepository` nell'infrastruttura: se in futuro servirà scaricare i pacchetti a richiesta, si sostituisce l'implementazione senza toccare dominio e UI. **[Da decidere]**
+**Decisione.** Partire con **EAS Update**, tenendo i contenuti dietro un'interfaccia `ContentRepository` nell'infrastruttura: se in futuro servirà scaricare i pacchetti a richiesta, si sostituisce l'implementazione senza toccare dominio e UI.
 
 **Regole di compatibilità.**
 1. Ogni pacchetto ha `contentVersion` e versione minima dell'app; l'app ignora pacchetti che non comprende.
@@ -344,7 +344,7 @@ Piccoli esperimenti da fare **prima** di fissare le decisioni segnate come da va
 
 ## 14. Riepilogo per il README (sezione 5, «Decisioni vigenti»)
 
-La tabella è già nel formato del template; la colonna *Scartato e perché* è formulata come vincolo attuale.
+La tabella è già nel formato del template; la colonna *Scartato e perché* è formulata come vincolo attuale. Se differisce dal README, vale il README.
 
 | Decisione | Motivo | Scartato e perché |
 |---|---|---|

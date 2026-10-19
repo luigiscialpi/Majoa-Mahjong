@@ -16,7 +16,7 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
 
 - **Scopo (PERCHÉ)**: portare su Android e iOS il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti.
 - **Piattaforme e stack**: Android e iOS, telefoni e tablet, interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esiste solo la documentazione: nessun codice, nessun repository, prototipi non eseguiti (sezione 8).
+- **Stato**: `DRAFT`. Esistono la documentazione e la copia dell'originale in `reference/majoa-originale/`; nessun codice dell'app, prototipi non eseguiti (sezione 8).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
@@ -40,9 +40,9 @@ Ogni funzionalità ha una riga: cosa fa, in che stato è, dove si trova nel codi
 | Salvataggi | TO DO | progressi e una partita in corso, in SQLite | TO DO | `docs/gioco-originale.md` (originale) |
 | Lingue | TO DO | lingua del dispositivo, inglese di riserva, FR/EN/IT | TO DO | `docs/gioco-originale.md` (originale) |
 | Audio e vibrazione | TO DO | effetti come campioni, haptics | TO DO | `docs/gioco-originale.md` (originale) |
-| Pubblicità | TO DO | AdMob: interstitial a fine livello, rewarded | TO DO | nessuno (sezione 5) |
-| Aggiornamenti OTA | TO DO | nuove isole, carte, parole e rompicapi senza release | TO DO | nessuno (sezione 5) |
-| Interfaccia verticale | TO DO | blocco di orientamento e colonna di gioco | TO DO | nessuno (sezione 5) |
+| Pubblicità | TO DO | AdMob: interstitial a fine livello, rewarded | TO DO | `docs/decisioni-tecniche.md` |
+| Aggiornamenti OTA | TO DO | nuove isole, carte, parole e rompicapi senza release | TO DO | `docs/decisioni-tecniche.md` |
+| Interfaccia verticale | TO DO | blocco di orientamento e colonna di gioco | TO DO | `docs/decisioni-tecniche.md` |
 
 **Nota:** una funzionalità senza riga in questa tabella, per chi subentra, non esiste. La riga si aggiunge nella stessa consegna in cui nasce il codice.
 
@@ -67,7 +67,7 @@ Le dipendenze puntano verso il dominio: il dominio non importa nulla dagli altri
     API native)                         nessuna dipendenza)
 ```
 
-Struttura prevista delle cartelle (`DRAFT`: nessuna esiste ancora):
+Struttura delle cartelle (`DRAFT`: `src/` e `tools/` non esistono ancora):
 
 ```text
 src/
@@ -76,7 +76,7 @@ src/
   infrastructure/  # storage, ads, audio, contenuti, API native
   ui/              # schermate, componenti, rendering
 docs/              # capitoli di approfondimento
-reference/         # copia di sola lettura del gioco HTML originale
+reference/         # copia di sola lettura del gioco HTML originale (majoa-originale/)
 tools/             # script di esportazione (livelli, disegni, campioni audio)
 ```
 
@@ -141,6 +141,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 | `docs/linee-guida-codice.md` | Principi di codice con esempi | Prima di scrivere codice |
 | `docs/gioco-originale.md` | Regole, livelli, aiuti, punteggi, rompicapi, album, grafica, impostazioni e salvataggi dell'originale; difetti noti | Prima di implementare una funzione che nasce dall'originale |
 | `docs/motore-livelli.md` | `LevelSpec`, generazione, indice di difficoltà, isole da 20 livelli, sblocco (`DRAFT`) | Prima di toccare livelli, mappa o progressione |
+| `docs/decisioni-tecniche.md` | Ragionamento esteso delle decisioni: alternative scartate, verifiche sulle piattaforme, prototipi S1-S5 | Prima di rimettere in discussione una decisione della sezione 5 |
 
 **Nota:** per creare un capitolo nuovo, partire da `docs/_capitolo.template.md`.
 
@@ -155,4 +156,4 @@ Elenco delle aree non ancora decise o analizzate: segnala che il documento è vi
 - `TO DO`: tetto della tessera nella colonna di gioco; accessibilità delle singole tessere; zoom o tolleranza di tocco.
 - `TO DO`: frequenza degli interstitial e limite dei rewarded per aiuti; dichiarazione del pubblico negli store; eventuale acquisto «rimuovi pubblicità».
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
-- `TO DO`: creare `reference/majoa-originale/` e `tools/`; capitoli di rendering, salvataggi, audio, lingue, pubblicità, contenuti OTA.
+- `TO DO`: creare `tools/`; capitoli di rendering, salvataggi, audio, lingue, pubblicità, contenuti OTA.

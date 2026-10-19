@@ -19,8 +19,8 @@ Le sezioni e i punti marcati *(solo chat)* o *(solo agente)* si applicano solo a
 2. Verificare che i percorsi citati nell'indice (README, sezione 2) esistano davvero, con `ls` o `grep`. Se qualcosa non torna, segnalarlo prima di lavorare.
 3. Se l'intervento richiesto esce dall'ambito (README, sezione 1), segnalarlo e attendere conferma.
 4. Nel dubbio, chiedere oppure proporre un breve piano prima di modificare, invece di indovinare.
-5. *(solo chat)* Clonare il repository da zero o aggiornarlo; mai ricostruire lo stato di `main` a partire dalle patch precedenti.
-6. *(solo chat)* Se il repository è privato e non è clonabile, avvisare. In alternativa, confrontare `git rev-parse main^{tree}` per accertarsi di partire dallo stesso stato.
+5. *(solo chat)* Clonare il repository da zero o aggiornarlo; mai ricostruire lo stato di `master` a partire dalle patch precedenti.
+6. *(solo chat)* Se il repository è privato e non è clonabile, avvisare. In alternativa, confrontare `git rev-parse master^{tree}` per accertarsi di partire dallo stesso stato.
 
 *(solo chat)* Prompt di avvio, da incollare con `AGENTS.md`, `README.md` e i capitoli di `docs/` pertinenti allegati:
 
@@ -35,7 +35,7 @@ chiedere prima di procedere.
 
 Valido in entrambe le modalità:
 
-1. Commit convenzionali in italiano (Esempio: `feat(dominio): aggiunge il calcolo delle tessere libere`). Si lavora su `main`.
+1. Commit convenzionali in italiano (Esempio: `feat(dominio): aggiunge il calcolo delle tessere libere`). Si lavora su `master`.
 2. Ogni modifica che cambia il comportamento aggiorna la documentazione corrispondente: il capitolo di `docs/` toccato, la riga dell'indice (README, sezione 2) e, se una decisione cambia, la sua riga in sezione 5.
 
 *(solo chat)* Consegna come patch:
@@ -44,8 +44,6 @@ Valido in entrambe le modalità:
 2. Patch sequenziali e incrementali: ciascuna si applica sullo stato lasciato dalla precedente, mai cumulative rispetto a un repository già patchato.
 3. Ogni patch viene provata su un clone pulito prima della consegna.
 4. Patch di codice e patch di documentazione sono separate; dopo ogni patch di codice segue quella di documentazione.
-
-**Nota:** finché il repository non esiste, i file si consegnano completi e non come patch. Le regole di consegna come patch valgono dal primo commit.
 
 *(solo agente)* Modifica diretta:
 
