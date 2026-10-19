@@ -1,0 +1,34 @@
+{
+  "name": "majoa-s1-rendering",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo/metro-runtime": "~57.0.17",
+    "@shopify/react-native-skia": "2.6.2",
+    "expo": "~57.0.30",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "node --test src/board.test.ts",
+    "typecheck": "tsc --noEmit",
+    "setup:web": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});fs.copyFileSync('node_modules/canvaskit-wasm/bin/full/canvaskit.wasm','public/canvaskit.wasm')\"",
+    "web:build": "expo export --platform web"
+  },
+  "private": true
+}

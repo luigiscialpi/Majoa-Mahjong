@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Majoa S1",
+    "slug": "majoa-s1",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "it.luigiscialpi.majoa.s1"
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "it.luigiscialpi.majoa.s1"
+    },
+    "web": {}
+  }
+}
