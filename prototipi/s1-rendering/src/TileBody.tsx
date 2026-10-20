@@ -7,6 +7,16 @@ export const PALETTE = ['#e0742a', '#6a1f4a', '#fff1a8', '#f09a3a', '#8a3a1f'];
 /** Margine attorno alla tessera nell'immagine in cache: contiene bordo laterale e ombra sfocata. */
 export const BODY_PAD = 16;
 
+/** Riquadro in cui sta il disegno della tessera: area interna (padding 3px 4px dell'originale), «meet» e centrato. */
+export function designBox(x: number, y: number, w: number, h: number) {
+  const iw = w - 8;
+  const ih = h - 6;
+  const scale = Math.min(iw / 60, ih / 80);
+  const width = 60 * scale;
+  const height = 80 * scale;
+  return { x: x + 4 + (iw - width) / 2, y: y + 3 + (ih - height) / 2, width, height };
+}
+
 type BodyProps = { x: number; y: number; w: number; h: number; radius: number; shadow: boolean };
 
 /** Corpo della tessera: bordo laterale a due toni, ombra (opzionale), faccia sfumata, filo interno. */

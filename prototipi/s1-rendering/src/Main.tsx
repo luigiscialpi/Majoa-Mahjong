@@ -10,29 +10,17 @@ import { HEADER_H } from './layout';
 import { sleep, useJsLag } from './perf';
 import { loadTileSvgs, type LoadedTiles } from './svgTiles';
 import { TileBoard } from './TileBoard';
+import { TileBoardLayered } from './TileBoardLayered';
 
 const TILES: Tile[] = level20.tiles;
 const WARMUP_MS = 1500;
 const MEASURE_MS = 5000;
 const TAP_EVERY_MS = 400;
+const LIVE_STEPS = [0, 2, 8, 24, 96];
 
-const CONFIGS = [
-  { name: 'fermo', animate: false, shadow: false },
-  { name: 'Anima', animate: true, shadow: false },
-  { name: 'Ombre', animate: false, shadow: true },
-  { name: 'Anima+Ombre', animate: true, shadow: true },
-];
-
-// Sequenza della prova: vecchio comportamento (memo no) solo per due configurazioni, poi memo sì senza e con cache.
-const RUNS = [
-  { memo: false, cache: false, cfg: CONFIGS[0] },
-  { memo: false, cache: false, cfg: CONFIGS[3] },
-  ...CONFIGS.map((cfg) => ({ memo: true, cache: false, cfg })),
-  ...CONFIGS.map((cfg) => ({ memo: true, cache: true, cfg })),
-];
-
-type BenchRow = { memo: boolean; cache: boolean; cfg: string; fps: number; worst: number; jsMax: number; tapAvg: number; tapMax: number; echoAvg: number; echoMax: number };
-type Bench = { running: boolean; rows: BenchRow[] };
+type Run = { label: string; setup: () => void };
+type BenchRow = { label: string; fps: number; worst: number; jsMax: number; tapAvg: number; tapMax: number; echoAvg: number; echoMax: number; imgMs: number | null };
+type Bench = { title: string; total: number; running: boolean; rows: BenchRow[] };
 
 function Button({ label, on, onPress, testID }: { label: string; on?: boolean; onPress: () => void; testID?: string }) {
   return (
@@ -69,15 +57,19 @@ export default function Main() {
   const [shadow, setShadow] = useState(false);
   const [stable, setStable] = useState(true);
   const [cache, setCache] = useState(false);
+  const [layered, setLayered] = useState(false);
+  const [liveN, setLiveN] = useState(0);
+  const [animN, setAnimN] = useState<number | null>(null);
   const [entranceKey, setEntranceKey] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [tapInfo, setTapInfo] = useState('Tocca una tessera');
-  const [bench, setBench] = useState<Bench>({ running: false, rows: [] });
+  const [bench, setBench] = useState<Bench>({ title: '', total: 0, running: false, rows: [] });
   const { stats, ping, benchReset, benchRead } = useFrameStats();
   const jsLag = useJsLag();
   const tapT0 = useRef(0);
   const latencies = useRef<number[]>([]);
   const benchRunning = useRef(false);
+  const imgMs = useRef<number | null>(null);
 
   useEffect(() => {
     loadTileSvgs().then(setLoaded);
@@ -86,6 +78,10 @@ export default function Main() {
   const areaH = Math.max(100, col.h - HEADER_H);
   const metrics = useMemo(() => boardMetrics(TILES, col.w, areaH), [col.w, areaH]);
   const freeIdx = useMemo(() => TILES.map((_, i) => i).filter((i) => isFree(TILES, i)), []);
+  // Ordine con cui si scelgono le tessere animate: prima le libere, poi le altre.
+  const liveOrder = useMemo(() => [...freeIdx, ...TILES.map((_, i) => i).filter((i) => !freeIdx.includes(i))], [freeIdx]);
+  const liveIndices = useMemo(() => liveOrder.slice(0, liveN), [liveOrder, liveN]);
+  const animatedSet = useMemo(() => (animN === null ? null : new Set(liveOrder.slice(0, animN))), [animN, liveOrder]);
   const touch = useMemo(() => {
     // Area minima raggiungibile al tocco tra le tessere libere (campionamento a 3 px).
     const minVisible = Math.min(...freeIdx.map((i) => visibleFraction(TILES, metrics, i, 3)));
@@ -103,55 +99,118 @@ export default function Main() {
     }
   }, [ping]);
 
-  const runBench = useCallback(async () => {
-    if (benchRunning.current) return;
-    benchRunning.current = true;
-    setMode('tavola');
-    const rows: BenchRow[] = [];
-    setBench({ running: true, rows });
-    for (const run of RUNS) {
-      setStable(run.memo);
-      setCache(run.cache);
-      setAnimate(run.cfg.animate);
-      setShadow(run.cfg.shadow);
-      await sleep(WARMUP_MS);
-      benchReset();
-      jsLag.reset();
-      latencies.current = [];
-      const t0 = Date.now();
-      let k = 0;
-      while (Date.now() - t0 < MEASURE_MS) {
-        onTap(freeIdx[k++ % freeIdx.length], metrics);
-        await sleep(TAP_EVERY_MS);
+  const onStaticBuilt = useCallback((ms: number) => {
+    imgMs.current = ms;
+  }, []);
+
+  /** Esegue una sequenza di configurazioni: riscaldamento, poi 5 s di misura con un tocco simulato ogni 0,4 s. */
+  const runSequence = useCallback(
+    async (title: string, runs: Run[]) => {
+      if (benchRunning.current) return;
+      benchRunning.current = true;
+      setMode('tavola');
+      const rows: BenchRow[] = [];
+      setBench({ title, total: runs.length, running: true, rows });
+      for (const run of runs) {
+        run.setup();
+        imgMs.current = null;
+        await sleep(WARMUP_MS);
+        benchReset();
+        jsLag.reset();
+        latencies.current = [];
+        const t0 = Date.now();
+        let k = 0;
+        while (Date.now() - t0 < MEASURE_MS) {
+          onTap(freeIdx[k++ % freeIdx.length], metrics);
+          await sleep(TAP_EVERY_MS);
+        }
+        const f = benchRead();
+        const l = latencies.current;
+        rows.push({
+          label: run.label,
+          fps: f.fps,
+          worst: f.worst,
+          jsMax: jsLag.read().max,
+          tapAvg: l.length ? Math.round(l.reduce((a, b) => a + b, 0) / l.length) : 0,
+          tapMax: l.length ? Math.round(Math.max(...l)) : 0,
+          echoAvg: f.echoAvg,
+          echoMax: f.echoMax,
+          imgMs: imgMs.current,
+        });
+        setBench({ title, total: runs.length, running: true, rows: [...rows] });
       }
-      const f = benchRead();
-      const l = latencies.current;
-      rows.push({
-        memo: run.memo,
-        cache: run.cache,
-        cfg: run.cfg.name,
-        fps: f.fps,
-        worst: f.worst,
-        jsMax: jsLag.read().max,
-        tapAvg: l.length ? Math.round(l.reduce((a, b) => a + b, 0) / l.length) : 0,
-        tapMax: l.length ? Math.round(Math.max(...l)) : 0,
-        echoAvg: f.echoAvg,
-        echoMax: f.echoMax,
-      });
-      setBench({ running: true, rows: [...rows] });
-    }
-    setAnimate(false);
-    setShadow(false);
-    setStable(true);
-    setCache(false);
-    setSelected(null);
-    setBench({ running: false, rows });
-    console.log('S1-BENCH ' + JSON.stringify(rows));
-    benchRunning.current = false;
-  }, [benchReset, benchRead, jsLag, freeIdx, metrics, onTap]);
+      setAnimate(false);
+      setShadow(false);
+      setStable(true);
+      setCache(false);
+      setLayered(false);
+      setLiveN(0);
+      setAnimN(null);
+      setSelected(null);
+      setBench({ title, total: runs.length, running: false, rows });
+      console.log('S1-BENCH ' + JSON.stringify({ title, rows }));
+      benchRunning.current = false;
+    },
+    [benchReset, benchRead, jsLag, freeIdx, metrics, onTap],
+  );
+
+  const prova1 = useCallback(() => {
+    const cfgs = [
+      { name: 'fermo', animate: false, shadow: false },
+      { name: 'Anima', animate: true, shadow: false },
+      { name: 'Ombre', animate: false, shadow: true },
+      { name: 'Anima+Ombre', animate: true, shadow: true },
+    ];
+    const mk = (memo: boolean, c: boolean, cfg: (typeof cfgs)[number]): Run => ({
+      label: `m${memo ? '+' : '-'} c${c ? '+' : '-'} ${cfg.name}`,
+      setup: () => {
+        setLayered(false);
+        setAnimN(null);
+        setStable(memo);
+        setCache(c);
+        setAnimate(cfg.animate);
+        setShadow(cfg.shadow);
+      },
+    });
+    runSequence('Prova 1: memo e cache', [
+      mk(false, false, cfgs[0]),
+      mk(false, false, cfgs[3]),
+      ...cfgs.map((c) => mk(true, false, c)),
+      ...cfgs.map((c) => mk(true, true, c)),
+    ]);
+  }, [runSequence]);
+
+  const prova2 = useCallback(() => {
+    const common = () => {
+      setStable(true);
+      setCache(true);
+      setShadow(true);
+      setAnimate(true);
+    };
+    const runs: Run[] = [
+      {
+        label: 'A tutto dal vivo, 2 animate',
+        setup: () => {
+          common();
+          setLayered(false);
+          setAnimN(2);
+        },
+      },
+      ...[0, 2, 8, 24, 96].map((n) => ({
+        label: `B a strati, ${n} vive`,
+        setup: () => {
+          common();
+          setAnimN(null);
+          setLayered(true);
+          setLiveN(n);
+        },
+      })),
+    ];
+    runSequence('Prova 2: architettura a strati', runs);
+  }, [runSequence]);
 
   const benchLines = bench.rows.map(
-    (r) => `m${r.memo ? '+' : '-'} c${r.cache ? '+' : '-'} ${r.cfg}: ${r.fps} fps · pegg ${r.worst} · JS ${r.jsMax} · tocco ${r.tapAvg}/${r.tapMax} · eco ${r.echoAvg}/${r.echoMax}`,
+    (r) => `${r.label}: ${r.fps} fps · pegg ${r.worst} · JS ${r.jsMax} · tocco ${r.tapAvg}/${r.tapMax} · eco ${r.echoAvg}/${r.echoMax}${r.imgMs !== null ? ` · img ${r.imgMs}` : ''}`,
   );
 
   return (
@@ -168,7 +227,10 @@ export default function Main() {
             <Button label="Entrata" onPress={() => setEntranceKey((k) => k + 1)} testID="btn-entrata" />
             <Button label={stable ? 'Memo sì' : 'Memo no'} on={stable} onPress={() => setStable((v) => !v)} testID="btn-memo" />
             <Button label="Cache" on={cache} onPress={() => setCache((v) => !v)} testID="btn-cache" />
-            <Button label={bench.running ? 'Prova…' : 'Prova'} on={bench.running} onPress={runBench} testID="btn-prova" />
+            <Button label="Strati" on={layered} onPress={() => setLayered((v) => !v)} testID="btn-strati" />
+            <Button label={`Vive ${liveN}`} onPress={() => setLiveN((n) => LIVE_STEPS[(LIVE_STEPS.indexOf(n) + 1) % LIVE_STEPS.length])} testID="btn-vive" />
+            <Button label={bench.running ? 'Prova…' : 'Prova 1'} on={bench.running} onPress={prova1} testID="btn-prova" />
+            <Button label="Prova 2" on={bench.running} onPress={prova2} testID="btn-prova2" />
           </View>
           <Text style={styles.info} testID="svg-info">
             {loaded ? `SVG: ${loaded.loaded}/${loaded.svgs.length} in ${loaded.ms} ms${loaded.failed ? ` · ${loaded.failed} falliti: ${loaded.firstError}` : ''}` : 'SVG: caricamento…'}
@@ -180,16 +242,19 @@ export default function Main() {
           <TapLatency selected={selected} t0={tapT0} sink={latencies} style={styles.info} />
           <Text style={styles.info} testID="tap-info">{tapInfo}</Text>
         </View>
-        {loaded && mode === 'tavola' ? (
-          <TileBoard tiles={TILES} svgs={loaded.svgs} width={col.w} height={areaH} animate={animate} shadow={shadow} entranceKey={entranceKey} selected={selected} stable={stable} cache={cache} onTap={onTap} />
+        {loaded && mode === 'tavola' && !layered ? (
+          <TileBoard tiles={TILES} svgs={loaded.svgs} width={col.w} height={areaH} animate={animate} shadow={shadow} entranceKey={entranceKey} selected={selected} stable={stable} cache={cache} animatedSet={animatedSet} onTap={onTap} />
+        ) : null}
+        {loaded && mode === 'tavola' && layered ? (
+          <TileBoardLayered tiles={TILES} svgs={loaded.svgs} width={col.w} height={areaH} shadow={shadow} liveIndices={liveIndices} selected={selected} onTap={onTap} onStaticBuilt={onStaticBuilt} />
         ) : null}
         {loaded && mode === 'galleria' ? <Gallery svgs={loaded.svgs} width={col.w} height={areaH} /> : null}
         {bench.rows.length > 0 || bench.running ? (
           <View style={styles.benchPanel} pointerEvents="none">
-            <Text style={styles.benchTitle}>
-              {bench.running ? `Prova in corso (${bench.rows.length}/${RUNS.length})…` : 'Prova completata'}
+            <Text style={styles.benchTitle}>{bench.running ? `${bench.title} in corso (${bench.rows.length}/${bench.total})…` : `${bench.title}: completata`}</Text>
+            <Text style={styles.benchText}>
+              m = memo, c = cache del corpo · pegg = peggior frame · JS = ritardo max thread JS · tocco = gesto→commit JS medio/max · eco = andata e ritorno col thread UI medio/max · img = tempo per costruire l'immagine dello strato fermo · tutto in ms
             </Text>
-            <Text style={styles.benchText}>m = memo, c = cache del corpo · pegg = peggior frame · JS = ritardo max thread JS · tocco = gesto→commit JS medio/max · eco = andata e ritorno col thread UI medio/max · tutto in ms</Text>
             <Text style={styles.benchText} testID="bench-result">{[bench.running ? 'in corso' : 'completata', ...benchLines].join('\n')}</Text>
           </View>
         ) : null}

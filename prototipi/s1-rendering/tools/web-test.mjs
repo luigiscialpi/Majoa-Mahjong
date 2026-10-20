@@ -90,13 +90,25 @@ for (const [w, h] of [[390, 844], [1280, 800]]) {
   await page.screenshot({ path: join(out, `galleria-${w}x${h}.png`) });
   await page.getByTestId('btn-tavola').click();
 
-  // Prova automatica (solo telefono): 4 configurazioni × memo no/sì. In web JS e rendering condividono il thread:
-  // i valori non sono rappresentativi, ma il confronto memo no/sì sì.
+  // Modalità a strati: l'immagine dello strato fermo deve avere lo stesso aspetto della tavola normale
+  await page.getByTestId('btn-strati').click();
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: join(out, `strati-${w}x${h}.png`) });
+  await page.getByTestId('btn-strati').click();
+
+  // Prove automatiche (solo telefono). S1_BENCH=1 (memo e cache), 2 (strati, predefinita) o all.
+  // In web JS e rendering condividono il thread: i valori non sono rappresentativi.
   if (w < 600) {
-    await page.getByTestId('btn-prova').click();
-    await page.getByTestId('bench-result').filter({ hasText: /^completata/ }).waitFor({ timeout: 180000 });
-    r.bench = (await page.getByTestId('bench-result').innerText()).split('\n').slice(1);
-    await page.screenshot({ path: join(out, `prova-${w}x${h}.png`) });
+    const which = process.env.S1_BENCH ?? '2';
+    r.bench = {};
+    for (const [id, btn] of [['1', 'btn-prova'], ['2', 'btn-prova2']]) {
+      if (which !== id && which !== 'all') continue;
+      await page.getByTestId(btn).click();
+      await page.getByTestId('bench-result').filter({ hasText: /^in corso/ }).waitFor({ timeout: 20000 });
+      await page.getByTestId('bench-result').filter({ hasText: /^completata/ }).waitFor({ timeout: 200000 });
+      r.bench[id] = (await page.getByTestId('bench-result').innerText()).split('\n').slice(1);
+      await page.screenshot({ path: join(out, `prova${id}-${w}x${h}.png`) });
+    }
   }
   r.errors = errors;
   report.push(r);

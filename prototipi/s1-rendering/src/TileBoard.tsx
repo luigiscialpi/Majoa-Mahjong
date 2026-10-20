@@ -4,9 +4,9 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { boardMetrics, drawOrder, hitTest, tileRect, type Metrics, type Rect, type Tile } from './board';
 import { SvgAt } from './SvgAt';
-import { BODY_PAD, PALETTE, TileBody, useBodyImage } from './TileBody';
+import { BODY_PAD, PALETTE, TileBody, designBox, useBodyImage } from './TileBody';
 
-type SpriteProps = {
+export type SpriteProps = {
   rect: Rect;
   radius: number;
   svg: SkSVG | null;
@@ -17,23 +17,20 @@ type SpriteProps = {
   entrance: SharedValue<number>;
   selected: boolean;
   shadow: boolean;
+  /** `true`: la tessera oscilla quando «Anima» è attivo. */
+  bob: boolean;
 };
 
-const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, delay, pulse, entrance, selected, shadow }: SpriteProps) {
+export const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, delay, pulse, entrance, selected, shadow, bob }: SpriteProps) {
   const { x, y, w, h } = rect;
   const transform = useDerivedValue(() => {
     const p = Math.min(1, Math.max(0, (entrance.value - delay) / 0.5));
-    const bob = Math.sin((pulse.value + phase) * 2 * Math.PI) * 0.04;
-    return [{ translateY: (1 - p) * -40 }, { scale: 1 + bob }];
+    const amp = bob ? Math.sin((pulse.value + phase) * 2 * Math.PI) * 0.04 : 0;
+    return [{ translateY: (1 - p) * -40 }, { scale: 1 + amp }];
   });
   const opacity = useDerivedValue(() => Math.min(1, Math.max(0, (entrance.value - delay) / 0.25)));
 
-  // Il disegno occupa l'area interna (padding 3px 4px dell'originale), «meet» e centrato.
-  const iw = w - 8;
-  const ih = h - 6;
-  const scale = Math.min(iw / 60, ih / 80);
-  const dw = 60 * scale;
-  const dh = 80 * scale;
+  const box = designBox(x, y, w, h);
 
   return (
     <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity}>
@@ -44,7 +41,7 @@ const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, de
       ) : (
         <TileBody x={x} y={y} w={w} h={h} radius={radius} shadow={shadow} />
       )}
-      <SvgAt svg={svg} x={x + 4 + (iw - dw) / 2} y={y + 3 + (ih - dh) / 2} width={dw} height={dh} />
+      <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} />
       {selected ? <RoundedRect x={x + 1.5} y={y + 1.5} width={w - 3} height={h - 3} r={radius} style="stroke" strokeWidth={3} color={PALETTE[2]} /> : null}
     </Group>
   );
@@ -63,11 +60,13 @@ export type BoardProps = {
   cache: boolean;
   /** `true`: proprietà stabili tra un render e l'altro (sprite memorizzati). `false`: riproduce il comportamento della prima versione, per il confronto. */
   stable: boolean;
+  /** Indici delle tessere che oscillano con «Anima»; `null` = tutte. */
+  animatedSet: ReadonlySet<number> | null;
   onTap: (index: number | null, metrics: Metrics) => void;
 };
 
 /** Tavola in un unico canvas Skia; il tocco si risolve con `hitTest` del dominio, non con viste per tessera. */
-export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranceKey, selected, stable, cache, onTap }: BoardProps) {
+export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranceKey, selected, stable, cache, animatedSet, onTap }: BoardProps) {
   const metrics = useMemo(() => boardMetrics(tiles, width, height), [tiles, width, height]);
   const order = useMemo(() => drawOrder(tiles), [tiles]);
   const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
@@ -125,6 +124,7 @@ export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranc
             entrance={entrance}
             selected={selected === i}
             shadow={shadow}
+            bob={animatedSet === null || animatedSet.has(i)}
           />
         ))}
       </Canvas>
