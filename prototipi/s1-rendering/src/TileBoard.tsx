@@ -19,16 +19,20 @@ export type SpriteProps = {
   shadow: boolean;
   /** `true`: la tessera oscilla quando «Anima» è attivo. */
   bob: boolean;
+  /** Avanzamento (0-1) dell'animazione di rimozione e tessere a cui si applica. */
+  rm: SharedValue<number>;
+  removing: boolean;
 };
 
-export const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, delay, pulse, entrance, selected, shadow, bob }: SpriteProps) {
+export const TileSprite = memo(function TileSprite({ rect, radius, svg, body, phase, delay, pulse, entrance, selected, shadow, bob, rm, removing }: SpriteProps) {
   const { x, y, w, h } = rect;
   const transform = useDerivedValue(() => {
     const p = Math.min(1, Math.max(0, (entrance.value - delay) / 0.5));
     const amp = bob ? Math.sin((pulse.value + phase) * 2 * Math.PI) * 0.04 : 0;
-    return [{ translateY: (1 - p) * -40 }, { scale: 1 + amp }];
+    const q = removing ? rm.value : 0;
+    return [{ translateY: (1 - p) * -40 }, { scale: (1 + amp) * (1 - 0.4 * q) }];
   });
-  const opacity = useDerivedValue(() => Math.min(1, Math.max(0, (entrance.value - delay) / 0.25)));
+  const opacity = useDerivedValue(() => Math.min(1, Math.max(0, (entrance.value - delay) / 0.25)) * (removing ? 1 - rm.value : 1));
 
   const box = designBox(x, y, w, h);
 
@@ -72,6 +76,7 @@ export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranc
   const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
   const pulse = useSharedValue(0);
   const entrance = useSharedValue(1);
+  const rm = useSharedValue(0);
   const maxDelay = useMemo(() => Math.max(...tiles.map((t) => t.z * 0.12 + t.y * 0.03 + t.x * 0.02)) || 1, [tiles]);
 
   useEffect(() => {
@@ -125,6 +130,8 @@ export function TileBoard({ tiles, svgs, width, height, animate, shadow, entranc
             selected={selected === i}
             shadow={shadow}
             bob={animatedSet === null || animatedSet.has(i)}
+            rm={rm}
+            removing={false}
           />
         ))}
       </Canvas>

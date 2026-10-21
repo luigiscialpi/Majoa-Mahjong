@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { boardMetrics, drawOrder, gameColumn, hitTest, isFree, tileRect, visibleFraction, type Tile } from './board.ts';
+import { boardMetrics, drawOrder, freeIndices, gameColumn, hitTest, isFree, tileRect, visibleFraction, type Tile } from './board.ts';
 
 const level20 = JSON.parse(readFileSync(new URL('./data/level20.json', import.meta.url), 'utf8')) as { tiles: Tile[] };
 const tiles = level20.tiles;
@@ -90,4 +90,29 @@ test('livello 20: la maggior parte delle tessere libere è raggiungibile al tocc
   const free = tiles.map((_, i) => i).filter((i) => isFree(tiles, i));
   assert.ok(free.length > 0 && free.length < tiles.length);
   for (const i of free) assert.ok(visibleFraction(tiles, m, i, 2) > 0.5, `tessera libera ${i} poco raggiungibile`);
+});
+
+test('isFree e freeIndices con tessere rimosse: togliere la tessera di sopra libera quella sotto', () => {
+  const row: Tile[] = [
+    { x: 0, y: 0, z: 0, type: 1 },
+    { x: 1, y: 0, z: 0, type: 1 },
+    { x: 2, y: 0, z: 0, type: 1 },
+    { x: 1, y: 0, z: 1, type: 1 },
+  ];
+  assert.deepEqual(freeIndices(row), [0, 2, 3]);
+  assert.deepEqual(freeIndices(row, new Set([3])), [0, 1, 2].filter((i) => i !== 1));
+  assert.deepEqual(freeIndices(row, new Set([0, 3])), [1, 2]);
+});
+
+test('livello 20: svuotando la tavola a coppie di tessere libere restano sempre abbastanza libere', () => {
+  const gone = new Set<number>();
+  let maxFree = 0;
+  while (gone.size < tiles.length) {
+    const free = freeIndices(tiles, gone);
+    maxFree = Math.max(maxFree, free.length);
+    assert.ok(free.length >= 1);
+    gone.add(free[0]);
+    if (free.length > 1) gone.add(free[free.length - 1]);
+  }
+  assert.ok(maxFree >= 26, `massimo di tessere libere ${maxFree}`);
 });

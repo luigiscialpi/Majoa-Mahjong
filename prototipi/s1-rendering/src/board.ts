@@ -57,16 +57,18 @@ export function tileRect(m: Metrics, t: Tile): Rect {
   };
 }
 
+const NONE: ReadonlySet<number> = new Set();
+
 /**
  * Tessera libera (regola dell'originale, `isFree`, riga 1762): nessuna tessera al piano superiore la copre
  * (|Δx| < 1 e |Δy| < 1) e non ha tessere adiacenti sia a sinistra sia a destra sullo stesso piano.
  */
-export function isFree(tiles: readonly Tile[], i: number): boolean {
+export function isFree(tiles: readonly Tile[], i: number, gone: ReadonlySet<number> = NONE): boolean {
   const t = tiles[i];
   let left = false;
   let right = false;
   for (let j = 0; j < tiles.length; j++) {
-    if (j === i) continue;
+    if (j === i || gone.has(j)) continue;
     const u = tiles[j];
     if (u.z === t.z + 1 && Math.abs(u.x - t.x) < 1 && Math.abs(u.y - t.y) < 1) return false;
     if (u.z === t.z && Math.abs(u.y - t.y) < 1) {
@@ -75,6 +77,13 @@ export function isFree(tiles: readonly Tile[], i: number): boolean {
     }
   }
   return !(left && right);
+}
+
+/** Indici delle tessere libere, ignorando quelle già rimosse (`gone`). */
+export function freeIndices(tiles: readonly Tile[], gone: ReadonlySet<number> = NONE): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < tiles.length; i++) if (!gone.has(i) && isFree(tiles, i, gone)) out.push(i);
+  return out;
 }
 
 function zKey(t: Tile): number {

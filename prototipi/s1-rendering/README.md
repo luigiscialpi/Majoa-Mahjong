@@ -10,7 +10,8 @@ Il prototipo S1 risponde a due domande del README principale (sezione 8): Skia r
 | `src/data/level20.json` | Geometria del livello 20 dell'originale (96 tessere, 5 piani, 24 disegni). L'assegnazione dei disegni è un campione: l'originale la genera a caso a ogni partita |
 | `src/board.ts` | Geometria della tavola, tessera libera (`isFree`), `hitTest`, colonna di gioco 3:4. Funzioni pure, con test in `src/board.test.ts` |
 | `src/TileBoard.tsx` | Tavola in un unico `<Canvas>` Skia; animazioni con valori condivisi di Reanimated; tocco con `hitTest` |
-| `src/TileBoardLayered.tsx` | Tavola a due strati: le tessere ferme in un'unica immagine (`drawAsImage`), solo quelle animate disegnate dal vivo |
+| `src/TileBoardLayered.tsx` | Tavola a due strati: le tessere ferme in un'unica immagine (`drawAsImage`), solo quelle animate (o, in modalità partita, quelle libere) disegnate dal vivo |
+| `src/equivalence.tsx` | Confronto sui pixel tra lo strato fermo e gli sprite vivi |
 | `src/TileBody.tsx` | Corpo della tessera (bordo, ombra, faccia) e sua versione in cache: un'immagine disegnata una volta con `drawAsImage` |
 | `src/Gallery.tsx` | Griglia dei 129 disegni |
 | `src/FpsMeter.tsx` | Misura i fotogrammi sul thread UI (`useFrameCallback`) e l'eco di andata e ritorno col thread UI |
@@ -18,13 +19,13 @@ Il prototipo S1 risponde a due domande del README principale (sezione 8): Skia r
 | `src/SvgAt.tsx` | Disegna un SVG in una posizione (aggira un limite di `ImageSVG`, vedi «Problemi trovati») |
 | `tools/` | Esportazione dall'originale, conversione dei testi, confronto di fedeltà, prova web |
 
-L'interfaccia ha undici pulsanti: **Tavola** e **Galleria** cambiano schermata; **Anima** fa oscillare le tessere; **Ombre** aggiunge l'ombra sfocata a ogni tessera; **Entrata** rigioca l'animazione di ingresso a ritardi sfalsati; **Memo** attiva o disattiva la stabilità delle proprietà delle tessere; **Cache** disegna il corpo delle tessere come immagine in cache; **Strati** passa alla tavola a due strati; **Vive N** sceglie quante tessere sono animate dal vivo nella tavola a strati (0, 2, 8, 24, 96); **Prova 1** e **Prova 2** eseguono le prove automatiche. In alto: caricamento degli SVG, tessere libere, dimensione della tessera, fotogrammi del thread UI, ritardo dall'ultimo tocco al commit di React e ultima tessera toccata.
+L'interfaccia ha questi pulsanti: **Tavola** e **Galleria** cambiano schermata; **Anima** fa oscillare le tessere; **Ombre** aggiunge l'ombra sfocata a ogni tessera; **Entrata** rigioca l'animazione di ingresso a ritardi sfalsati; **Memo** attiva o disattiva la stabilità delle proprietà delle tessere; **Cache** disegna il corpo delle tessere come immagine in cache; **Strati** passa alla tavola a due strati; **Vive N** sceglie quante tessere sono animate dal vivo nella tavola a strati (0, 2, 8, 24, 96); **Partita** avvia una partita simulata (ogni secondo rimuove una coppia di tessere libere con l'animazione di rimozione); **Prova 1-4** eseguono le prove automatiche; **Confronto** verifica sui pixel che lo strato fermo e gli sprite vivi siano indistinguibili. In alto: caricamento degli SVG, tessere libere, dimensione della tessera, fotogrammi del thread UI, ritardo dall'ultimo tocco al commit di React, ultima tessera toccata ed esito del confronto.
 
 ## Prove automatiche
 
-Ogni prova esegue passaggi di 6,5 secondi (1,5 di riscaldamento e 5 di misura) e mostra una tabella; l'esito va anche nel log con il prefisso `S1-BENCH`. In ogni passaggio simula un tocco ogni 0,4 secondi su una tessera libera diversa. **Prova 1** (10 passaggi) confronta memo e cache; **Prova 2** (6 passaggi) confronta la tavola tutta dal vivo con la tavola a strati e con un numero crescente di tessere vive.
+Ogni prova esegue passaggi di 6,5 secondi (1,5 di riscaldamento e 5 di misura) e mostra una tabella; l'esito va anche nel log con il prefisso `S1-BENCH`. In ogni passaggio simula un tocco ogni 0,4 secondi su una tessera libera diversa. **Prova 1** (10 passaggi) confronta memo e cache; **Prova 2** (6 passaggi) confronta la tavola tutta dal vivo con la tavola a strati e con un numero crescente di tessere vive; **Prova 3** (5 passaggi) misura 26 e 48 tessere vive, la cache nello strato fermo e le ricostruzioni ripetute dell'immagine; **Prova 4** (2 passaggi da 20 secondi) misura una partita simulata.
 
-Colonne: `m` memo, `c` cache del corpo (+ attivo, − spento); fps medi del thread UI; `pegg` = peggior fotogramma; `JS` = ritardo massimo del thread JS (un timer da 20 ms che arriva in ritardo); `tocco` = tempo medio e massimo dal gesto al commit di React; `eco` = andata e ritorno di un messaggio JS → thread UI → JS, medio e massimo; `img` = tempo per costruire l'immagine dello strato fermo. Tutti i tempi sono in millisecondi.
+Colonne: `m` memo, `c` cache del corpo (+ attivo, − spento); fps medi del thread UI; `pegg` = peggior fotogramma; `JS` = ritardo massimo del thread JS (un timer da 20 ms che arriva in ritardo); `tocco` = tempo medio e massimo dal gesto al commit di React; `eco` = andata e ritorno di un messaggio JS → thread UI → JS, medio e massimo; `img` = tempo medio/massimo (e numero) di ricostruzioni dell'immagine dello strato fermo; `fantasmi` = tessere rimosse mentre erano ancora nell'immagine, quindi visibili fino alla ricostruzione. Tutti i tempi sono in millisecondi.
 
 Per misure realistiche eseguire l'app in modalità di produzione: `npx expo start --no-dev --minify`.
 
@@ -117,25 +118,60 @@ Cosa dicono i numeri:
 
 Meccanismo probabile, **letto nel codice di React Native Skia 2.6.2** (`sksg/Container.native.js`) e non misurato: ogni proprietà animata è un valore condiviso, e a ogni suo cambiamento un «mapper» rigioca sul thread UI l'intera registrazione di disegno, cioè tutte le tessere, non solo quelle animate. Il costo per fotogramma segue quindi le tessere disegnate, e anche una sola tessera animata rigiocherebbe tutte le 96. Il passaggio «A tutto dal vivo, 2 animate» della Prova 2 serve a verificarlo.
 
-### Prova 2: architettura a strati
+### Prova 2 su dispositivo: l'architettura a strati elimina il ritardo
 
-Le tessere ferme stanno in un'unica immagine (un solo `<Image>`); solo le tessere animate sono disegnate dal vivo. Se il meccanismo sopra è giusto, il costo dovrebbe seguire le tessere vive. Prova in Chromium con WebGL software (indicativa, non rappresentativa di un dispositivo):
+Misure dell'utente (Android, modalità di produzione; ms salvo indicazione):
 
-| Passaggio | fps | tocco medio/max | eco medio/max | img |
-|---|---|---|---|---|
-| A tutto dal vivo, 2 animate | 10,6 | 140/248 | 72/282 | |
-| B a strati, 0 vive | 40,2 | 3/15 | 11/38 | 1913 |
-| B a strati, 2 vive | 59,8 | 5/15 | 8/21 | 813 |
-| B a strati, 8 vive | 56,1 | 17/58 | 9/16 | 814 |
-| B a strati, 24 vive | 29,6 | 39/65 | 13/22 | 669 |
-| B a strati, 96 vive | 10,9 | 130/228 | 73/405 | 107 |
+| Passaggio | fps | pegg | JS | tocco medio/max | eco medio/max | img |
+|---|---|---|---|---|---|---|
+| A tutto dal vivo, 2 animate | 49,4 | 83 | 908 | 36/105 | 710/929 | |
+| B a strati, 0 vive | 59,2 | 33 | 63 | 28/44 | 35/48 | 555 |
+| B a strati, 2 vive | 59,6 | 33 | 42 | 30/62 | 33/60 | 375 |
+| B a strati, 8 vive | 58,8 | 33 | 48 | 24/43 | 33/81 | 418 |
+| B a strati, 24 vive | 59,7 | 33 | 98 | 44/139 | 42/138 | 439 |
+| B a strati, 96 vive | 49,8 | 50 | 955 | 22/28 | 838/975 | 421 |
 
-Su Chromium il comportamento è coerente con il meccanismo: con 2-8 tessere vive la tavola è fluida e il tocco immediato; il costo cresce con le tessere vive e a 96 torna quello di «tutto dal vivo». La colonna `img` è la grandezza nuova da misurare sul dispositivo: tempo per ricostruire l'immagine dello strato fermo, che serve a ogni rimozione di una coppia; se è troppo alto (oltre un centinaio di millisecondi) la soluzione va riprogettata.
+1. **Il meccanismo è confermato.** Con soltanto 2 tessere animate su 96 disegnate dal vivo l'eco medio è 710 ms e il ritardo del thread JS 908 ms: lo stesso ordine di grandezza di animarle tutte. Il costo dipende da quante tessere sono *disegnate dal vivo*, non da quante si muovono.
+2. **A strati il ritardo scompare fino a 24 tessere vive**: circa 59 fps, eco 33-42 ms, ritardo JS al più 98 ms. Con 96 tessere vive torna a 838 ms di eco.
+3. **La soglia sta tra 24 e 96 tessere vive.** Nel livello 20 le tessere libere insieme sono al massimo 26-27 (calcolato con i test del dominio su tre politiche di rimozione), quindi il budget necessario è circa 30: serve verificare 26 e 48 (Prova 3).
+4. **Ricostruire l'immagine costa 375-555 ms**, troppo per stare nel percorso critico di una rimozione.
+
+### Dal ritardo alla soluzione: le tessere libere restano vive
+
+Una rimozione non deve aspettare la ricostruzione dell'immagine. Se le tessere vive sono **sempre le libere** (le sole che si possono toccare, selezionare o rimuovere) **più quelle in rimozione**, una tessera che sparisce non è mai nell'immagine: la sua animazione è tutta nello strato vivo. L'immagine si ricostruisce *dopo*, in background, per escludere le tessere appena diventate libere; nel frattempo queste sono disegnate due volte con gli stessi pixel (stessa posizione, nessuna differenza visibile). Il pulsante **Partita** e la **Prova 4** mettono alla prova questo schema. Conseguenze per l'app vera:
+
+- Le tessere bloccate (non libere) possono essere attenuate dentro l'immagine; quando diventano libere passano nello strato vivo e si illuminano senza ricostruire nulla.
+- Selezione, aiuto e anello «ecco cosa la blocca» sono elementi dello strato vivo o sovrapposti: costano pochi nodi.
+- Il rischio residuo è il **fantasma**: una tessera appena liberata e rimossa prima che finisca la ricostruzione (circa 0,4 s) resta visibile nell'immagine finché questa non è pronta. La Prova 4 lo conta.
+- Le animazioni di tutte le tessere insieme (ingresso del livello, rimescolo) superano il budget: vanno animate come immagine unica o a gruppi, non tessera per tessera.
+
+Prova in Chromium con WebGL software (indicativa, non rappresentativa di un dispositivo):
+
+| Passaggio | fps | tocco medio/max | eco medio/max | img medio/max (n) | fantasmi |
+|---|---|---|---|---|---|
+| Prova 3: B 26 vive | 18,4 | 24/75 | 37/153 | | |
+| Prova 3: B 48 vive | 19,7 | 55/110 | 27/67 | | |
+| Prova 3: B 24 vive, cache nello strato fermo | 31,2 | 26/61 | 15/60 | | |
+| Prova 3: B 24 vive, ricostruzione ogni 0,8 s | 5,8 | 49/102 | 98/647 | 659/744 (11) | |
+| Prova 3: B 24 vive, ricostruzione ogni 0,8 s, cache | 59,2 | 3/8 | 15/20 | 127/168 (10) | |
+| Prova 4: partita, strato fermo normale | 7,1 | 108/855 | 37/635 | 629/735 (26) | 0 |
+| Prova 4: partita, strato fermo con cache | 56 | 10/47 | 11/41 | 109/156 (36) | 0 |
+
+Su Chromium la cache del corpo nello strato fermo accorcia la ricostruzione da circa 630 a circa 110 ms e fa la differenza tra 6-7 e 56-59 fps. Il valore sul dispositivo è da misurare.
+
+### Confronto strato fermo / vivo
+
+Il pulsante **Confronto** disegna la tavola in due immagini fuori schermo (tutte le tessere come nello strato fermo; le stesse tessere avvolte in un gruppo con trasformazione identica, come gli sprite vivi) e confronta i pixel. In Chromium: 0% di pixel diversi, differenza massima 0/255. Sempre in Chromium il confronto tra la tavola normale su schermo e quella a strati mostra invece differenze ai bordi dei disegni (21% dei pixel oltre la soglia): dipende dal modo in cui il browser rasterizza gli SVG come immagini su una superficie GPU e su una fuori schermo, e su nativo non vale (React Native Skia disegna lì gli SVG come vettori). Non è dimostrato che su dispositivo l'aspetto su schermo coincida con quello fuori schermo: va guardato con **Partita**.
 
 ### Da misurare su dispositivo
 
-Eseguire **Prova 2** in modalità di produzione e riportare la tabella. Poi aprire **Galleria** e verificare che tutti i disegni siano presenti, comprese le tessere con lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √). Soglia proposta (da confermare): con 2-8 tessere vive almeno 50 fps, eco medio sotto 50 ms e `img` sotto 100 ms.
+1. **Prova 3** e **Prova 4** (modalità di produzione): riportare le due tabelle.
+2. **Confronto**: riportare la riga dell'esito.
+3. **Partita**: guardarla per una ventina di secondi e dire se si vedono sfarfallii, tessere che «saltano» di un pixel, buchi o tessere rimosse che restano a schermo.
+4. **Galleria**: tutti i disegni presenti, comprese le tessere con lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √).
 
-| Dispositivo | Android | Modalità | Esito della Prova 2 («B a strati, 8 vive») |
+Soglie proposte (da confermare): nella Prova 4 almeno 50 fps, eco medio sotto 50 ms, ricostruzione media sotto 150 ms e nessun fantasma visibile.
+
+| Dispositivo | Android | Modalità | Esito della Prova 4 («strato fermo con cache») |
 |---|---|---|---|
 |  |  |  |  |

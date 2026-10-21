@@ -90,22 +90,54 @@ for (const [w, h] of [[390, 844], [1280, 800]]) {
   await page.screenshot({ path: join(out, `galleria-${w}x${h}.png`) });
   await page.getByTestId('btn-tavola').click();
 
-  // Modalità a strati: l'immagine dello strato fermo deve avere lo stesso aspetto della tavola normale
+  // Equivalenza visiva: la tavola a strati (tutte le tessere nell'immagine) deve apparire come la tavola normale.
+  await page.mouse.click(col.x + 2, HEADER_H + 2);
+  await page.waitForTimeout(300);
+  const clip = { x: col.x, y: HEADER_H, width: col.w, height: Math.max(100, col.h - HEADER_H) };
+  const shotNormal = await page.screenshot({ clip });
   await page.getByTestId('btn-strati').click();
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: join(out, `strati-${w}x${h}.png`) });
+  await page.getByTestId('btn-confronto').click();
+  await page.getByTestId('equiv-info').filter({ hasText: /pixel diversi|non riuscito/ }).waitFor({ timeout: 60000 });
+  r.equivalence = await page.getByTestId('equiv-info').innerText();
+  const shotLayered = await page.screenshot({ clip });
+  writeFileSync(join(out, `confronto-normale-${w}x${h}.png`), shotNormal);
+  writeFileSync(join(out, `confronto-strati-${w}x${h}.png`), shotLayered);
+  r.layeredVsNormalDiffPct = await page.evaluate(async ([a, b]) => {
+    const load = async (b64) => {
+      const img = new Image();
+      img.src = 'data:image/png;base64,' + b64;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      return ctx.getImageData(0, 0, c.width, c.height).data;
+    };
+    const [da, db] = await Promise.all([load(a), load(b)]);
+    let diff = 0;
+    for (let k = 0; k < da.length; k += 4) {
+      if (Math.abs(da[k] - db[k]) > 12 || Math.abs(da[k + 1] - db[k + 1]) > 12 || Math.abs(da[k + 2] - db[k + 2]) > 12) diff++;
+    }
+    return Math.round((diff / (da.length / 4)) * 10000) / 100;
+  }, [shotNormal.toString('base64'), shotLayered.toString('base64')]);
   await page.getByTestId('btn-strati').click();
 
-  // Prove automatiche (solo telefono). S1_BENCH=1 (memo e cache), 2 (strati, predefinita) o all.
+  // Prove automatiche (solo telefono). S1_BENCH=1, 2 (predefinita), 3, 4 oppure all.
   // In web JS e rendering condividono il thread: i valori non sono rappresentativi.
   if (w < 600) {
     const which = process.env.S1_BENCH ?? '2';
     r.bench = {};
-    for (const [id, btn] of [['1', 'btn-prova'], ['2', 'btn-prova2']]) {
+    for (const [id, btn] of [['1', 'btn-prova'], ['2', 'btn-prova2'], ['3', 'btn-prova3'], ['4', 'btn-prova4']]) {
       if (which !== id && which !== 'all') continue;
       await page.getByTestId(btn).click();
       await page.getByTestId('bench-result').filter({ hasText: /^in corso/ }).waitFor({ timeout: 20000 });
-      await page.getByTestId('bench-result').filter({ hasText: /^completata/ }).waitFor({ timeout: 200000 });
+      if (id === '4') {
+        await page.waitForTimeout(7000);
+        await page.screenshot({ path: join(out, `partita-${w}x${h}.png`) });
+      }
+      await page.getByTestId('bench-result').filter({ hasText: /^completata/ }).waitFor({ timeout: 250000 });
       r.bench[id] = (await page.getByTestId('bench-result').innerText()).split('\n').slice(1);
       await page.screenshot({ path: join(out, `prova${id}-${w}x${h}.png`) });
     }
