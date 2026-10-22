@@ -23,7 +23,7 @@ if(!patched.includes('__x'))throw new Error('hook');
  });
  fs.mkdirSync(path.join(out,'assets/tiles'),{recursive:true});
  d.types.forEach((inner,i)=>{
-   const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80" width="60" height="80">'+inner+'</svg>\n';
+   const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80">'+inner+'</svg>\n';
    fs.writeFileSync(path.join(out,'assets/tiles',String(i).padStart(3,'0')+'.svg'),svg);
  });
  fs.mkdirSync(path.join(out,'src/data'),{recursive:true});

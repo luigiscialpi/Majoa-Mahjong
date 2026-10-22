@@ -92,7 +92,7 @@ export function TileBoardLayered({ tiles, svgs, width, height, shadow, liveIndic
   useEffect(() => {
     if (removeKey === 0) return;
     rm.value = 0;
-    rm.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) });
+    rm.value = withTiming(1, { duration: 250, easing: Easing.linear });
   }, [removeKey, rm]);
 
   // Ricostruisce l'immagine dello strato fermo quando cambia l'insieme delle tessere vive (non a ogni selezione).

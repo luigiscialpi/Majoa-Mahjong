@@ -25,8 +25,8 @@ def render_skia(path):
     surf = skia.Surface(W, H)
     c = surf.getCanvas()
     c.clear(skia.ColorWHITE)
-    c.scale(S, S)
-    dom.setContainerSize(skia.Size(60, 80))
+    # Come fa l'app (`drawSvg(svg, width, height)`): la dimensione si passa come contenitore, senza scalare la tela.
+    dom.setContainerSize(skia.Size(W, H))
     dom.render(c)
     img = surf.makeImageSnapshot()
     return np.array(img.convert(alphaType=skia.kUnpremul_AlphaType, colorType=skia.kRGBA_8888_ColorType))[:, :, :3]
@@ -52,6 +52,34 @@ def render_chromium(files):
         br.close()
     srv.shutdown()
     return res
+
+def ink_box(path, cw, ch, margin=60):
+    """Riquadro (x0, x1, y0, y1) dell'inchiostro con un contenitore cw × ch, con un margine attorno per vedere ciò che sporge."""
+    data = open(path, 'rb').read()
+    dom = skia.SVGDOM.MakeFromStream(skia.MemoryStream.MakeDirect(data))
+    surf = skia.Surface(int(cw + 2 * margin), int(ch + 2 * margin))
+    c = surf.getCanvas()
+    c.clear(skia.ColorWHITE)
+    c.translate(margin, margin)
+    dom.setContainerSize(skia.Size(cw, ch))
+    dom.render(c)
+    a = np.array(surf.makeImageSnapshot().convert(alphaType=skia.kUnpremul_AlphaType, colorType=skia.kRGBA_8888_ColorType))[:, :, :3]
+    ink = np.where(a.min(axis=2) < 250)
+    return int(ink[1].min() - margin), int(ink[1].max() + 1 - margin), int(ink[0].min() - margin), int(ink[0].max() + 1 - margin)
+
+# 1) La dimensione richiesta deve essere rispettata: con un contenitore dimezzato il disegno deve dimezzarsi
+#    (con width/height fissi nel file SkSVG li ignora e disegna sempre 60 × 80).
+not_scaled = []
+# 2) Il browser ritaglia il disegno sul viewBox, SkSVG no: elenco dei disegni che sporgono (da ritagliare nell'app).
+overflow = []
+for f in files:
+    b60, b30 = ink_box(f, 60, 80), ink_box(f, 30, 40)
+    if abs((b30[1] - b30[0]) - (b60[1] - b60[0]) / 2) > 2:
+        not_scaled.append(os.path.basename(f))
+    if b60[0] < 0 or b60[1] > 60 or b60[2] < 0 or b60[3] > 80:
+        overflow.append(os.path.basename(f))
+print('disegni che non rispettano la dimensione richiesta:', len(not_scaled), not_scaled[:5])
+print('disegni che sporgono dal viewBox (da ritagliare):', len(overflow), overflow[:10])
 
 ref = render_chromium(files)
 rows = []

@@ -29,10 +29,12 @@ export const TileSprite = memo(function TileSprite({ rect, radius, svg, body, ph
   const transform = useDerivedValue(() => {
     const p = Math.min(1, Math.max(0, (entrance.value - delay) / 0.5));
     const amp = bob ? Math.sin((pulse.value + phase) * 2 * Math.PI) * 0.04 : 0;
-    const q = removing ? rm.value : 0;
-    return [{ translateY: (1 - p) * -40 }, { scale: (1 + amp) * (1 - 0.4 * q) }];
+    // Rimozione come nell'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms.
+    const qt = removing ? Math.min(1, rm.value / 0.48) : 0;
+    const et = 1 - (1 - qt) * (1 - qt);
+    return [{ translateY: (1 - p) * -40 }, { scale: (1 + amp) * (1 - 0.4 * et) }, { rotate: (et * 8 * Math.PI) / 180 }];
   });
-  const opacity = useDerivedValue(() => Math.min(1, Math.max(0, (entrance.value - delay) / 0.25)) * (removing ? 1 - rm.value : 1));
+  const opacity = useDerivedValue(() => Math.min(1, Math.max(0, (entrance.value - delay) / 0.25)) * (removing ? (1 - rm.value) * (1 - rm.value) : 1));
 
   const box = designBox(x, y, w, h);
 

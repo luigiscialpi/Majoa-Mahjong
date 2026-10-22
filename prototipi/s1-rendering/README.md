@@ -90,6 +90,9 @@ Nota sul tocco: la tessera coperta si raggiunge solo dal bordino scoperto (4-5 p
 4. **`setup-skia-web` copia `canvaskit.wasm` in `web/static/js/`** invece che in `public/` con questo progetto Expo. Rimedio: lo script `npm run setup:web`.
 5. **TypeScript 6 non include più i tipi di `@types/*` per impostazione predefinita.** Rimedio: `"types": ["node"]` in `tsconfig.json`.
 6. **Versione della SDK.** Al 18/10/2026 npm indica Expo 58 come `latest` (React Native 0.88.0, pubblicato il 15/10/2026). Il prototipo usa la 57, come da README: se passare alla 58 prima di creare l'app è una decisione da prendere.
+7. **SkSVG ignora la dimensione richiesta se il file ha `width` e `height` fissi** e disegna sempre 60 × 80: sul dispositivo le immagini uscivano dalla tessera (segnalato dall'utente). Verificato con `skia-python`: con `width="60" height="80"` un contenitore 30 × 40 produce comunque un disegno da 59 × 69; senza quegli attributi, uno da 30 × 35. Rimedio: gli SVG hanno solo il `viewBox` (`tools/export-designs.js`); `tools/fidelity.py` ora verifica che la dimensione sia rispettata.
+8. **SkSVG non ritaglia il disegno sul viewBox**, il browser sì: 10 disegni sporgono di qualche unità (per esempio le orecchie del koala, da −3 a 63 su 60). Rimedio: `SvgAt` ritaglia sul riquadro del disegno.
+9. **L'animazione di rimozione non coincideva con l'originale.** L'originale (`.tile.gone`) porta la tessera a scala 0,6 con rotazione di 8° in 120 ms e la dissolve in 250 ms; il prototipo usava un'unica curva più lenta e senza rotazione. Ora usa gli stessi valori. Le scintille di `burstAt` dell'originale non sono nel prototipo.
 
 ### Ritardo al tocco: esito della Prova 1 su dispositivo
 
@@ -145,33 +148,32 @@ Una rimozione non deve aspettare la ricostruzione dell'immagine. Se le tessere v
 - Il rischio residuo è il **fantasma**: una tessera appena liberata e rimossa prima che finisca la ricostruzione (circa 0,4 s) resta visibile nell'immagine finché questa non è pronta. La Prova 4 lo conta.
 - Le animazioni di tutte le tessere insieme (ingresso del livello, rimescolo) superano il budget: vanno animate come immagine unica o a gruppi, non tessera per tessera.
 
-Prova in Chromium con WebGL software (indicativa, non rappresentativa di un dispositivo):
+Misure dell'utente (Android, modalità di produzione; ms salvo indicazione):
 
-| Passaggio | fps | tocco medio/max | eco medio/max | img medio/max (n) | fantasmi |
-|---|---|---|---|---|---|
-| Prova 3: B 26 vive | 18,4 | 24/75 | 37/153 | | |
-| Prova 3: B 48 vive | 19,7 | 55/110 | 27/67 | | |
-| Prova 3: B 24 vive, cache nello strato fermo | 31,2 | 26/61 | 15/60 | | |
-| Prova 3: B 24 vive, ricostruzione ogni 0,8 s | 5,8 | 49/102 | 98/647 | 659/744 (11) | |
-| Prova 3: B 24 vive, ricostruzione ogni 0,8 s, cache | 59,2 | 3/8 | 15/20 | 127/168 (10) | |
-| Prova 4: partita, strato fermo normale | 7,1 | 108/855 | 37/635 | 629/735 (26) | 0 |
-| Prova 4: partita, strato fermo con cache | 56 | 10/47 | 11/41 | 109/156 (36) | 0 |
+| Passaggio | fps | JS | tocco medio/max | eco medio/max | img medio/max (n) | fantasmi |
+|---|---|---|---|---|---|---|
+| Prova 3: B 26 vive | 59,6 | 126 | 50/148 | 70/147 | | |
+| Prova 3: B 48 vive | 58,8 | 243 | 14/21 | 171/190 | | |
+| Prova 3: B 24 vive, cache nello strato fermo | 59,2 | 100 | 36/135 | 64/132 | | |
+| Prova 3: B 24 vive, ricostruzione ogni 0,8 s | 58,7 | 385 | 62/347 | 130/418 | 437/487 (10) | |
+| Prova 3: B 24 vive, ricostruzione ogni 0,8 s, cache | 59,3 | 115 | 41/151 | 70/136 | 202/257 (10) | |
+| Prova 4: partita, strato fermo normale | 59,1 | 282 | 64/395 | 66/293 | 273/451 (34) | 0 |
+| Prova 4: partita, strato fermo con cache | 59,1 | 151 | 34/138 | 41/149 | 132/281 (34) | 0 |
 
-Su Chromium la cache del corpo nello strato fermo accorcia la ricostruzione da circa 630 a circa 110 ms e fa la differenza tra 6-7 e 56-59 fps. Il valore sul dispositivo è da misurare.
+Confronto strato fermo / vivo sul dispositivo: 0% di pixel diversi, differenza massima 0/255. Guardando **Partita** l'utente non ha visto difetti di sovrapposizione, ma ha notato le due differenze dall'originale ora corrette (problemi 7 e 9).
 
 ### Confronto strato fermo / vivo
 
 Il pulsante **Confronto** disegna la tavola in due immagini fuori schermo (tutte le tessere come nello strato fermo; le stesse tessere avvolte in un gruppo con trasformazione identica, come gli sprite vivi) e confronta i pixel. In Chromium: 0% di pixel diversi, differenza massima 0/255. Sempre in Chromium il confronto tra la tavola normale su schermo e quella a strati mostra invece differenze ai bordi dei disegni (21% dei pixel oltre la soglia): dipende dal modo in cui il browser rasterizza gli SVG come immagini su una superficie GPU e su una fuori schermo, e su nativo non vale (React Native Skia disegna lì gli SVG come vettori). Non è dimostrato che su dispositivo l'aspetto su schermo coincida con quello fuori schermo: va guardato con **Partita**.
 
-### Da misurare su dispositivo
+### Esito di S1
 
-1. **Prova 3** e **Prova 4** (modalità di produzione): riportare le due tabelle.
-2. **Confronto**: riportare la riga dell'esito.
-3. **Partita**: guardarla per una ventina di secondi e dire se si vedono sfarfallii, tessere che «saltano» di un pixel, buchi o tessere rimosse che restano a schermo.
-4. **Galleria**: tutti i disegni presenti, comprese le tessere con lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √).
+- **Fedeltà del rendering**: 129 disegni su 129 letti da SkSVG, 127 identici a Chromium e 2 con differenza media sotto 0,001/255, dopo tre accorgimenti: testi in tracciati, SVG con solo `viewBox`, ritaglio sul riquadro del disegno.
+- **Architettura**: tavola a strati con **tessere libere sempre vive** e **strato fermo in un'immagine con il corpo delle tessere in cache**. Nella partita simulata: 59 fps, eco medio 41 ms, ricostruzione dell'immagine 132 ms in media (281 al massimo), nessun fantasma. Le soglie proposte (almeno 50 fps, eco sotto 50 ms, ricostruzione media sotto 150 ms, nessun fantasma) sono rispettate **solo con la cache**: senza, eco 66 ms e ricostruzione 273 ms.
+- **Budget di tessere vive**: 26 vive vanno bene (eco 70 ms), con 48 degrada (171 ms), con 96 non regge (838 ms). Nel livello 20 le libere sono al massimo 26-27. Le animazioni di tutta la tavola (ingresso del livello, rimescolo) vanno fatte come immagine unica o a gruppi.
+- **Rischio residuo**: il simulatore toglie una coppia al secondo; un giocatore veloce può rimuovere una tessera appena liberata prima che finisca la ricostruzione (circa 0,13 s con la cache) e vederla restare un istante (fantasma).
+- **Non verificato**: iOS; tablet; un dispositivo di fascia bassa (il modello usato non è indicato); i problemi 7, 8 e 9 sono corretti ma da riguardare a vista; Expo SDK 58.
 
-Soglie proposte (da confermare): nella Prova 4 almeno 50 fps, eco medio sotto 50 ms, ricostruzione media sotto 150 ms e nessun fantasma visibile.
+### Da fare su dispositivo (dopo la correzione)
 
-| Dispositivo | Android | Modalità | Esito della Prova 4 («strato fermo con cache») |
-|---|---|---|---|
-|  |  |  |  |
+Aprire **Galleria** e **Partita** e verificare che i disegni stiano dentro la tessera (koala compreso), che la rimozione somigli all'originale (riduzione e rotazione rapide, dissolvenza) e che lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √) siano tutti presenti.
