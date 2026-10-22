@@ -1,0 +1,84 @@
+# Rendering della tavola
+
+> **Stato: DRAFT.** Il capitolo descrive l'architettura validata dal prototipo S1 (`prototipi/s1-rendering/`) su un solo dispositivo Android; l'app non esiste ancora. iOS, tablet e telefoni di fascia bassa non sono stati provati.
+
+Questo capitolo spiega come si disegna la tavola con React Native Skia, quali vincoli impongono gli SVG delle tessere e quante tessere si possono animare insieme. Si legge prima di scrivere il rendering, le animazioni o la pipeline dei disegni.
+
+## Cosa fa
+
+Disegna le tessere della tavola (fino a 96 su 5 piani nel livello 20 dell'originale) in un unico `<Canvas>` Skia, anima le tessere libere, mostra selezione e rimozione e traduce il tocco in una tessera tramite il dominio. Non contiene regole di gioco: tessera libera e `hitTest` stanno nel dominio.
+
+## Come funziona
+
+### Due strati
+
+- **Strato fermo**: tutte le tessere non libere, disegnate una sola volta in un'unica immagine (`drawAsImage`) e mostrate con un solo `<Image>`. Il corpo della tessera (bordo, ombra, faccia) viene da un'immagine in cache, più il disegno SVG.
+- **Strato vivo**: le tessere libere e quelle in rimozione, disegnate con Skia e valori condivisi di Reanimated. Selezione, aiuto e anello di blocco stanno sopra.
+- **Ricostruzione**: dopo ogni rimozione l'immagine si ricostruisce in background, per escludere le tessere appena diventate libere. Nel frattempo queste sono disegnate due volte con gli stessi pixel. Una tessera che sparisce non è mai nell'immagine, perché era libera, quindi viva.
+
+### Perché due strati
+
+In React Native Skia 2.6.2 ogni proprietà animata è un valore condiviso, e a ogni suo cambiamento un «mapper» rigioca sul thread UI l'intera registrazione di disegno (`sksg/Container.native.js`). Il costo per fotogramma segue quindi le tessere disegnate dal vivo, non quelle animate. Misure su un Android (modalità di produzione):
+
+| Configurazione | fps | eco col thread UI, medio/max (ms) |
+|---|---|---|
+| Tutto dal vivo, solo 2 tessere animate | 49,4 | 710/929 |
+| Tutto dal vivo, 96 animate (con cache del corpo) | 50,2 | 745/844 |
+| A strati, 2-24 tessere vive | 59 | 33-42 |
+| A strati, 26 vive | 59,6 | 70/147 |
+| A strati, 48 vive | 58,8 | 171/190 |
+| A strati, 96 vive | 49,8 | 838/975 |
+| Partita simulata, strato fermo con corpo in cache | 59,1 | 41/149 |
+| Partita simulata, corpo disegnato direttamente | 59,1 | 66/293 |
+
+L'«eco» è il tempo di andata e ritorno di un messaggio JS → thread UI → JS: con valori alti la selezione al tocco arriva in ritardo (2 secondi con tutte le tessere animate). I fotogrammi al secondo da soli non lo mostrano.
+
+### Budget di tessere vive
+
+Circa 30 tessere vive. Nel livello 20 le libere insieme sono al massimo 26-27. Le animazioni di tutta la tavola (ingresso del livello, rimescolo) superano il budget e vanno fatte come immagine unica o a gruppi; il metodo è `TO DO`.
+
+### Disegni (SVG)
+
+Le 129 tessere sono SVG esportati una volta dall'originale (`prototipi/s1-rendering/tools/`). Vincoli del motore SVG di Skia, verificati con `skia-python` e sul dispositivo:
+
+- **Nessun `<text>`**: SkSVG non lo disegna. Lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √) sono convertiti in tracciati; i font usati, Poppins Bold e DejaVu Serif Bold, sono provvisori e la scelta finale è una decisione di grafica (`TO DO`).
+- **Solo `viewBox`, mai `width` e `height` fissi**: con attributi fissi SkSVG ignora la dimensione richiesta e disegna sempre 60 × 80.
+- **Ritaglio sul riquadro**: il browser ritaglia sul `viewBox`, SkSVG no, e 10 disegni sporgono (per esempio il koala). `SvgAt` ritaglia sul riquadro del disegno.
+- **`ImageSVG` con x o y a zero** ignora la posizione (`if (x && y)` nel player di Skia): si trasla con un `Group` (`SvgAt`).
+
+### Tocco e rimozione
+
+Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 96 tessere del livello 20, 26 sono libere all'inizio e ciascuna è raggiungibile al tocco per almeno l'84% della propria area; una tessera coperta si raggiunge solo dal bordino scoperto (4-5 px tra i piani), ma non è selezionabile. La rimozione riproduce l'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms. Le scintille dell'originale (`burstAt`) non sono ancora riprodotte.
+
+## Punti d'ingresso nel codice
+
+Il codice dell'app non esiste. Il prototipo S1, da cui partire, è in `prototipi/s1-rendering/`.
+
+| Elemento | Percorso | Ruolo |
+|---|---|---|
+| Geometria, `isFree`, `hitTest`, colonna di gioco | `prototipi/s1-rendering/src/board.ts` | Dominio puro, con test in `board.test.ts` |
+| Tavola a due strati | `prototipi/s1-rendering/src/TileBoardLayered.tsx` | Strato fermo, strato vivo, partita simulata |
+| Corpo della tessera e cache | `prototipi/s1-rendering/src/TileBody.tsx` | `TileBody`, `useBodyImage` |
+| Disegno di un SVG | `prototipi/s1-rendering/src/SvgAt.tsx` | Posizione e ritaglio |
+| Equivalenza strato fermo / vivo | `prototipi/s1-rendering/src/equivalence.tsx` | Confronto sui pixel |
+| Esportazione, conversione dei testi, fedeltà | `prototipi/s1-rendering/tools/` | Pipeline dei disegni |
+
+## Vincoli e scartato
+
+- Non disegnare tutte le tessere dal vivo con valori condivisi: il costo segue le tessere disegnate, non quelle animate.
+- Non animare tutta la tavola tessera per tessera: oltre circa 30 tessere vive l'eco col thread UI supera 170 ms (838 ms con 96).
+- Non disegnare il corpo delle tessere dello strato fermo direttamente a ogni ricostruzione: 273 ms contro 132 ms con la cache.
+- Non usare SVG con `<text>` o con `width` e `height` fissi; non usare `ImageSVG` con x o y a zero.
+- Scartati (README, sezione 5): una vista per tessera con `react-native-svg`, sprite PNG, Lottie o Rive, motori di gioco.
+
+## Verifica
+
+- **Coperto da test**: 12 test del dominio in `board.test.ts`; confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS.
+- **Misurato su dispositivo**: un Android (modello non indicato), in produzione: tabella sopra; equivalenza strato fermo / vivo 0% di pixel diversi; nessun fantasma nella partita simulata (una coppia al secondo).
+- **Non verificato**: iOS, tablet, telefoni di fascia bassa; fantasmi con un giocatore più veloce di una coppia al secondo; animazioni dell'intera tavola; scintille di rimozione; Expo SDK 58.
+
+## Collegamenti
+
+- `prototipi/s1-rendering/README.md`: prove, risultati e problemi trovati.
+- `docs/gioco-originale.md`: grafica, animazioni e regole della tessera dell'originale.
+- README, sezione 5: decisioni correlate; sezione 8: `TO DO` aperti.

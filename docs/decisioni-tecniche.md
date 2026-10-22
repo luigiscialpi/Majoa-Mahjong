@@ -120,7 +120,7 @@ Alternative a confronto:
 
 **Limite dichiarato.** Con un canvas unico le singole tessere non sono elementi di accessibilità. L'originale non ha accessibilità per le singole tessere (inventario, sezione 11); se verrà richiesta, servirà un livello di accessibilità dedicato (ad esempio azioni su un elenco delle tessere libere) **[Da approfondire]**. Il colore non deve essere l'unica informazione (regola 6): i segnali senza colore dell'originale (tratteggio, contorni) vanno portati.
 
-**[Da validare] (prototipo S1).** Fedeltà del rendering dei 129 SVG in Skia; prestazioni dell'animazione di ingresso e dei fuochi d'artificio su un dispositivo Android di fascia bassa; soglie di tocco.
+**[Validato in parte] (prototipo S1).** Il canvas unico resta, ma l'architettura è a due strati, con le sole tessere libere disegnate dal vivo: l'esito e le misure su dispositivo sono in `docs/rendering.md`. Da provare ancora: iOS, tablet, telefono di fascia bassa, animazione di ingresso e fuochi d'artificio.
 
 **Alternative scartate.**
 

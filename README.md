@@ -16,7 +16,7 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
 
 - **Scopo (PERCHÉ)**: portare su Android e iOS il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti.
 - **Piattaforme e stack**: Android e iOS, telefoni e tablet, interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esistono la documentazione e la copia dell'originale in `reference/majoa-originale/`; nessun codice dell'app, prototipi non eseguiti (sezione 8).
+- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e il prototipo di rendering S1 in `prototipi/s1-rendering/`; nessun codice dell'app, prototipi S2-S5 non eseguiti (sezione 8).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
@@ -77,6 +77,7 @@ src/
   ui/              # schermate, componenti, rendering
 docs/              # capitoli di approfondimento
 reference/         # copia di sola lettura del gioco HTML originale (majoa-originale/)
+prototipi/         # prototipi di validazione usa e getta (S1: rendering Skia)
 tools/             # script di esportazione (livelli, disegni, campioni audio)
 ```
 
@@ -100,12 +101,12 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
 
 | Decisione | Motivo | Scartato e perché |
 |---|---|---|
-| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci | non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile |
+| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57 | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile |
 | Quattro livelli; dominio puro con stato immutabile (`applyMove(stato, mossa)`) | logica testabile senza dispositivo | non mettere logica nei componenti: non testabile senza renderer |
 | Livelli descritti da `LevelSpec`, generati con PRNG con seme; campagna dell'originale esportata in JSON | livelli infiniti, test deterministici, porting fedele e verificabile | non usare `Math.random()` senza seme: livelli non riproducibili e risolvibilità non verificabile |
 | Indice di difficoltà del livello distinto dal profilo scelto dal giocatore; isole infinite da 20 livelli con temi; sblocco con una quota delle stelle della sola isola precedente (`docs/motore-livelli.md`) | mantiene viaggio, boss e album; si estende all'infinito | non usare soglie cumulative di stelle: margine costante di 40, sempre più severe; non usare un solo asse senza isole, né campagna fissa più modalità infinita separata, né sola campagna fissa |
-| Tavola in un unico canvas Skia, animazioni Reanimated, tocco risolto da `hitTest` del dominio | pochi elementi nativi; zone di tocco governate dalle regole | non usare una vista per tessera con SVG: costo e tocco legato alle viste; non usare sprite PNG: sfocatura su tablet e risorse moltiplicate |
-| Disegni esportati una volta in SVG statici, testi convertiti in tracciati | indipendenti dalla risoluzione, nessun font da caricare | non tenere le stringhe SVG nel codice: non riusabili né testabili |
+| Tavola a due strati in un canvas Skia: strato fermo in un'unica immagine (corpo delle tessere in cache), strato vivo con le sole tessere libere e in rimozione (al massimo circa 30); animazioni Reanimated; tocco risolto da `hitTest` del dominio (`docs/rendering.md`) | misurato su dispositivo: con tutte le tessere dal vivo l'eco col thread UI è 0,7-2,7 s anche con 2 tessere animate, a strati sotto 50 ms | non disegnare tutte le tessere dal vivo con valori condivisi: il costo segue le tessere disegnate, non quelle animate; non usare una vista per tessera con SVG: costo e tocco legato alle viste; non usare sprite PNG: sfocatura su tablet e risorse moltiplicate |
+| Disegni esportati una volta in SVG statici con solo `viewBox`, testi convertiti in tracciati, ritaglio sul riquadro (`docs/rendering.md`) | indipendenti dalla risoluzione; SkSVG non disegna `<text>`, ignora `width` e `height` fissi e non ritaglia | non tenere le stringhe SVG nel codice: non riusabili né testabili; non usare `<text>` né `width` e `height` fissi negli SVG |
 | Interfaccia sempre verticale: blocco da configurazione sui telefoni e, con `android:appCategory="game"`, sui tablet Android; su iPad tutte le orientazioni dichiarate e colonna di gioco centrata (rapporto massimo 3:4) | Android 16 e 17 esentano i giochi dalle restrizioni; iPadOS 26 non garantisce il blocco | non usare layout orizzontali con pannelli (esclusi); non usare `supportsTablet: false` (nessun supporto tablet); non usare `UIRequiresFullScreen` (deprecata) |
 | Salvataggi in SQLite (`expo-sqlite`): transazioni, migrazioni, partita ricostruibile da spec, seme e mosse con hash della tavola; conferma prima di sostituire; reset transazionale | atomicità, versioni, progresso illimitato; corregge i difetti 1, 3 e 5 dell'originale | non usare MMKV, AsyncStorage o file JSON: niente transazioni né schema; non usare Realm o WatermelonDB: eccessivi |
 | Effetti come campioni con `expo-audio`; vibrazione con `expo-haptics` | funzionano in Expo Go; risorse sostituibili | non usare `react-native-audio-api` come prima scelta: modulo nativo e dipendenza più giovane (piano B se la latenza è alta) |
@@ -128,7 +129,8 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Area | Come viene verificata | Stato |
 |---|---|---|
 | Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
-| Prototipi S1-S5 | prove su dispositivo e su emulatore (sezione 8) | non verificato |
+| Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; iOS, tablet e fascia bassa no |
+| Prototipi S2-S5 | prove su dispositivo e su emulatore (sezione 8) | non verificato |
 | UI, audio, annunci, tablet | prova manuale su dispositivo | non verificato |
 | Descrizione dell'originale | lettura del codice ed esecuzione in Chromium; 142 controlli della suite in 8 sezioni su 25 | verificato in parte (`docs/gioco-originale.md`, «Verifica») |
 
@@ -141,6 +143,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 | `docs/linee-guida-codice.md` | Principi di codice con esempi | Prima di scrivere codice |
 | `docs/gioco-originale.md` | Regole, livelli, aiuti, punteggi, rompicapi, album, grafica, impostazioni e salvataggi dell'originale; difetti noti | Prima di implementare una funzione che nasce dall'originale |
 | `docs/motore-livelli.md` | `LevelSpec`, generazione, indice di difficoltà, isole da 20 livelli, sblocco (`DRAFT`) | Prima di toccare livelli, mappa o progressione |
+| `docs/rendering.md` | Tavola a due strati, tessere vive, vincoli degli SVG, tocco e rimozione, misure di S1 (`DRAFT`) | Prima di scrivere il rendering, le animazioni o la pipeline dei disegni |
 | `docs/decisioni-tecniche.md` | Ragionamento esteso delle decisioni: alternative scartate, verifiche sulle piattaforme, prototipi S1-S5 | Prima di rimettere in discussione una decisione della sezione 5 |
 
 **Nota:** per creare un capitolo nuovo, partire da `docs/_capitolo.template.md`.
@@ -149,11 +152,13 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 
 Elenco delle aree non ancora decise o analizzate: segnala che il documento è vivo.
 
-- `DRAFT`: prototipi di validazione. S1 rendering Skia dei 129 SVG e prestazioni; S2 latenza audio dei campioni; S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S4 generatore con seme, solver e simulazione su Hermes; S5 flusso OTA con partita salvata.
+- `DRAFT`: prototipi di validazione ancora da fare: S2 latenza audio dei campioni; S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S4 generatore con seme, solver e simulazione su Hermes; S5 flusso OTA con partita salvata.
 - `DRAFT`: isole 3-7 dell'originale estese a 20 livelli con 10 livelli generati (ipotesi da confermare).
 - `TO DO`: pesi dell'indice di difficoltà, tolleranza, curva tra isole, `ρ` di sblocco (proposta 2/3), formula delle carte d'album per isola.
 - `TO DO`: livelli Tris generati; nebbia aggiuntiva dei profili alti (difetto 7); ricalibrazione di soglie e fattori (difetto 6).
 - `TO DO`: tetto della tessera nella colonna di gioco; accessibilità delle singole tessere; zoom o tolleranza di tocco.
 - `TO DO`: frequenza degli interstitial e limite dei rewarded per aiuti; dichiarazione del pubblico negli store; eventuale acquisto «rimuovi pubblicità».
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
-- `TO DO`: creare `tools/`; capitoli di rendering, salvataggi, audio, lingue, pubblicità, contenuti OTA.
+- `TO DO`: S1 chiuso (`docs/rendering.md`); resta da provare iOS, tablet e un telefono di fascia bassa.
+- `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; scintille di rimozione; fantasmi con un giocatore più veloce; font definitivo di lettere e numeri (provvisori Poppins Bold e DejaVu Serif Bold).
+- `TO DO`: creare `tools/`; capitoli di salvataggi, audio, lingue, pubblicità, contenuti OTA.
