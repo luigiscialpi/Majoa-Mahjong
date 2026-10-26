@@ -1,0 +1,84 @@
+{
+  "misure": [
+    "T",
+    "Z",
+    "K",
+    "G",
+    "H",
+    "F",
+    "A",
+    "Lc",
+    "R"
+  ],
+  "intervalloLibertà": [
+    0.2709,
+    0.6988
+  ],
+  "pesiUniformi": {
+    "rhoMedio": 0.991,
+    "perIsola": {
+      "animals": 0.997,
+      "art": 1.0,
+      "flowers": 1.0,
+      "prologue": 0.976,
+      "science": 1.0,
+      "sea": 0.988,
+      "sweets": 0.988,
+      "tris": 0.976
+    }
+  },
+  "pesiTarati": {
+    "pesi": {
+      "T": 0.026,
+      "Z": 0.052,
+      "K": 0.164,
+      "G": 0.026,
+      "H": 0.342,
+      "F": 0.126,
+      "A": 0.154,
+      "Lc": 0.027,
+      "R": 0.083
+    },
+    "rhoMedio": 0.999,
+    "perIsola": {
+      "animals": 0.998,
+      "art": 1.0,
+      "flowers": 1.0,
+      "prologue": 0.997,
+      "science": 1.0,
+      "sea": 1.0,
+      "sweets": 1.0,
+      "tris": 1.0
+    }
+  },
+  "convalidaLasciaFuoriUnIsola": {
+    "rhoMedio": 0.998,
+    "perIsola": {
+      "animals": 0.998,
+      "art": 1.0,
+      "flowers": 1.0,
+      "prologue": 0.989,
+      "science": 1.0,
+      "sea": 1.0,
+      "sweets": 1.0,
+      "tris": 1.0
+    }
+  },
+  "rhoDiOgniMisuraDaSola": {
+    "T": 0.917,
+    "Z": 0.931,
+    "K": 0.991,
+    "G": 0.0,
+    "H": 0.811,
+    "F": 0.639,
+    "A": 0.982,
+    "Lc": 0.891,
+    "R": 0.533
+  },
+  "rhoConEtichetta1-5": {
+    "livelli": 80,
+    "pesiUniformi": 0.943,
+    "pesiTarati": 0.864
+  },
+  "pesiUsati": "uniformi"
+}
