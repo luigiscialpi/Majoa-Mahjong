@@ -34,7 +34,7 @@ Convenzioni di lettura. **[Verificato]** indica un'informazione controllata nell
 
 ## 2. Stack e piattaforma
 
-**Decisione.** Expo con TypeScript in modalità `strict`, su **Expo SDK 57** (React Native 0.86, React 19.2 **[Verificato]**: SDK pubblicata il 30/06/2026), con **development build** tramite EAS Build. Navigazione con Expo Router. Android e iOS da un'unica codebase.
+**Decisione.** Expo con TypeScript in modalità `strict`, su **Expo SDK 57** (React Native 0.86, React 19.2 **[Verificato]**: SDK pubblicata il 30/06/2026), con **development build** tramite EAS Build. Navigazione con Expo Router. Solo Android: iOS è escluso dal rilascio (non è prevista una pubblicazione su App Store).
 
 **Motivo.**
 - È lo stack già in uso (Kotlin/Compose, React Native/Expo, TypeScript): nessun costo di apprendimento e strumenti già noti.
@@ -120,7 +120,7 @@ Alternative a confronto:
 
 **Limite dichiarato.** Con un canvas unico le singole tessere non sono elementi di accessibilità. L'originale non ha accessibilità per le singole tessere (inventario, sezione 11); se verrà richiesta, servirà un livello di accessibilità dedicato (ad esempio azioni su un elenco delle tessere libere) **[Da approfondire]**. Il colore non deve essere l'unica informazione (regola 6): i segnali senza colore dell'originale (tratteggio, contorni) vanno portati.
 
-**[Validato in parte] (prototipo S1).** Il canvas unico resta, ma l'architettura è a due strati, con le sole tessere libere disegnate dal vivo: l'esito e le misure su dispositivo sono in `docs/rendering.md`. Da provare ancora: iOS, tablet, telefono di fascia bassa, animazione di ingresso e fuochi d'artificio.
+**[Validato in parte] (prototipo S1).** Il canvas unico resta, ma l'architettura è a due strati, con le sole tessere libere disegnate dal vivo: l'esito e le misure su dispositivo sono in `docs/rendering.md`. Da provare ancora: tablet, telefono di fascia bassa, animazione di ingresso e fuochi d'artificio. iOS è escluso dal rilascio.
 
 **Alternative scartate.**
 
@@ -156,7 +156,7 @@ Alternative a confronto:
 - Aree sicure con `react-native-safe-area-context` (già nella SDK); controlli con bersaglio minimo di 48 dp; per le tessere vale la regola di `hitTest` della sezione 4.
 - Il blocco statico si configura in `app.json` (`orientation`, `ios.supportsTablet: true`, voci `infoPlist` per iPad); `expo-screen-orientation` si aggiunge solo se serve un blocco a runtime.
 
-**[Da validare] (prototipo S3).** (a) Su emulatore di tablet Android 16 (ad esempio Pixel Tablet) con `appCategory="game"`, la rotazione non viene imposta e la colonna resta stabile; (b) il caricamento di una build iPad su TestFlight con solo verticale richiesto non viene rifiutato; (c) proporzioni della colonna (3:4) e tetto della tessera.
+**[Da validare] (prototipo S3).** (a) Su emulatore di tablet Android 16 (ad esempio Pixel Tablet) con `appCategory="game"`, la rotazione non viene imposta e la colonna resta stabile; (b) proporzioni della colonna (3:4) e tetto della tessera. iPad e iOS sono esclusi dal rilascio: il punto (b) del prototipo originale (TestFlight) non è più nel piano.
 
 **Alternative scartate.**
 

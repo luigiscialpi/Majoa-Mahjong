@@ -14,9 +14,9 @@ Per ripartire:
 
 La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto, per evitare funzionalità non richieste.
 
-- **Scopo (PERCHÉ)**: portare su Android e iOS il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti.
-- **Piattaforme e stack**: Android e iOS, telefoni e tablet, interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e i prototipi S1 (rendering), S2 (audio), S4 (motore dei livelli) e S5 (aggiornamenti OTA e salvataggi) in `prototipi/`; nessun codice dell'app, prototipo S3 non eseguito (sezione 8).
+- **Scopo (PERCHÉ)**: portare su Android il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti. iOS escluso: non è previsto un rilascio su App Store.
+- **Piattaforme e stack**: Android (telefoni e tablet; target unico; iOS escluso dal rilascio), interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
+- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; nessun codice dell'app ancora avviato (sezione 8).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
@@ -77,7 +77,7 @@ src/
   ui/              # schermate, componenti, rendering
 docs/              # capitoli di approfondimento
 reference/         # copia di sola lettura del gioco HTML originale (majoa-originale/)
-prototipi/         # prototipi di validazione usa e getta (S1: rendering Skia; S2: audio; S4: motore dei livelli; S5: OTA e salvataggi)
+prototipi/         # prototipi di validazione usa e getta (S1: rendering; S2: audio; S3: layout; S4: motore; S5: OTA)
 tools/             # script di esportazione (livelli, disegni, campioni audio)
 ```
 
@@ -101,7 +101,7 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
 
 | Decisione | Motivo | Scartato e perché |
 |---|---|---|
-| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57 | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile |
+| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router; solo Android | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57 | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile; non rilasciare su iOS: nessun rilascio previsto su App Store |
 | Quattro livelli; dominio puro con stato immutabile (`applyMove(stato, mossa)`) | logica testabile senza dispositivo | non mettere logica nei componenti: non testabile senza renderer |
 | Livelli descritti da `LevelSpec`, generati con PRNG con seme; campagna dell'originale esportata in JSON | livelli infiniti, test deterministici, porting fedele e verificabile; verificato in S4 (1000 tavole su Android senza fallimenti, solver indipendente) | non usare `Math.random()` senza seme: livelli non riproducibili e risolvibilità non verificabile |
 | Indice di difficoltà del livello distinto dal profilo scelto dal giocatore; isole infinite da 20 livelli con temi; sblocco con una quota delle stelle della sola isola precedente (`docs/motore-livelli.md`) | mantiene viaggio, boss e album; si estende all'infinito; indice con pesi uniformi: la campagna dell'originale non li identifica (S4) | non tarare i pesi sulla campagna dell'originale: non li identifica; non usare soglie cumulative di stelle: margine costante di 40, sempre più severe; non usare un solo asse senza isole, né campagna fissa più modalità infinita separata, né sola campagna fissa |
@@ -129,11 +129,11 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Area | Come viene verificata | Stato |
 |---|---|---|
 | Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
-| Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; iOS, tablet e fascia bassa no |
+| Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; tablet e fascia bassa no; iOS escluso dal rilascio |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
 | Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | verificato su un dispositivo Android con `--no-dev --minify`; latenza combo e polifonia ok, decisione confermata |
 | Prototipo S5 (OTA e salvataggi) | Node, 5 test, `expo-updates`, simulazione ripristino e validatore append-only (`prototipi/s5-ota/README.md`) | verificato: 5 test automatici passati; regole 1-4 confermate, gestione sicura di integrità e scarto |
-| Prototipo S3 (layout e blocco tablet) | prove su dispositivo e su emulatore (sezione 8) | non verificato |
+| Prototipo S3 (layout e blocco tablet) | Node, 6 test, config plugin `appCategory="game"`, simulazione colonna 3:4 e tetto tessere (`prototipi/s3-layout/README.md`) | verificato: 6 test passati; plugin validato su prebuild; layout 3:4 e tetto tessere a 60 dp verificati (iOS non prioritario) |
 | UI, audio, annunci, tablet | prova manuale su dispositivo | non verificato |
 | Descrizione dell'originale | lettura del codice ed esecuzione in Chromium; 142 controlli della suite in 8 sezioni su 25 | verificato in parte (`docs/gioco-originale.md`, «Verifica») |
 
@@ -155,7 +155,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 
 Elenco delle aree non ancora decise o analizzate: segnala che il documento è vivo.
 
-- `DRAFT`: prototipi di validazione ancora da fare: S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4. S1, S2, S4 e S5 sono chiusi.
+- Prototipi di validazione: S1, S2, S3, S4 e S5 sono tutti completati e chiusi.
 - `DRAFT`: isole 3-7 dell'originale estese a 20 livelli con 10 livelli generati (ipotesi da confermare).
 - `DRAFT`: pesi dell'indice di difficoltà uniformi, da affinare con dati di gioco (stelle e tempo per livello).
 - `TO DO`: tolleranza dell'indice dentro l'isola, curva tra isole, `ρ` di sblocco (proposta 2/3), formula delle carte d'album per isola; generazione delle forme e `levelForIndex`.
@@ -163,6 +163,6 @@ Elenco delle aree non ancora decise o analizzate: segnala che il documento è vi
 - `TO DO`: tetto della tessera nella colonna di gioco; accessibilità delle singole tessere; zoom o tolleranza di tocco.
 - `TO DO`: frequenza degli interstitial e limite dei rewarded per aiuti; dichiarazione del pubblico negli store; eventuale acquisto «rimuovi pubblicità».
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
-- `TO DO`: S1 chiuso (`docs/rendering.md`); resta da provare iOS, tablet e un telefono di fascia bassa.
+- `TO DO`: S1 chiuso (`docs/rendering.md`); resta da provare tablet e un telefono di fascia bassa. iOS escluso dal rilascio.
 - `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; scintille di rimozione; fantasmi con un giocatore più veloce; font definitivo di lettere e numeri (provvisori Poppins Bold e DejaVu Serif Bold).
 - `TO DO`: creare `tools/`; capitoli di salvataggi, audio, lingue, pubblicità, contenuti OTA.
