@@ -59,17 +59,26 @@ Conseguenza per `docs/motore-livelli.md`: i pesi non si ricavano dalla campagna 
 
 Misure di una sola misura da sole (correlazione media con la posizione nell'isola): `K` 0,99, `A` 0,98, `Z` 0,93, `T` 0,92, `Lc` 0,89, `H` 0,81, `F` 0,64, `R` 0,53; `G` non varia dentro un'isola.
 
+### Risultati su Hermes (Android)
+
+Misure dell'utente, modalità di produzione, 100 livelli × 10 semi (modello del dispositivo non indicato):
+
+| Misura | Hermes | Node (V8, 20 semi) |
+|---|---|---|
+| Generazione, media / mediana / p95 / massimo | 0,9 / 0,5 / 3,0 / 17,6 ms | 0,3 / 0,1 / 0,7 / 15 ms |
+| Tavole fallite | 0 su 1000 | 0 su 2000 |
+| Tentativi, media / massimo | 1,8 / 22 | 1,7 / 22 |
+| Solver, media / massimo | 3,9 / 218,5 ms | 0,9 / 42 ms |
+| Tavole risolvibili / non / sconosciute | 300 / 0 / 0 | 300 / 0 / 0 |
+| Nodi del solver, massimo | 2617 | 2617 |
+| Simulazione di 40 partite, media / massimo per livello | 27,5 / 94,3 ms | 4,5 / 43,8 ms |
+| Totale della prova | 11,7 s | 2,1 s (2000 tavole) |
+
+Hermes è 3-6 volte più lento di V8, ma i tempi restano molto sotto le soglie proposte (generazione al più 100 ms, nessun fallimento): anche l'esito più lento (17,6 ms, il primo livello alla prima chiamata) è invisibile se la tavola si genera prima di mostrare il livello. La stessa esecuzione del solver e delle partite simulate, più pesante, va tenuta fuori dal percorso critico.
+
 ### Limiti della verifica
 
-- **Su Hermes non è misurato**: i tempi sopra sono di V8 con compilazione al volo, quindi molto più veloci di Hermes sul telefono. Il pulsante **Prova** produce lo stesso rapporto sul dispositivo.
 - Le **partite simulate** sono di un giocatore che sceglie a caso: `R` (quota di partite senza mosse) misura il rischio di blocco, non la difficoltà percepita da chi pianifica; i pesi non dipendono da un modello del giocatore reale.
 - Il motore **non genera forme**: i livelli dell'originale portano la forma pronta. La generazione di forme e di curve di difficoltà (`levelForIndex`, isole infinite) non è parte di S4.
 - I livelli esportati usano i valori base dell'originale: non includono le modifiche dei profili di difficoltà né i layout della Modalità comoda.
-
-### Da misurare su dispositivo
-
-Premere **Prova** (in modalità di produzione) e riportare il rapporto. Soglie proposte (da confermare): generazione con massimo sotto 100 ms e nessun fallimento; la ricostruzione di una tavola deve restare fuori dal percorso critico (si genera prima di mostrare il livello).
-
-| Dispositivo | Android | Generazione media/max (ms) | Tentativi max | Fallite | Simulazione max (ms) |
-|---|---|---|---|---|---|
-|  |  |  |  |  |  |
+- Provato su un solo dispositivo Android; iOS non provato.

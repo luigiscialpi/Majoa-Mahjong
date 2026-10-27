@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** Il capitolo descrive il modello deciso. I valori numerici (pesi, soglie, tolleranze) sono `TO DO`: si fissano con la taratura e col prototipo S4 (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver e misure sono implementati e verificati nel prototipo S4 (`prototipi/s4-generatore/`); restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -26,9 +26,13 @@ Il `LevelSpec` è un dato puro e serializzabile. Contiene: identificativo `{isol
 
 ### Generazione
 
-`generateLevel(spec, seme)` costruisce una tavola **risolvibile per costruzione**: simula la rimozione a ritroso di gruppi di tessere tutte libere nello stesso momento e assegna i disegni in quell'ordine, come nell'originale. Il generatore usa un PRNG con seme; il seme deriva da `(isola, livello, profilo, tentativo)`, dove `tentativo` aumenta a ogni «Rifai». Stesso `LevelSpec` e stesso seme producono la stessa tavola.
+`generateLevel(spec, seme)` costruisce una tavola **risolvibile per costruzione**: simula la partita in avanti: a ogni passo sceglie a caso un gruppo di tessere libere nello stesso momento (quattro per le coppie quando i tipi lo permettono, due altrimenti; sei o tre per i tris), assegna loro lo stesso disegno e le toglie. Il generatore usa un PRNG con seme; il seme deriva da `(isola, livello, profilo, tentativo)`, dove `tentativo` aumenta a ogni «Rifai». Stesso `LevelSpec` e stesso seme producono la stessa tavola.
 
 Se la costruzione non riesce entro il numero massimo di tentativi (1500 nell'originale), la funzione restituisce l'errore tipizzato `generation-failed` e il chiamante riprova con il seme successivo. Il fallback dell'originale, che assegnava i disegni senza garanzie di risolvibilità, non si replica.
+
+Per ogni gruppo di tessere nascoste si pianifica un gruppo di stelle nella prima parte della soluzione, e le tessere nascoste del gruppo `g` si scelgono tra quelle rimosse dopo il `g`-esimo gruppo di stelle. La nebbia si assegna a tessere non libere all'inizio, né nascoste né stelle; l'oro a tessere visibili e non stella; nessuna delle due cambia la risolvibilità.
+
+Verificato nel prototipo S4 su 100 livelli dell'originale: 1000 tavole su un Android (Hermes) senza fallimenti, con in media 1,8 tentativi e al più 22, in media 0,9 ms e al più 17,6 ms; un solver indipendente dalla costruzione conferma risolvibili tutte le 300 tavole campione (al più 218 ms e 2617 nodi).
 
 ### Indice di difficoltà
 
@@ -48,11 +52,11 @@ L'indice riassume quanto è difficile un livello. Poggia su misure oggettive, ca
 
 Le tessere d'oro non entrano nell'indice: sono un premio, non un ostacolo.
 
-**Composizione.** Ogni misura si normalizza tra 0 e 1 sugli intervalli del catalogo di riferimento. L'indice è `100 × Σ peso × misura` (per `L` si usa `1 − L`), con pesi che sommano a 1. I **pesi sono `TO DO`**.
+**Composizione.** Ogni misura si normalizza tra 0 e 1 sugli intervalli del catalogo di riferimento. L'indice è `100 × Σ peso × misura` (per `L` si usa `1 − L`), con pesi che sommano a 1. I **pesi sono uniformi** (1/9 per misura), perché la campagna dell'originale non permette di tarare di più (paragrafo «Taratura»); `DRAFT`: si affineranno con dati di gioco.
 
-**Simulazione.** `L` e `R` si ricavano da un numero fisso di partite simulate con seme fisso, quindi il risultato è deterministico e ripetibile. Il numero di partite e il costo in tempo sono da misurare nel prototipo S4.
+**Simulazione.** `L` e `R` si ricavano da un numero fisso di partite simulate con seme fisso, quindi il risultato è deterministico e ripetibile. Nel prototipo S4 si usano 40 partite per tavola: su Hermes costano in media 27,5 ms per livello (al più 94 ms), quindi la misura si calcola fuori dal percorso critico, alla generazione del livello o in fase di progetto.
 
-**Taratura.** Il catalogo dei 100 livelli dell'originale fa da insieme di riferimento: l'ordine di progetto dentro ogni isola è noto. I pesi si scelgono in modo che l'indice segua quell'ordine (correlazione di rango tra indice e posizione nell'isola, con soglia da fissare) e sia coerente con le etichette 1-5 dove esistono.
+**Taratura.** L'ordine di progetto dei 100 livelli dell'originale **non identifica i pesi**: è monotono su quasi tutte le misure. Con pesi uniformi la correlazione di Spearman media tra indice e posizione nell'isola è 0,991 (già `K` da solo ottiene 0,991); cercando il massimo si arriva a 0,999 con pesi senza significato. Il controllo indipendente con le etichette 1-5 dell'originale (80 livelli, confrontabili tra isole) dà 0,943 con pesi uniformi e 0,864 con quelli «tarati». I pesi si sceglieranno quindi su dati di gioco reali (stelle e tempo per livello). Resta ricavato dai dati l'intervallo della libertà media (0,271-0,699), che normalizza `L`.
 
 **Usi dell'indice.**
 1. *Generazione*: `levelForIndex` sceglie una «ricetta» (forma, `T`, `Z`, `K`, meccaniche, aiuti) e la perturba con il seme finché l'indice è vicino all'obiettivo, entro una tolleranza.
@@ -92,7 +96,7 @@ Regole del modello:
 
 ## Punti d'ingresso nel codice
 
-Il codice non esiste ancora: i percorsi sono quelli previsti (`TO DO`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`).
+Il codice dell'app non esiste ancora: i percorsi `src/domain/` sono quelli previsti (`TO DO`). Il prototipo S4 implementa già `LevelSpec`, generatore, solver e misure in `prototipi/s4-generatore/src/engine/` (`types.ts`, `generator.ts`, `solver.ts`, `difficulty.ts`, `weights.ts`), con 14 test. Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`).
 
 | Elemento | Percorso previsto | Ruolo | Riferimento nell'originale |
 |---|---|---|---|
@@ -109,14 +113,16 @@ Il codice non esiste ancora: i percorsi sono quelli previsti (`TO DO`). Per l'or
 - Non trattare l'indice di difficoltà come semplice etichetta: governa generazione e ordinamento.
 - Non far ricalcolare l'indice dal profilo: il profilo modifica le regole di gioco, non la misura del livello.
 - Non replicare il fallback non garantito dell'originale: la generazione fallita è un errore tipizzato.
+- Non tarare i pesi dell'indice sulla campagna dell'originale: non li identifica e, cercandone il massimo, peggiora il controllo con le etichette 1-5 (0,864 contro 0,943 con pesi uniformi).
 - Non rinominare né riutilizzare identificativi di isole, livelli e temi.
 - Progressioni scartate: un solo asse di livelli senza isole (si perdono il viaggio e i traguardi); campagna fissa più modalità infinita separata (due progressioni e due economie); sola campagna fissa estesa a mano (non è infinita).
 
 ## Verifica
 
-- **Coperto da test**: nulla, il codice non esiste.
+- **Coperto da test**: nel prototipo S4, 14 test (determinismo, regole, 100 livelli dell'originale, solver, indice); il codice dell'app non esiste.
 - **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; regressione sui livelli esportati dell'originale contro le tabelle di `docs/gioco-originale.md`.
-- **Non verificato**: taratura dei pesi e delle soglie; prestazioni di generatore e simulazione su Hermes (prototipo S4).
+- **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
+- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); iOS.
 
 ## Collegamenti
 
