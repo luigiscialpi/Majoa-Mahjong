@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Majoa Mahjong",
+    "slug": "majoa-mahjong",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "majoa",
+    "platforms": [
+      "android"
+    ],
+    "android": {
+      "package": "it.luigiscialpi.majoa",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}

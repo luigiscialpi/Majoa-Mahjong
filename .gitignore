@@ -1,1 +1,19 @@
 .DS_Store
+
+# Dipendenze e file generati
+node_modules/
+.expo/
+dist/
+expo-env.d.ts
+
+# Progetti nativi generati da `expo prebuild`
+/android/
+/ios/
+
+# Credenziali di firma
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision

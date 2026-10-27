@@ -1,0 +1,73 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 4f6b98f..45fa131 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,7 +4,7 @@ Questo file contiene le istruzioni operative per assistenti IA, in chat o come a
+ 
+ ## 0. Modalità di lavoro
+ 
+-**Modalità attiva:** `agente`
++**Modalità attiva:** `chat`
+ 
+ Le regole su come consegnare le modifiche dipendono dalla modalità:
+ 
+diff --git a/README.md b/README.md
+index 202dfe1..22a8a39 100644
+--- a/README.md
++++ b/README.md
+@@ -16,7 +16,7 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
+ 
+ - **Scopo (PERCHÉ)**: portare su Android il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti. iOS escluso: non è previsto un rilascio su App Store.
+ - **Piattaforme e stack**: Android (telefoni e tablet; target unico; iOS escluso dal rilascio), interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
+-- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; nessun codice dell'app ancora avviato (sezione 8).
++- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; l'app è avviata (Expo Router e Jest configurati, schermata segnaposto) e nessuna funzionalità è ancora implementata (sezione 2).
+ - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
+ 
+ ## 2. Funzionalità
+@@ -67,10 +67,12 @@ Le dipendenze puntano verso il dominio: il dominio non importa nulla dagli altri
+     API native)                         nessuna dipendenza)
+ ```
+ 
+-Struttura delle cartelle (`DRAFT`: `src/` e `tools/` non esistono ancora):
++Struttura delle cartelle (`DRAFT`: esiste solo `src/app/`; le altre cartelle di `src/` e `tools/` non esistono ancora):
+ 
+ ```text
++package.json, app.json, tsconfig.json  # configurazione dell'app, nella radice
+ src/
++  app/             # route di Expo Router: solo instradamento, le schermate stanno in ui/
+   domain/          # logica pura + test (Jest)
+   application/     # casi d'uso, controller
+   infrastructure/  # storage, ads, audio, contenuti, API native
+@@ -101,7 +103,7 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
+ 
+ | Decisione | Motivo | Scartato e perché |
+ |---|---|---|
+-| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router; solo Android | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57 | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile; non rilasciare su iOS: nessun rilascio previsto su App Store |
++| Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router; solo Android | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57; identificativo Android `it.luigiscialpi.majoa`; le dipendenze native che Expo Router richiede come peer (`expo-font`, `react-dom`, `react-native-reanimated`, `react-native-worklets`, `react-native-gesture-handler`) sono fissate alle versioni dell'SDK 57 (`bundledNativeModules.json`) | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile; non rilasciare su iOS: nessun rilascio previsto su App Store; non lasciare che npm risolva da solo i peer di Expo Router: installa le versioni più recenti, fuori SDK (duplicati nativi, `expo-doctor` fallisce) |
+ | Quattro livelli; dominio puro con stato immutabile (`applyMove(stato, mossa)`) | logica testabile senza dispositivo | non mettere logica nei componenti: non testabile senza renderer |
+ | Livelli descritti da `LevelSpec`, generati con PRNG con seme; campagna dell'originale esportata in JSON | livelli infiniti, test deterministici, porting fedele e verificabile; verificato in S4 (1000 tavole su Android senza fallimenti, solver indipendente) | non usare `Math.random()` senza seme: livelli non riproducibili e risolvibilità non verificabile |
+ | Indice di difficoltà del livello distinto dal profilo scelto dal giocatore; isole infinite da 20 livelli con temi; sblocco con una quota delle stelle della sola isola precedente (`docs/motore-livelli.md`) | mantiene viaggio, boss e album; si estende all'infinito; indice con pesi uniformi: la campagna dell'originale non li identifica (S4) | non tarare i pesi sulla campagna dell'originale: non li identifica; non usare soglie cumulative di stelle: margine costante di 40, sempre più severe; non usare un solo asse senza isole, né campagna fissa più modalità infinita separata, né sola campagna fissa |
+@@ -114,7 +116,7 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
+ | App non destinata ai bambini; AdMob con `react-native-google-mobile-ads` dietro `AdsService`; interstitial a fine livello, rewarded per ✨ e aiuti; consenso UMP; nessun banner in partita | momenti naturali del percorso; il dominio non conosce gli annunci | non mettere banner in partita: tocchi accidentali; non aggiungere mediazione: peso e privacy; non usare app a pagamento o abbonamento: contrasta col modello gratuito |
+ | Contenuti come dati dietro `ContentRepository`; OTA con EAS Update (dati, risorse, JavaScript dei rompicapi); contenuti solo in aggiunta, applicati all'avvio successivo | nuove isole, carte e rompicapi senza una revisione dello store per ciascuno | non aggiornare codice nativo via OTA: impossibile; non chiudere i contenuti nel binario: una release per ogni isola |
+ | Stato di gioco con Zustand | selettori: il canvas non si ridisegna a ogni cambiamento | non usare Context (ridisegni inutili) né Redux Toolkit (eccessivo) |
+-| Test: Jest sul dominio, test sui semi con il solver, regressione sulla campagna esportata, parità delle lingue; UI e nativo a mano | garanzia di risolvibilità su livelli infiniti | non limitarsi ai test manuali; non introdurre test end-to-end finché la UI cambia di continuo |
++| Test: Jest 29 con preset `jest-expo` (e `@react-native/jest-preset`, richiesto da jest-expo 57) sul dominio, test sui semi con il solver, regressione sulla campagna esportata, parità delle lingue; UI e nativo a mano | garanzia di risolvibilità su livelli infiniti | non limitarsi ai test manuali; non introdurre test end-to-end finché la UI cambia di continuo |
+ 
+ **Nota:** quando una decisione cambia, la riga si riscrive: la storia è nel log di git. La colonna *Scartato e perché* si formula come vincolo attuale (es. «non usare X: causa Y»), non come cronologia.
+ 
+@@ -122,12 +124,13 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
+ 
+ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è parte del lavoro.
+ 
+-- **Build e test**: `TO DO` (nessun progetto ancora). Previsti: `npx jest`, `npx tsc --noEmit`, `npx expo-doctor`.
++- **Build e test**: `npm install`, poi `npm test` (Jest, solo `src/`), `npm run typecheck` (`tsc --noEmit`) e `npx expo-doctor`; bundle Android con `npx expo export --platform android`. `expo-doctor` richiede la rete per due controlli (schema di `app.json`, directory di React Native).
+ - **Dominio**: test automatici su ogni regola.
+ - **UI e integrazioni native**: verifica manuale su dispositivo reale e su emulatori di tablet e pieghevole.
+ 
+ | Area | Come viene verificata | Stato |
+ |---|---|---|
++| Scaffold dell'app | `tsc --noEmit`, `expo export --platform android` (bundle Hermes), `expo-doctor` offline | verificato: 19 controlli su 21 di `expo-doctor` (restano i 2 che richiedono la rete); avvio su dispositivo non verificato |
+ | Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
+ | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; tablet e fascia bassa no; iOS escluso dal rilascio |
+ | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |

@@ -1,0 +1,971 @@
+diff --git a/src/domain/__fixtures__/shapes.ts b/src/domain/__fixtures__/shapes.ts
+new file mode 100644
+index 0000000..c0d7f64
+--- /dev/null
++++ b/src/domain/__fixtures__/shapes.ts
+@@ -0,0 +1,13 @@
++import type { Cell } from '../types';
++
++/** Griglia `cols × rows` al piano `z`, con passo 1 e spostamento `(ox, oy)`. */
++export function grid(cols: number, rows: number, z: number, ox = 0, oy = 0): Cell[] {
++  const out: Cell[] = [];
++  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) out.push({ x: x + ox, y: y + oy, z });
++  return out;
++}
++
++/** Piramide di 5 piani (6×6, 5×5, 4×4, 3×3, 2×2 = 90 tessere), ogni piano spostato di mezza tessera. */
++export function pyramid90(): Cell[] {
++  return [6, 5, 4, 3, 2].flatMap((n, z) => grid(n, n, z, z / 2, z / 2));
++}
+diff --git a/src/domain/gameState.test.ts b/src/domain/gameState.test.ts
+new file mode 100644
+index 0000000..0f30226
+--- /dev/null
++++ b/src/domain/gameState.test.ts
+@@ -0,0 +1,58 @@
++import { GameState, applyMove } from './gameState';
++import { STAR_TYPE, type PlacedTile } from './types';
++
++const tile = (x: number, y: number, z: number, type: number, hiddenGroup = 0): PlacedTile => ({ x, y, z, type, hiddenGroup, fog: false, gold: false });
++// Quattro tessere libere e isolate (distanza 2): due coppie di tipi 0 e 1.
++const pairs = () => new GameState([tile(0, 0, 0, 0), tile(2, 0, 0, 0), tile(4, 0, 0, 1), tile(6, 0, 0, 1)], 2, 2);
++
++describe('applyMove', () => {
++  test('toglie un gruppo valido e non modifica lo stato ricevuto', () => {
++    const before = pairs();
++    const r = applyMove(before, [0, 1]);
++    expect(r.ok).toBe(true);
++    if (!r.ok) return;
++    expect(r.value.remaining).toBe(2);
++    expect(r.value.playable()).toEqual([2, 3]);
++    expect(before.remaining).toBe(4);
++    expect(before.playable()).toEqual([0, 1, 2, 3]);
++  });
++
++  test('tipi diversi: not-matching', () => {
++    expect(applyMove(pairs(), [0, 2])).toEqual({ ok: false, error: 'not-matching' });
++  });
++
++  test('tessera coperta: tile-blocked', () => {
++    const covered = new GameState([tile(0, 0, 0, 0), tile(0, 0, 1, 0)], 2, 1);
++    expect(applyMove(covered, [0, 1])).toEqual({ ok: false, error: 'tile-blocked' });
++  });
++
++  test('gruppo di tessere nascoste: tile-blocked finché non si toglie il gruppo di stelle', () => {
++    const state = new GameState([tile(0, 0, 0, 0, 1), tile(2, 0, 0, 0, 1), tile(4, 0, 0, STAR_TYPE), tile(6, 0, 0, STAR_TYPE)], 2, 1);
++    expect(applyMove(state, [0, 1])).toEqual({ ok: false, error: 'tile-blocked' });
++    const afterStars = applyMove(state, [2, 3]);
++    expect(afterStars.ok).toBe(true);
++    if (!afterStars.ok) return;
++    const last = applyMove(afterStars.value, [0, 1]);
++    expect(last.ok).toBe(true);
++    if (last.ok) expect(last.value.remaining).toBe(0);
++  });
++
++  test('gruppo non valido: dimensione sbagliata, doppioni, indice fuori tavola, tessera già tolta', () => {
++    const state = pairs();
++    const invalid = { ok: false, error: 'invalid-group' };
++    expect(applyMove(state, [0])).toEqual(invalid);
++    expect(applyMove(state, [0, 1, 2])).toEqual(invalid);
++    expect(applyMove(state, [0, 0])).toEqual(invalid);
++    expect(applyMove(state, [0, 9])).toEqual(invalid);
++    expect(applyMove(state, [-1, 0])).toEqual(invalid);
++    const next = applyMove(state, [0, 1]);
++    if (next.ok) expect(applyMove(next.value, [0, 1])).toEqual(invalid);
++  });
++
++  test('tris: servono tre tessere uguali', () => {
++    const tris = new GameState([tile(0, 0, 0, 0), tile(2, 0, 0, 0), tile(4, 0, 0, 0)], 3, 1);
++    expect(applyMove(tris, [0, 1])).toEqual({ ok: false, error: 'invalid-group' });
++    const r = applyMove(tris, [0, 1, 2]);
++    expect(r.ok && r.value.remaining).toBe(0);
++  });
++});
+diff --git a/src/domain/gameState.ts b/src/domain/gameState.ts
+new file mode 100644
+index 0000000..1946079
+--- /dev/null
++++ b/src/domain/gameState.ts
+@@ -0,0 +1,103 @@
++import { FreeTracker, buildAdjacency } from './geometry';
++import { STAR_TYPE, type MoveError, type PlacedTile, type Result } from './types';
++
++// ponytail: `GameState` muta internamente (`apply` su una copia ottenuta con `clone`) perché il solver ne visita decine di
++// migliaia; l'interfaccia per chi sta fuori dal dominio è `applyMove`, che non muta lo stato ricevuto.
++/**
++ * Stato di una partita: tessere rimaste (con le libere), gruppi nascosti aperti e tessere rimaste per tipo.
++ * Le regole sono quelle dell'originale: un gruppo di `groupSize` tessere uguali, tutte libere e non nascoste, si toglie;
++ * togliere un gruppo di stelle apre il gruppo nascosto successivo.
++ */
++export class GameState {
++  readonly tiles: readonly PlacedTile[];
++  readonly g: number;
++  readonly ft: FreeTracker;
++  unlocked: number;
++  /** Tessere rimaste per tipo; l'indice `typeSlots - 1` è la stella. */
++  left: Int16Array;
++  readonly slots: number;
++
++  constructor(tiles: readonly PlacedTile[], groupSize: number, poolSize: number, source?: GameState) {
++    this.tiles = tiles;
++    this.g = groupSize;
++    this.slots = poolSize + 1;
++    if (source) {
++      this.ft = source.ft.clone();
++      this.unlocked = source.unlocked;
++      this.left = source.left.slice();
++    } else {
++      this.ft = new FreeTracker(buildAdjacency(tiles));
++      this.unlocked = 0;
++      this.left = new Int16Array(this.slots);
++      for (const t of tiles) this.left[this.slot(t.type)]++;
++    }
++  }
++
++  slot(type: number): number {
++    return type === STAR_TYPE ? this.slots - 1 : type;
++  }
++
++  clone(): GameState {
++    return new GameState(this.tiles, this.g, this.slots - 1, this);
++  }
++
++  get remaining(): number {
++    return this.ft.remaining;
++  }
++
++  /** Tessere selezionabili: libere e non nascoste (gruppo già aperto). */
++  playable(): number[] {
++    return this.ft.freeList().filter((i) => this.tiles[i].hiddenGroup <= this.unlocked);
++  }
++
++  /** Tessere giocabili raggruppate per tipo. */
++  playableByType(): Map<number, number[]> {
++    const by = new Map<number, number[]>();
++    for (const i of this.playable()) {
++      const s = this.slot(this.tiles[i].type);
++      const l = by.get(s);
++      if (l) l.push(i);
++      else by.set(s, [i]);
++    }
++    return by;
++  }
++
++  apply(group: readonly number[]): void {
++    for (const i of group) this.ft.remove(i);
++    const s = this.slot(this.tiles[group[0]].type);
++    this.left[s] -= group.length;
++    if (s === this.slots - 1) this.unlocked++;
++  }
++
++  /** Chiave compatta dello stato (tessere rimaste) per la memoizzazione. */
++  key(): string {
++    let out = '';
++    const a = this.ft.alive;
++    for (let i = 0; i < a.length; i += 30) {
++      let w = 0;
++      for (let k = 0; k < 30 && i + k < a.length; k++) w = w * 2 + a[i + k];
++      out += w.toString(36) + ',';
++    }
++    return out;
++  }
++}
++
++/**
++ * Toglie un gruppo di tessere e restituisce il nuovo stato, senza modificare quello ricevuto. Il gruppo è valido se ha
++ * `groupSize` tessere distinte ancora in gioco, tutte libere e non nascoste, dello stesso tipo. Togliere un gruppo di
++ * stelle apre il gruppo nascosto successivo.
++ */
++export function applyMove(state: GameState, group: readonly number[]): Result<GameState, MoveError> {
++  const n = state.tiles.length;
++  const inGame = (i: number) => Number.isInteger(i) && i >= 0 && i < n && state.ft.alive[i] === 1;
++  if (group.length !== state.g || new Set(group).size !== group.length || !group.every(inGame)) {
++    return { ok: false, error: 'invalid-group' };
++  }
++  const playable = new Set(state.playable());
++  if (!group.every((i) => playable.has(i))) return { ok: false, error: 'tile-blocked' };
++  const slot = state.slot(state.tiles[group[0]].type);
++  if (!group.every((i) => state.slot(state.tiles[i].type) === slot)) return { ok: false, error: 'not-matching' };
++  const next = state.clone();
++  next.apply(group);
++  return { ok: true, value: next };
++}
+diff --git a/src/domain/generator.test.ts b/src/domain/generator.test.ts
+new file mode 100644
+index 0000000..f30c1a8
+--- /dev/null
++++ b/src/domain/generator.test.ts
+@@ -0,0 +1,90 @@
++import { grid, pyramid90 } from './__fixtures__/shapes';
++import { FreeTracker, buildAdjacency } from './geometry';
++import { GameState, applyMove } from './gameState';
++import { generateLevel } from './generator';
++import { STAR_TYPE, type Generated, type LevelSpec } from './types';
++
++const aids = { hints: null, shuffles: null, undo: null };
++const spec = (over: Partial<LevelSpec> = {}): LevelSpec => ({ id: 'test', cells: pyramid90(), groupSize: 2, types: 12, poolSize: 24, hidden: [], fog: 0, gold: 0, aids, ...over });
++
++const variants: [string, LevelSpec][] = [
++  ['coppie su 5 piani', spec()],
++  ['nascoste, nebbia e oro', spec({ hidden: [4, 4], fog: 6, gold: 5 })],
++  ['tris su un piano', spec({ cells: grid(10, 9, 0), groupSize: 3, types: 8 })],
++];
++const seeds = Array.from({ length: 20 }, (_, i) => i + 1);
++
++/**
++ * Rigioca la soluzione costruita con le regole di gioco (`applyMove`), indipendenti dal generatore. Un blocco del piano
++ * ha `groupSize` o `2 × groupSize` tessere uguali libere insieme: si toglie a gruppi di `groupSize`.
++ */
++function replay(s: LevelSpec, g: Generated) {
++  let state = new GameState(g.tiles, s.groupSize, s.poolSize);
++  for (const block of g.plan) {
++    for (let k = 0; k < block.length; k += s.groupSize) {
++      const group = block.slice(k, k + s.groupSize);
++      const r = applyMove(state, group);
++      if (!r.ok) throw new Error(`mossa [${group.join(',')}] rifiutata: ${r.error}`);
++      state = r.value;
++    }
++  }
++  expect(state.remaining).toBe(0);
++}
++
++describe('generateLevel', () => {
++  test('stessa specifica e stesso seme producono la stessa tavola; semi diversi no', () => {
++    const a = generateLevel(spec(), 7);
++    const b = generateLevel(spec(), 7);
++    const c = generateLevel(spec(), 8);
++    if (!a.ok || !b.ok || !c.ok) throw new Error('generazione fallita');
++    expect(a.value).toEqual(b.value);
++    expect(a.value.tiles.map((t) => t.type)).not.toEqual(c.value.tiles.map((t) => t.type));
++  });
++
++  test.each(variants)('%s: la soluzione costruita è giocabile secondo le regole', (_name, s) => {
++    for (const seed of seeds) {
++      const r = generateLevel(s, seed);
++      if (!r.ok) throw new Error(`seme ${seed}: ${JSON.stringify(r.error)}`);
++      replay(s, r.value);
++    }
++  });
++
++  test.each(variants)('%s: tipi, stelle, nascoste, nebbia e oro rispettano la specifica', (_name, s) => {
++    const g = s.groupSize;
++    for (const seed of seeds) {
++      const r = generateLevel(s, seed);
++      if (!r.ok) throw new Error(`seme ${seed}: ${JSON.stringify(r.error)}`);
++      const { tiles } = r.value;
++      const counts = new Map<number, number>();
++      for (const t of tiles) counts.set(t.type, (counts.get(t.type) ?? 0) + 1);
++      for (const [type, c] of counts) expect({ type, resto: c % g }).toEqual({ type, resto: 0 });
++      expect(counts.get(STAR_TYPE) ?? 0).toBe(s.hidden.length * g);
++      expect(counts.size - (counts.has(STAR_TYPE) ? 1 : 0)).toBeLessThanOrEqual(s.types);
++      s.hidden.forEach((h, gi) => expect(tiles.filter((t) => t.hiddenGroup === gi + 1).length).toBe(h));
++      expect(tiles.filter((t) => t.gold).length).toBe(s.gold);
++      expect(tiles.filter((t) => t.fog).length).toBeLessThanOrEqual(s.fog);
++      const first = new FreeTracker(buildAdjacency(tiles));
++      tiles.forEach((t, i) => {
++        if (t.fog) expect({ i, libera: first.isFree(i) }).toEqual({ i, libera: false });
++        if (t.gold) expect(t.type === STAR_TYPE || t.hiddenGroup > 0).toBe(false);
++      });
++    }
++  });
++
++  test('specifica non valida: invalid-spec', () => {
++    const kind = (s: LevelSpec) => {
++      const r = generateLevel(s, 1);
++      return r.ok ? 'ok' : r.error.kind;
++    };
++    expect(kind(spec({ cells: pyramid90().slice(0, 89) }))).toBe('invalid-spec');
++    expect(kind(spec({ types: 25 }))).toBe('invalid-spec');
++    expect(kind(spec({ types: 0 }))).toBe('invalid-spec');
++    expect(kind(spec({ hidden: [200] }))).toBe('invalid-spec');
++  });
++
++  test('tavola che non può dare un gruppo di tessere libere: generation-failed con il numero di tentativi', () => {
++    // Sulla piramide all'inizio sono libere 4 tessere, ma con 8 tipi e gruppi da 3 servono gruppi da 6.
++    const r = generateLevel(spec({ groupSize: 3, types: 8 }), 1, 5);
++    expect(r).toEqual({ ok: false, error: { kind: 'generation-failed', attempts: 5 } });
++  });
++});
+diff --git a/src/domain/generator.ts b/src/domain/generator.ts
+new file mode 100644
+index 0000000..aaabca2
+--- /dev/null
++++ b/src/domain/generator.ts
+@@ -0,0 +1,117 @@
++import { FreeTracker, buildAdjacency, type Adjacency } from './geometry';
++import { createRng, hashSeed, type Rng } from './prng';
++import { STAR_TYPE, type GenError, type Generated, type LevelSpec, type PlacedTile, type Result } from './types';
++
++export const MAX_ATTEMPTS = 1500;
++
++type Chunk = { size: number; type: number };
++
++function validate(spec: LevelSpec): string | null {
++  const n = spec.cells.length;
++  const g = spec.groupSize;
++  if (n === 0 || n % g !== 0) return `il numero di tessere (${n}) non è multiplo del gruppo (${g})`;
++  if (spec.types < 1 || spec.types > spec.poolSize) return `tipi (${spec.types}) fuori dall'intervallo 1-${spec.poolSize}`;
++  const starTiles = spec.hidden.length * g;
++  const hiddenTiles = spec.hidden.reduce((a, b) => a + b, 0);
++  if (n - starTiles < g) return 'troppe tessere stella rispetto alla tavola';
++  if (hiddenTiles + starTiles > n) return 'troppe tessere nascoste rispetto alla tavola';
++  return null;
++}
++
++/**
++ * Costruisce una tavola **risolvibile per costruzione**: simula la partita in avanti. A ogni passo sceglie a caso
++ * un gruppo di tessere libere nello stesso momento (4 per le coppie quando i tipi lo permettono, 2 altrimenti; 6 o 3
++ * per i tris), assegna loro lo stesso disegno e le toglie. Se a un certo passo non ci sono abbastanza tessere libere,
++ * il tentativo fallisce e si riprova con un seme derivato (fino a `maxAttempts`, 1500 come nell'originale).
++ *
++ * Stella e tessere nascoste: per ogni gruppo nascosto g si pianifica un gruppo di stelle nella prima parte della
++ * soluzione, e le tessere nascoste del gruppo g si scelgono tra quelle rimosse DOPO quel gruppo di stelle.
++ * Nebbia e oro non cambiano la risolvibilità.
++ */
++export function generateLevel(spec: LevelSpec, seed: number, maxAttempts = MAX_ATTEMPTS): Result<Generated, GenError> {
++  const invalid = validate(spec);
++  if (invalid) return { ok: false, error: { kind: 'invalid-spec', reason: invalid } };
++  const adj = buildAdjacency(spec.cells);
++  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
++    const built = tryOnce(spec, adj, createRng(hashSeed(seed, attempt)));
++    if (built) return { ok: true, value: { ...built, attempts: attempt } };
++  }
++  return { ok: false, error: { kind: 'generation-failed', attempts: maxAttempts } };
++}
++
++function tryOnce(spec: LevelSpec, adj: Adjacency, rng: Rng): Omit<Generated, 'attempts'> | null {
++  const n = spec.cells.length;
++  const g = spec.groupSize;
++  const G = spec.hidden.length;
++
++  // Piano dei gruppi: quanti gruppi grandi (2g) e piccoli (g) servono perché ogni tipo compaia almeno una volta.
++  const P = (n - G * g) / g;
++  const K = Math.min(spec.types, P);
++  const quads = Math.max(0, Math.min(Math.floor(P / 2), P - K));
++  const sizes = rng.shuffle([...Array<number>(quads).fill(2 * g), ...Array<number>(P - 2 * quads).fill(g)]);
++  const C0 = sizes.length;
++  const pool = rng.shuffle(Array.from({ length: spec.poolSize }, (_, i) => i)).slice(0, K);
++  const labels = rng.shuffle(Array.from({ length: C0 }, (_, i) => pool[i % K]));
++
++  // Posizione dei gruppi di stelle: nella prima parte della soluzione.
++  const C = C0 + G;
++  const window = Math.min(C, Math.max(G, Math.ceil(0.4 * C)));
++  const starPos = rng.shuffle(Array.from({ length: window }, (_, i) => i)).slice(0, G).sort((a, b) => a - b);
++  const starSet = new Set(starPos);
++  const chunks: Chunk[] = [];
++  for (let i = 0, k = 0; i < C; i++) {
++    if (starSet.has(i)) chunks.push({ size: g, type: STAR_TYPE });
++    else {
++      chunks.push({ size: sizes[k], type: labels[k] });
++      k++;
++    }
++  }
++
++  // Simulazione in avanti.
++  const ft = new FreeTracker(adj);
++  const type = new Int16Array(n).fill(-2);
++  const plan: number[][] = [];
++  for (const chunk of chunks) {
++    const free = ft.freeList();
++    if (free.length < chunk.size) return null;
++    for (let k = 0; k < chunk.size; k++) {
++      const j = k + rng.int(free.length - k);
++      [free[k], free[j]] = [free[j], free[k]];
++    }
++    const picked = free.slice(0, chunk.size);
++    for (const t of picked) type[t] = chunk.type;
++    for (const t of picked) ft.remove(t);
++    plan.push(picked);
++  }
++
++  // Passo di rimozione di ogni tessera e posizione dei gruppi di stelle nel piano.
++  const stepOf = new Int16Array(n);
++  plan.forEach((group, step) => group.forEach((t) => (stepOf[t] = step)));
++  const starSteps = plan.map((group, step) => (type[group[0]] === STAR_TYPE ? step : -1)).filter((s) => s >= 0);
++
++  const tiles: PlacedTile[] = spec.cells.map((c, i) => ({ x: c.x, y: c.y, z: c.z, type: type[i], hiddenGroup: 0, fog: false, gold: false }));
++
++  // Tessere nascoste: il gruppo gi si apre dopo gi gruppi di stelle; si scelgono tra le tessere rimosse dopo il gi-esimo.
++  for (let gi = 0; gi < G; gi++) {
++    const eligible: number[] = [];
++    for (let t = 0; t < n; t++) if (tiles[t].type !== STAR_TYPE && tiles[t].hiddenGroup === 0 && stepOf[t] > starSteps[gi]) eligible.push(t);
++    if (eligible.length < spec.hidden[gi]) return null;
++    rng.shuffle(eligible);
++    for (let k = 0; k < spec.hidden[gi]; k++) tiles[eligible[k]].hiddenGroup = gi + 1;
++  }
++
++  // Nebbia: tessere inizialmente non libere, né nascoste né stelle.
++  const first = new FreeTracker(adj);
++  const fogCandidates: number[] = [];
++  for (let t = 0; t < n; t++) if (!first.isFree(t) && tiles[t].hiddenGroup === 0 && tiles[t].type !== STAR_TYPE) fogCandidates.push(t);
++  rng.shuffle(fogCandidates);
++  for (let k = 0; k < Math.min(spec.fog, fogCandidates.length); k++) tiles[fogCandidates[k]].fog = true;
++
++  // Oro: tessere visibili e non stella.
++  const goldCandidates: number[] = [];
++  for (let t = 0; t < n; t++) if (tiles[t].hiddenGroup === 0 && tiles[t].type !== STAR_TYPE) goldCandidates.push(t);
++  rng.shuffle(goldCandidates);
++  for (let k = 0; k < Math.min(spec.gold, goldCandidates.length); k++) tiles[goldCandidates[k]].gold = true;
++
++  return { tiles, plan };
++}
+diff --git a/src/domain/geometry.test.ts b/src/domain/geometry.test.ts
+new file mode 100644
+index 0000000..cca2ba4
+--- /dev/null
++++ b/src/domain/geometry.test.ts
+@@ -0,0 +1,52 @@
++import { FreeTracker, buildAdjacency } from './geometry';
++import type { Cell } from './types';
++
++const free = (cells: Cell[]) => new FreeTracker(buildAdjacency(cells)).freeList();
++
++describe('tessere libere', () => {
++  test('una tessera coperta da una al piano superiore non è libera', () => {
++    expect(free([{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }])).toEqual([1]);
++  });
++
++  test('una tessera sfalsata di mezza tessera copre quelle sotto', () => {
++    expect(free([{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0.5, y: 0, z: 1 }])).toEqual([2]);
++  });
++
++  test('una tessera spostata di una tessera intera non copre', () => {
++    expect(free([{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 1 }])).toEqual([0, 1]);
++  });
++
++  test('chiusa a sinistra e a destra non è libera; con un solo lato chiuso sì', () => {
++    const row = [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }];
++    expect(free(row)).toEqual([0, 2]);
++  });
++
++  test('tessere a distanza 2 o su righe diverse non si chiudono a vicenda', () => {
++    expect(free([{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 4, y: 0, z: 0 }])).toEqual([0, 1, 2]);
++    expect(free([{ x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 0, z: 0 }])).toEqual([0, 1, 2]);
++  });
++});
++
++describe('FreeTracker', () => {
++  test('togliere la tessera che copre libera quella sotto', () => {
++    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }]));
++    ft.remove(1);
++    expect(ft.freeList()).toEqual([0]);
++    expect(ft.remaining).toBe(1);
++  });
++
++  test('togliere una vicina apre il lato e libera la tessera di mezzo', () => {
++    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }]));
++    expect(ft.isFree(1)).toBe(false);
++    ft.remove(0);
++    expect(ft.isFree(1)).toBe(true);
++  });
++
++  test('clone è indipendente dall\'originale', () => {
++    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }]));
++    const copy = ft.clone();
++    copy.remove(1);
++    expect(ft.freeList()).toEqual([1]);
++    expect(copy.freeList()).toEqual([0]);
++  });
++});
+diff --git a/src/domain/geometry.ts b/src/domain/geometry.ts
+new file mode 100644
+index 0000000..a44c879
+--- /dev/null
++++ b/src/domain/geometry.ts
+@@ -0,0 +1,100 @@
++import type { Cell } from './types';
++
++/**
++ * Relazioni geometriche tra le tessere, calcolate una volta per forma. Regole dell'originale (`isFree`):
++ * una tessera è coperta se al piano superiore ce n'è una con |Δx| < 1 e |Δy| < 1; è chiusa ai lati se ha una vicina
++ * a sinistra e una a destra sullo stesso piano (|Δy| < 1, distanza in x minore di 2).
++ */
++export type Adjacency = {
++  n: number;
++  above: number[][];
++  left: number[][];
++  right: number[][];
++  /** Tessere che questa copre / di cui è vicina di sinistra / di destra (relazioni inverse). */
++  belowOf: number[][];
++  rightOf: number[][];
++  leftOf: number[][];
++};
++
++const cache = new WeakMap<readonly Cell[], Adjacency>();
++
++export function buildAdjacency(cells: readonly Cell[]): Adjacency {
++  const hit = cache.get(cells);
++  if (hit) return hit;
++  const n = cells.length;
++  const mk = () => Array.from({ length: n }, () => [] as number[]);
++  const a: Adjacency = { n, above: mk(), left: mk(), right: mk(), belowOf: mk(), rightOf: mk(), leftOf: mk() };
++  for (let i = 0; i < n; i++) {
++    const t = cells[i];
++    for (let j = 0; j < n; j++) {
++      if (i === j) continue;
++      const u = cells[j];
++      if (u.z === t.z + 1 && Math.abs(u.x - t.x) < 1 && Math.abs(u.y - t.y) < 1) {
++        a.above[i].push(j);
++        a.belowOf[j].push(i);
++      }
++      if (u.z === t.z && Math.abs(u.y - t.y) < 1) {
++        if (u.x < t.x && t.x - u.x < 2) {
++          a.left[i].push(j);
++          a.rightOf[j].push(i);
++        }
++        if (u.x > t.x && u.x - t.x < 2) {
++          a.right[i].push(j);
++          a.leftOf[j].push(i);
++        }
++      }
++    }
++  }
++  cache.set(cells, a);
++  return a;
++}
++
++/** Stato delle tessere rimaste, con aggiornamento incrementale di quali sono libere. */
++export class FreeTracker {
++  readonly adj: Adjacency;
++  alive: Uint8Array;
++  aboveN: Int16Array;
++  leftN: Int16Array;
++  rightN: Int16Array;
++  remaining: number;
++
++  constructor(adj: Adjacency, source?: FreeTracker) {
++    this.adj = adj;
++    if (source) {
++      this.alive = source.alive.slice();
++      this.aboveN = source.aboveN.slice();
++      this.leftN = source.leftN.slice();
++      this.rightN = source.rightN.slice();
++      this.remaining = source.remaining;
++    } else {
++      const n = adj.n;
++      this.alive = new Uint8Array(n).fill(1);
++      this.aboveN = Int16Array.from(adj.above, (l) => l.length);
++      this.leftN = Int16Array.from(adj.left, (l) => l.length);
++      this.rightN = Int16Array.from(adj.right, (l) => l.length);
++      this.remaining = n;
++    }
++  }
++
++  clone(): FreeTracker {
++    return new FreeTracker(this.adj, this);
++  }
++
++  isFree(i: number): boolean {
++    return this.alive[i] === 1 && this.aboveN[i] === 0 && !(this.leftN[i] > 0 && this.rightN[i] > 0);
++  }
++
++  freeList(): number[] {
++    const out: number[] = [];
++    for (let i = 0; i < this.adj.n; i++) if (this.isFree(i)) out.push(i);
++    return out;
++  }
++
++  remove(i: number): void {
++    this.alive[i] = 0;
++    this.remaining--;
++    for (const t of this.adj.belowOf[i]) this.aboveN[t]--;
++    for (const t of this.adj.rightOf[i]) this.leftN[t]--;
++    for (const t of this.adj.leftOf[i]) this.rightN[t]--;
++  }
++}
+diff --git a/src/domain/prng.test.ts b/src/domain/prng.test.ts
+new file mode 100644
+index 0000000..2d5ea11
+--- /dev/null
++++ b/src/domain/prng.test.ts
+@@ -0,0 +1,42 @@
++import { createRng, hashSeed } from './prng';
++
++describe('hashSeed', () => {
++  test('stessi valori, stesso seme; valori diversi, semi diversi', () => {
++    expect(hashSeed(1, 2)).toBe(hashSeed(1, 2));
++    expect(hashSeed(1, 2)).not.toBe(hashSeed(2, 1));
++    expect(hashSeed('a', 'b')).not.toBe(hashSeed('a', 'c'));
++  });
++
++  test('valori fissati: cambiarli cambierebbe tutti i livelli generati', () => {
++    expect(hashSeed(1, 2)).toBe(2999402140);
++    expect(hashSeed('a', 'b')).toBe(3592667708);
++  });
++});
++
++describe('createRng', () => {
++  test('la sequenza dipende solo dal seme ed è fissata', () => {
++    const r = createRng(42);
++    expect(r.next()).toBe(0.6011037519201636);
++    expect(r.next()).toBe(0.44829055899754167);
++    expect(r.int(100)).toBe(85);
++    expect(createRng(42).next()).toBe(0.6011037519201636);
++    expect(createRng(43).next()).not.toBe(0.6011037519201636);
++  });
++
++  test('next è in [0, 1) e int è in [0, n)', () => {
++    const r = createRng(1);
++    for (let i = 0; i < 1000; i++) {
++      const x = r.next();
++      expect(x).toBeGreaterThanOrEqual(0);
++      expect(x).toBeLessThan(1);
++      const k = r.int(7);
++      expect(Number.isInteger(k) && k >= 0 && k < 7).toBe(true);
++    }
++  });
++
++  test('shuffle è una permutazione deterministica', () => {
++    expect(createRng(7).shuffle([1, 2, 3, 4, 5, 6])).toEqual([5, 2, 3, 4, 6, 1]);
++    const items = Array.from({ length: 50 }, (_, i) => i);
++    expect([...createRng(3).shuffle([...items])].sort((a, b) => a - b)).toEqual(items);
++  });
++});
+diff --git a/src/domain/prng.ts b/src/domain/prng.ts
+new file mode 100644
+index 0000000..7f68eab
+--- /dev/null
++++ b/src/domain/prng.ts
+@@ -0,0 +1,44 @@
++// Generatore pseudocasuale con seme (mulberry32) e funzione di hash per derivare i semi.
++
++export type Rng = {
++  /** Numero in [0, 1). */
++  next(): number;
++  /** Intero in [0, n). */
++  int(n: number): number;
++  shuffle<T>(items: T[]): T[];
++};
++
++/** Hash a 32 bit di una sequenza di valori (variante di xmur3): stessi valori, stesso seme. */
++export function hashSeed(...parts: (string | number)[]): number {
++  const s = parts.join('|');
++  let h = 1779033703 ^ s.length;
++  for (let i = 0; i < s.length; i++) {
++    h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
++    h = (h << 13) | (h >>> 19);
++  }
++  h = Math.imul(h ^ (h >>> 16), 2246822507);
++  h = Math.imul(h ^ (h >>> 13), 3266489909);
++  return (h ^ (h >>> 16)) >>> 0;
++}
++
++export function createRng(seed: number): Rng {
++  let a = seed >>> 0;
++  const next = () => {
++    a = (a + 0x6d2b79f5) >>> 0;
++    let t = a;
++    t = Math.imul(t ^ (t >>> 15), t | 1);
++    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
++    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
++  };
++  return {
++    next,
++    int: (n) => Math.floor(next() * n),
++    shuffle: (items) => {
++      for (let i = items.length - 1; i > 0; i--) {
++        const j = Math.floor(next() * (i + 1));
++        [items[i], items[j]] = [items[j], items[i]];
++      }
++      return items;
++    },
++  };
++}
+diff --git a/src/domain/solver.test.ts b/src/domain/solver.test.ts
+new file mode 100644
+index 0000000..2591761
+--- /dev/null
++++ b/src/domain/solver.test.ts
+@@ -0,0 +1,69 @@
++import { grid, pyramid90 } from './__fixtures__/shapes';
++import { generateLevel } from './generator';
++import { createRng } from './prng';
++import { playRandom, simulate, solve } from './solver';
++import { STAR_TYPE, type LevelSpec, type PlacedTile } from './types';
++
++const tile = (x: number, y: number, z: number, type: number, hiddenGroup = 0): PlacedTile => ({ x, y, z, type, hiddenGroup, fog: false, gold: false });
++const aids = { hints: null, shuffles: null, undo: null };
++const spec = (over: Partial<LevelSpec> = {}): LevelSpec => ({ id: 'test', cells: pyramid90(), groupSize: 2, types: 12, poolSize: 24, hidden: [], fog: 0, gold: 0, aids, ...over });
++
++describe('solve', () => {
++  test('una coppia impilata (stesso tipo sopra e sotto) non è risolvibile', () => {
++    const tiles = [tile(0, 0, 0, 0), tile(0, 0, 1, 0), tile(3, 0, 0, 1), tile(5, 0, 0, 1)];
++    expect(solve(tiles, 2, 2).status).toBe('unsolvable');
++  });
++
++  test('coppie libere si risolvono', () => {
++    const tiles = [tile(0, 0, 0, 0), tile(2, 0, 0, 0), tile(4, 0, 0, 1), tile(6, 0, 0, 1)];
++    expect(solve(tiles, 2, 2).status).toBe('solvable');
++  });
++
++  test('una tessera nascosta si gioca solo dopo il gruppo di stelle', () => {
++    const open = [tile(0, 0, 0, 0, 1), tile(2, 0, 0, 0, 1), tile(4, 0, 0, STAR_TYPE), tile(6, 0, 0, STAR_TYPE)];
++    expect(solve(open, 2, 1).status).toBe('solvable');
++    // Se anche le stelle sono nascoste dietro lo stesso gruppo, il gruppo non si apre mai.
++    const locked = [tile(0, 0, 0, 0, 1), tile(2, 0, 0, 0, 1), tile(4, 0, 0, STAR_TYPE, 1), tile(6, 0, 0, STAR_TYPE, 1)];
++    expect(solve(locked, 2, 1).status).toBe('unsolvable');
++  });
++
++  test('oltre il budget di nodi l\'esito è unknown', () => {
++    const r = generateLevel(spec(), 1);
++    if (!r.ok) throw new Error('generazione fallita');
++    expect(solve(r.value.tiles, 2, 24, 1).status).toBe('unknown');
++  });
++
++  test('tutte le tavole generate sono risolvibili, verificato in modo indipendente dalla costruzione', () => {
++    const variants = [spec(), spec({ hidden: [4, 4], fog: 6, gold: 5 }), spec({ cells: grid(6, 6, 0), groupSize: 3, types: 6 })];
++    for (const s of variants) {
++      for (let seed = 1; seed <= 20; seed++) {
++        const r = generateLevel(s, seed);
++        if (!r.ok) throw new Error(`seme ${seed}: generazione fallita`);
++        expect({ seed, status: solve(r.value.tiles, s.groupSize, s.poolSize).status }).toEqual({ seed, status: 'solvable' });
++      }
++    }
++  });
++});
++
++describe('partite casuali', () => {
++  const board = () => {
++    const r = generateLevel(spec(), 5);
++    if (!r.ok) throw new Error('generazione fallita');
++    return r.value.tiles;
++  };
++
++  test('playRandom è deterministica con lo stesso seme e la libertà sta tra 0 e 1', () => {
++    const a = playRandom(board(), 2, 24, createRng(9));
++    expect(a).toEqual(playRandom(board(), 2, 24, createRng(9)));
++    expect(a.freedom).toBeGreaterThan(0);
++    expect(a.freedom).toBeLessThanOrEqual(1);
++  });
++
++  test('simulate: quota di partite bloccate e libertà media sono frazioni', () => {
++    const s = simulate(board(), 2, 24, createRng(1), 30);
++    expect(s.stuck).toBeGreaterThanOrEqual(0);
++    expect(s.stuck).toBeLessThanOrEqual(1);
++    expect(s.freedom).toBeGreaterThan(0);
++    expect(s.freedom).toBeLessThanOrEqual(1);
++  });
++});
+diff --git a/src/domain/solver.ts b/src/domain/solver.ts
+new file mode 100644
+index 0000000..11b9c69
+--- /dev/null
++++ b/src/domain/solver.ts
+@@ -0,0 +1,147 @@
++import { GameState } from './gameState';
++import type { Rng } from './prng';
++import type { PlacedTile } from './types';
++
++function combinations(items: readonly number[], k: number): number[][] {
++  const out: number[][] = [];
++  const cur: number[] = [];
++  const rec = (start: number) => {
++    if (cur.length === k) {
++      out.push(cur.slice());
++      return;
++    }
++    for (let i = start; i < items.length; i++) {
++      cur.push(items[i]);
++      rec(i + 1);
++      cur.pop();
++    }
++  };
++  rec(0);
++  return out;
++}
++
++/** `true` se esiste un tipo con esattamente `g` tessere rimaste e una di esse copre direttamente un'altra. */
++function hasStackedLastGroup(state: GameState): boolean {
++  const byType = new Map<number, number[]>();
++  const a = state.ft.alive;
++  for (let i = 0; i < a.length; i++) {
++    if (a[i] === 0) continue;
++    const s = state.slot(state.tiles[i].type);
++    if (state.left[s] !== state.g) continue;
++    const l = byType.get(s);
++    if (l) l.push(i);
++    else byType.set(s, [i]);
++  }
++  for (const list of byType.values()) {
++    for (const i of list) for (const j of state.ft.adj.above[i]) if (list.includes(j)) return true;
++  }
++  return false;
++}
++
++export type SolveResult = { status: 'solvable' | 'unsolvable' | 'unknown'; nodes: number };
++
++/**
++ * Verifica se la tavola è risolvibile con una ricerca in profondità con memoizzazione degli stati senza uscita.
++ * Mosse «sicure»: se di un tipo restano solo `g` tessere e sono tutte giocabili, si tolgono subito senza ramificare.
++ * `budget` limita i nodi visitati: oltre, l'esito è `unknown`.
++ */
++export function solve(tiles: readonly PlacedTile[], groupSize: number, poolSize: number, budget = 200000): SolveResult {
++  const dead = new Set<string>();
++  let nodes = 0;
++  let exceeded = false;
++
++  const dfs = (state: GameState): boolean => {
++    if (state.remaining === 0) return true;
++    if (++nodes > budget) {
++      exceeded = true;
++      return false;
++    }
++    const key = state.key() + state.unlocked;
++    if (dead.has(key)) return false;
++
++    // Potatura: se di un tipo restano solo `g` tessere e una copre direttamente un'altra, non saranno mai libere insieme.
++    if (hasStackedLastGroup(state)) {
++      dead.add(key);
++      return false;
++    }
++    // Mosse sicure
++    const by = state.playableByType();
++    for (const [slot, list] of by) {
++      if (state.left[slot] === state.g && list.length === state.g) {
++        const next = state.clone();
++        next.apply(list);
++        if (dfs(next)) return true;
++        if (!exceeded) dead.add(key);
++        return false;
++      }
++    }
++    const all: number[][] = [];
++    for (const list of by.values()) if (list.length >= state.g) all.push(...combinations(list, state.g));
++    if (all.length === 0) {
++      dead.add(key);
++      return false;
++    }
++    // Ordine delle mosse: prima le stelle (aprono le tessere nascoste), poi i tipi con meno tessere rimaste (più vincolati),
++    // poi i gruppi che liberano di più (piani alti, tessere che ne coprono altre).
++    const star = state.slots - 1;
++    const score = (m: number[]) => {
++      const slot = state.slot(state.tiles[m[0]].type);
++      const frees = m.reduce((a, i) => a + state.tiles[i].z * 4 + state.ft.adj.belowOf[i].length, 0);
++      return (slot === star ? 100000 : 0) - state.left[slot] * 100 + frees;
++    };
++    all.sort((a, b) => score(b) - score(a) || a[0] - b[0]);
++    for (const m of all) {
++      const next = state.clone();
++      next.apply(m);
++      if (dfs(next)) return true;
++      if (exceeded) return false;
++    }
++    dead.add(key);
++    return false;
++  };
++
++  const ok = dfs(new GameState(tiles, groupSize, poolSize));
++  if (ok) return { status: 'solvable', nodes };
++  return { status: exceeded ? 'unknown' : 'unsolvable', nodes };
++}
++
++export type Playthrough = { solved: boolean; steps: number; freedom: number };
++
++/**
++ * Partita di un giocatore che sceglie a caso tra le tessere che hanno almeno un compagno giocabile, senza aiuti.
++ * `freedom` è la media, lungo la partita, della quota di tessere rimaste che si possono abbinare subito.
++ */
++export function playRandom(tiles: readonly PlacedTile[], groupSize: number, poolSize: number, rng: Rng): Playthrough {
++  const state = new GameState(tiles, groupSize, poolSize);
++  let steps = 0;
++  let freedomSum = 0;
++  while (state.remaining > 0) {
++    const by = state.playableByType();
++    const matchable: number[] = [];
++    for (const list of by.values()) if (list.length >= groupSize) matchable.push(...list);
++    if (matchable.length === 0) return { solved: false, steps, freedom: steps ? freedomSum / steps : 0 };
++    freedomSum += matchable.length / state.remaining;
++    steps++;
++    const first = matchable[rng.int(matchable.length)];
++    const slot = state.slot(tiles[first].type);
++    const mates = (by.get(slot) ?? []).filter((i) => i !== first);
++    for (let k = 0; k < groupSize - 1; k++) {
++      const j = k + rng.int(mates.length - k);
++      [mates[k], mates[j]] = [mates[j], mates[k]];
++    }
++    state.apply([first, ...mates.slice(0, groupSize - 1)]);
++  }
++  return { solved: true, steps, freedom: steps ? freedomSum / steps : 0 };
++}
++
++/** Ripete `runs` partite casuali: libertà media (L) e quota di partite che restano senza mosse (R). */
++export function simulate(tiles: readonly PlacedTile[], groupSize: number, poolSize: number, rng: Rng, runs: number): { freedom: number; stuck: number } {
++  let f = 0;
++  let stuck = 0;
++  for (let r = 0; r < runs; r++) {
++    const p = playRandom(tiles, groupSize, poolSize, rng);
++    f += p.freedom;
++    if (!p.solved) stuck++;
++  }
++  return { freedom: f / runs, stuck: stuck / runs };
++}
+diff --git a/src/domain/types.ts b/src/domain/types.ts
+new file mode 100644
+index 0000000..a3e01d6
+--- /dev/null
++++ b/src/domain/types.ts
+@@ -0,0 +1,48 @@
++// Tipi del dominio di gioco. Nessuna dipendenza da React Native: il dominio è puro.
++
++export type Cell = { x: number; y: number; z: number };
++
++/** Aiuti iniziali: `null` = illimitati. */
++export type Aids = { hints: number | null; shuffles: number | null; undo: number | null };
++
++/** Descrizione dati di un livello (docs/motore-livelli.md). */
++export type LevelSpec = {
++  id: string;
++  cells: readonly Cell[];
++  /** 2 = coppie, 3 = tris. */
++  groupSize: 2 | 3;
++  /** Numero di disegni diversi (la stella è esclusa). */
++  types: number;
++  /** Disegni disponibili nel tema (la stella è esclusa). */
++  poolSize: number;
++  /** Dimensione di ogni gruppo di tessere nascoste; il gruppo `g` si apre dopo `g` abbinamenti di stelle. */
++  hidden: readonly number[];
++  fog: number;
++  gold: number;
++  aids: Aids;
++};
++
++/** Tipo speciale della tessera stella, che apre i gruppi nascosti. */
++export const STAR_TYPE = -1;
++
++export type PlacedTile = Cell & {
++  /** Indice del disegno (0 … poolSize − 1) oppure `STAR_TYPE`. */
++  type: number;
++  /** 0 = visibile; g > 0 = nascosta nel gruppo g. */
++  hiddenGroup: number;
++  fog: boolean;
++  gold: boolean;
++};
++
++export type Generated = {
++  tiles: PlacedTile[];
++  /** Soluzione costruita, nell'ordine di rimozione: blocchi di `groupSize` o `2 × groupSize` tessere uguali libere nello stesso momento. */
++  plan: number[][];
++  attempts: number;
++};
++
++export type GenError = { kind: 'generation-failed'; attempts: number } | { kind: 'invalid-spec'; reason: string };
++export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
++
++/** Motivo per cui una mossa non si applica (vedi `applyMove`). */
++export type MoveError = 'invalid-group' | 'tile-blocked' | 'not-matching';
+diff --git a/tsconfig.json b/tsconfig.json
+index 2247116..8eb1499 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -1,7 +1,10 @@
+ {
+   "extends": "expo/tsconfig.base",
+   "compilerOptions": {
+-    "strict": true
++    "strict": true,
++    "types": [
++      "jest"
++    ]
+   },
+   "include": [
+     "src",
