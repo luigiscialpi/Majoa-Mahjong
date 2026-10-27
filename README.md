@@ -16,7 +16,7 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
 
 - **Scopo (PERCHÉ)**: portare su Android e iOS il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti.
 - **Piattaforme e stack**: Android e iOS, telefoni e tablet, interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e i prototipi S1 (rendering) e S4 (motore dei livelli) in `prototipi/`; nessun codice dell'app, prototipi S2, S3 e S5 non eseguiti (sezione 8).
+- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e i prototipi S1 (rendering), S2 (audio) e S4 (motore dei livelli) in `prototipi/`; nessun codice dell'app, prototipi S3 e S5 non eseguiti (sezione 8).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
@@ -77,7 +77,7 @@ src/
   ui/              # schermate, componenti, rendering
 docs/              # capitoli di approfondimento
 reference/         # copia di sola lettura del gioco HTML originale (majoa-originale/)
-prototipi/         # prototipi di validazione usa e getta (S1: rendering Skia; S4: motore dei livelli)
+prototipi/         # prototipi di validazione usa e getta (S1: rendering Skia; S2: audio expo-audio; S4: motore dei livelli)
 tools/             # script di esportazione (livelli, disegni, campioni audio)
 ```
 
@@ -131,7 +131,8 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
 | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; iOS, tablet e fascia bassa no |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
-| Prototipi S2, S3, S5 | prove su dispositivo e su emulatore (sezione 8) | non verificato |
+| Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | campioni ed app di benchmark realizzati; prova su dispositivo fisico da eseguire |
+| Prototipi S3, S5 | prove su dispositivo e su emulatore (sezione 8) | non verificato |
 | UI, audio, annunci, tablet | prova manuale su dispositivo | non verificato |
 | Descrizione dell'originale | lettura del codice ed esecuzione in Chromium; 142 controlli della suite in 8 sezioni su 25 | verificato in parte (`docs/gioco-originale.md`, «Verifica») |
 
@@ -153,7 +154,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 
 Elenco delle aree non ancora decise o analizzate: segnala che il documento è vivo.
 
-- `DRAFT`: prototipi di validazione ancora da fare: S2 latenza audio dei campioni; S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S5 flusso OTA con partita salvata. S4 è chiuso (`docs/motore-livelli.md`).
+- `DRAFT`: prototipi di validazione ancora da fare: S2 latenza audio dei campioni (app e campioni in `prototipi/s2-audio/`, resta la misura su dispositivo Android/iOS); S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S5 flusso OTA con partita salvata. S4 è chiuso (`docs/motore-livelli.md`).
 - `DRAFT`: isole 3-7 dell'originale estese a 20 livelli con 10 livelli generati (ipotesi da confermare).
 - `DRAFT`: pesi dell'indice di difficoltà uniformi, da affinare con dati di gioco (stelle e tempo per livello).
 - `TO DO`: tolleranza dell'indice dentro l'isola, curva tra isole, `ρ` di sblocco (proposta 2/3), formula delle carte d'album per isola; generazione delle forme e `levelForIndex`.

@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Majoa S2 Audio",
+    "slug": "majoa-s2-audio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "it.luigiscialpi.majoa.s2"
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "it.luigiscialpi.majoa.s2"
+    },
+    "web": {}
+  }
+}
