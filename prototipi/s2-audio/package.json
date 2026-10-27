@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "expo": "~57.0.31",
+    "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",
     "expo-haptics": "~57.0.3",
     "expo-status-bar": "~57.0.1",

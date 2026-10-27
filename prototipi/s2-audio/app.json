@@ -13,6 +13,9 @@
       "predictiveBackGestureEnabled": false,
       "package": "it.luigiscialpi.majoa.s2"
     },
-    "web": {}
+    "web": {},
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }

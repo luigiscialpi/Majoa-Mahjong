@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
+import { Asset } from 'expo-asset';
 import * as Haptics from 'expo-haptics';
 import { SOUND_ASSETS, SoundKey, COMBO_KEYS } from './src/sounds';
 
@@ -48,7 +49,10 @@ export default function App() {
           interruptionMode: 'mixWithOthers',
         });
 
-        setLoadingMsg('Pre-caricamento 24 campioni WAV...');
+        setLoadingMsg('Download campioni WAV in cache locale...');
+        await Asset.loadAsync(Object.values(SOUND_ASSETS));
+
+        setLoadingMsg('Pre-caricamento 24 campioni nel player...');
         const map = new Map<SoundKey, AudioPlayer>();
         for (const [key, asset] of Object.entries(SOUND_ASSETS) as [SoundKey, any][]) {
           const player = createAudioPlayer(asset);
