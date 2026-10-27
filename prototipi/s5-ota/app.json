@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Majoa S5 OTA",
+    "slug": "majoa-s5-ota",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "updates": {
+      "url": "https://u.expo.dev/00000000-0000-0000-0000-000000000000"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "it.luigiscialpi.majoa.s5"
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false,
+      "package": "it.luigiscialpi.majoa.s5"
+    },
+    "web": {}
+  }
+}
