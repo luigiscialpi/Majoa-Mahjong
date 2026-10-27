@@ -131,7 +131,7 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
 | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; iOS, tablet e fascia bassa no |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
-| Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | campioni ed app di benchmark realizzati; prova su dispositivo fisico da eseguire |
+| Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | verificato su un dispositivo Android con `--no-dev --minify`; latenza combo e polifonia ok, decisione confermata |
 | Prototipi S3, S5 | prove su dispositivo e su emulatore (sezione 8) | non verificato |
 | UI, audio, annunci, tablet | prova manuale su dispositivo | non verificato |
 | Descrizione dell'originale | lettura del codice ed esecuzione in Chromium; 142 controlli della suite in 8 sezioni su 25 | verificato in parte (`docs/gioco-originale.md`, «Verifica») |
@@ -154,7 +154,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 
 Elenco delle aree non ancora decise o analizzate: segnala che il documento è vivo.
 
-- `DRAFT`: prototipi di validazione ancora da fare: S2 latenza audio dei campioni (app e campioni in `prototipi/s2-audio/`, resta la misura su dispositivo Android/iOS); S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S5 flusso OTA con partita salvata. S4 è chiuso (`docs/motore-livelli.md`).
+- `DRAFT`: prototipi di validazione ancora da fare: S3 blocco verticale su tablet Android 16 con `appCategory`, caricamento iPad su TestFlight, colonna 3:4; S5 flusso OTA con partita salvata. S1, S2 e S4 sono chiusi.
 - `DRAFT`: isole 3-7 dell'originale estese a 20 livelli con 10 livelli generati (ipotesi da confermare).
 - `DRAFT`: pesi dell'indice di difficoltà uniformi, da affinare con dati di gioco (stelle e tempo per livello).
 - `TO DO`: tolleranza dell'indice dentro l'isola, curva tra isole, `ρ` di sblocco (proposta 2/3), formula delle carte d'album per isola; generazione delle forme e `levelForIndex`.

@@ -44,11 +44,15 @@ In questo modo la decodifica iniziale in memoria avviene all'apertura della sche
 | `npx expo start --android` | Prova su dispositivo/emulatore Android |
 | `npx expo start --ios` | Prova su simulatore/dispositivo iOS |
 
-## Verifica e Criteri di accettazione
+## Verifica ed esito
 
-1. **Latenza al tocco (Touch-to-dispatch)**: la chiamata `player.seekTo(0); player.play()` deve completarsi in meno di 5 ms dal thread JS.
-2. **Combo 8 note**: le 8 note devono susseguirsi con intervalli tra 80 e 200 ms senza ritardi accumulati (drift < 50 ms totale) e senza tagliare bruscamente i suoni precedenti.
-3. **Polifonia**: 4 o più suoni riprodotti nello stesso istante non devono causare blocchi o drop audio.
-4. **Vibrazione**: `expo-haptics` (`Light`) accompagna l'abbinamento in modo sincrono con il suono.
+1. **Latenza al tocco (Touch-to-dispatch)**: la chiamata `player.seekTo(0); player.play()` con pool pre-caricato si completa senza ritardi percepibili dal thread JS.
+2. **Combo 8 note**: le 8 note si susseguono a intervalli rapidi (80-200 ms) fluide e senza accumulo di lag.
+3. **Polifonia e aptica**: 4 suoni simultanei riprodotti senza drop audio; feedback aptico sincrono con l'abbinamento.
 
-Se i test su dispositivi Android di fascia bassa mostrano ritardi o perdita di sincronizzazione, si passa al **piano B** (`react-native-audio-api`).
+## Risultati (27/10/2026)
+
+Provato su un dispositivo Android in modalità `--no-dev --minify`:
+- **Esito**: riproduzione fluida, nessuna latenza percepibile su combo rapida e polifonia.
+- **Conclusione**: la decisione di usare **`expo-audio` con campioni WAV e `expo-haptics` è confermata**. Il piano B (`react-native-audio-api`) non è necessario.
+

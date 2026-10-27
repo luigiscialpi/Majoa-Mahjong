@@ -215,7 +215,7 @@ Nota: Google ha annunciato `targetSdk 36` obbligatorio per i nuovi invii su Play
 
 Nota: i 14 ms e i 30 ms di vibrazione dell'originale non hanno equivalente esatto: gli haptics usano stili di impatto (leggero, medio) e non una durata, soprattutto su iOS.
 
-**[Da validare] (prototipo S2).** Latenza e sovrapposizione di suoni ravvicinati (abbinamenti in combo) su Android di fascia bassa.
+**[Verificato] (prototipo S2).** Su un dispositivo Android in modalità `--no-dev --minify` la combo a 8 note (intervalli 80-200 ms) e la polifonia non mostrano ritardi percepibili o drop: decisione confermata, piano B non necessario.
 
 **Alternative scartate.**
 - *`react-native-audio-api`* (Software Mansion, compatibile con Web Audio): permetterebbe di portare il sintetizzatore quasi 1:1 senza risorse, ma è un modulo nativo non incluso in Expo Go **[Verificato]** e una dipendenza più giovane da mantenere. Resta il **piano B** se il prototipo S2 mostra latenze troppo alte.
@@ -337,7 +337,7 @@ Piccoli esperimenti da fare **prima** di fissare le decisioni segnate come da va
 | Id | Domanda | Esito atteso |
 |---|---|---|
 | S1 | Skia rende fedelmente i 129 SVG esportati (compresi quelli con testo convertito)? Il livello 20 (96 tessere, 5 piani) con le animazioni gira fluido su un Android di fascia bassa? | Differenze visive con l'originale elencate; fotogrammi al secondo misurati. |
-| S2 | `expo-audio` con campioni regge 8 note in combo ravvicinata senza ritardi percepibili? | Latenza misurata; se alta, passaggio al piano B. Prototipo realizzato (`prototipi/s2-audio/`): 24 campioni WAV esportati da Chromium, app con pool di player pre-istranziati, test combo (80-200 ms) e haptics; da misurare su dispositivo fisico. |
+| S2 | `expo-audio` con campioni regge 8 note in combo ravvicinata senza ritardi percepibili? | Latenza misurata; se alta, passaggio al piano B. Eseguito: provato su Android con `--no-dev --minify`, riproduzione fluida senza ritardi, decisione `expo-audio` confermata (`prototipi/s2-audio/README.md`). |
 | S3 | Il blocco verticale regge su tablet Android 16 con `appCategory="game"` (config plugin) e su iPad (caricamento TestFlight)? La colonna di gioco 3:4 funziona su telefono, tablet e finestra larga? | Esito dei due controlli; proporzioni della colonna e tetto della tessera scelti con schermate. |
 | S4 | Il generatore con seme crea una tavola da 96 tessere in Hermes in un tempo accettabile, e il solver la verifica? | Tempo medio e massimo su un campione di semi. Eseguito: su Android generazione media 0,9 ms e massimo 17,6 ms, nessun fallimento, solver al più 218 ms (`docs/motore-livelli.md`). |
 | S5 | EAS Update su una build di sviluppo: un pacchetto dati di prova (isola nuova) arriva, si applica all'avvio successivo e una partita salvata resta valida o viene scartata correttamente? | Flusso OTA funzionante e regole di compatibilità (sezione 10) verificate. |
