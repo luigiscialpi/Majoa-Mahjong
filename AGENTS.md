@@ -4,7 +4,7 @@ Questo file contiene le istruzioni operative per assistenti IA, in chat o come a
 
 ## 0. Modalità di lavoro
 
-**Modalità attiva:** `agente`
+**Modalità attiva:** `chat`
 
 Le regole su come consegnare le modifiche dipendono dalla modalità:
 
