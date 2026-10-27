@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Majoa S3 Layout",
+    "slug": "majoa-s3-layout",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "it.luigiscialpi.majoa.s3",
+      "predictiveBackGestureEnabled": false
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "it.luigiscialpi.majoa.s3"
+    },
+    "web": {},
+    "plugins": [
+      "./plugins/withAppCategory"
+    ]
+  }
+}
