@@ -52,7 +52,7 @@ Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 
 
 ## Punti d'ingresso nel codice
 
-Il codice dell'app non esiste. Il prototipo S1, da cui partire, è in `prototipi/s1-rendering/`.
+Il rendering non esiste ancora. La regola della tessera libera è in `src/domain/geometry.ts` (`docs/dominio-di-gioco.md`); `hitTest`, geometria di layout e colonna di gioco sono ancora nel prototipo S1, da cui partire: `prototipi/s1-rendering/`.
 
 | Elemento | Percorso | Ruolo |
 |---|---|---|

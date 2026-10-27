@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver e misure sono implementati e verificati nel prototipo S4 (`prototipi/s4-generatore/`); restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore e solver sono implementati in `src/domain/`; le misure dell'indice e la verifica sui 100 livelli dell'originale stanno nel prototipo S4 (`prototipi/s4-generatore/`); restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -96,15 +96,16 @@ Regole del modello:
 
 ## Punti d'ingresso nel codice
 
-Il codice dell'app non esiste ancora: i percorsi `src/domain/` sono quelli previsti (`TO DO`). Il prototipo S4 implementa già `LevelSpec`, generatore, solver e misure in `prototipi/s4-generatore/src/engine/` (`types.ts`, `generator.ts`, `solver.ts`, `difficulty.ts`, `weights.ts`), con 14 test. Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`).
+`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). Indice di difficoltà, isole e progressione hanno solo il percorso previsto (`TO DO`); per l'indice esiste un'implementazione di partenza nel prototipo S4, in `prototipi/s4-generatore/src/engine/` (`difficulty.ts`, `weights.ts`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`).
 
-| Elemento | Percorso previsto | Ruolo | Riferimento nell'originale |
+| Elemento | Percorso | Ruolo | Riferimento nell'originale |
 |---|---|---|---|
-| `LevelSpec` | `src/domain/levelSpec.ts` | Descrizione dati di un livello | `LEVELS` (1191), `ISL_CFG` (1271), `ISL_SHAPES` (1248) |
+| `LevelSpec` | `src/domain/types.ts` | Descrizione dati di un livello | `LEVELS` (1191), `ISL_CFG` (1271), `ISL_SHAPES` (1248) |
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile con seme | `makeGroups` (1778), `assign` (1810) |
-| `levelDifficulty()` | `src/domain/difficulty.ts` | Indice di difficoltà | nessuno (nell'originale `L.diff` è un'etichetta) |
-| `levelForIndex()`, `islandForIndex()` | `src/domain/islands.ts` | Livelli e isole oltre la campagna | `ISLANDS` (1159), `layoutList` (1302) |
-| `isIslandUnlocked()` | `src/domain/progress.ts` | Regola di sblocco | `worldState` (2472), `islandEarned` (3213) |
+| `solve()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità e partite simulate | nessuno |
+| `levelDifficulty()` | `src/domain/difficulty.ts` (`TO DO`) | Indice di difficoltà | nessuno (nell'originale `L.diff` è un'etichetta) |
+| `levelForIndex()`, `islandForIndex()` | `src/domain/islands.ts` (`TO DO`) | Livelli e isole oltre la campagna | `ISLANDS` (1159), `layoutList` (1302) |
+| `isIslandUnlocked()` | `src/domain/progress.ts` (`TO DO`) | Regola di sblocco | `worldState` (2472), `islandEarned` (3213) |
 
 ## Vincoli e scartato
 
@@ -119,10 +120,10 @@ Il codice dell'app non esiste ancora: i percorsi `src/domain/` sono quelli previ
 
 ## Verifica
 
-- **Coperto da test**: nel prototipo S4, 14 test (determinismo, regole, 100 livelli dell'originale, solver, indice); il codice dell'app non esiste.
+- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`); nel prototipo S4, 14 test, tra cui i 100 livelli dell'originale e l'indice.
 - **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; regressione sui livelli esportati dell'originale contro le tabelle di `docs/gioco-originale.md`.
 - **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
-- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); iOS.
+- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); `src/domain/` sui 100 livelli dell'originale; il solver su tris piatti molto grandi (90 tessere, 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi); iOS.
 
 ## Collegamenti
 

@@ -16,17 +16,17 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
 
 - **Scopo (PERCHÉ)**: portare su Android il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti. iOS escluso: non è previsto un rilascio su App Store.
 - **Piattaforme e stack**: Android (telefoni e tablet; target unico; iOS escluso dal rilascio), interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; l'app è avviata (Expo Router e Jest configurati, schermata segnaposto) e nessuna funzionalità è ancora implementata (sezione 2).
+- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; l'app è avviata (Expo Router e Jest, schermata segnaposto) e `src/domain/` contiene il nucleo del dominio con test (tessere libere, mosse, generatore con seme, solver); non esistono ancora schermate né funzionalità per il giocatore (sezione 2).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
 
-Ogni funzionalità ha una riga: cosa fa, in che stato è, dove si trova nel codice e quale capitolo la spiega. La tabella è l'indice da cui partire per cercare qualcosa. Nessuna funzionalità è ancora implementata: la colonna *Codice* è `TO DO` e il capitolo indicato descrive il comportamento dell'originale o il modello deciso.
+Ogni funzionalità ha una riga: cosa fa, in che stato è, dove si trova nel codice e quale capitolo la spiega. La tabella è l'indice da cui partire per cercare qualcosa. Stato `TO DO`: nessun codice, il capitolo indicato descrive il comportamento dell'originale o il modello deciso. Stato `PARZIALE`: logica di dominio implementata e testata, senza interfaccia; la colonna *Codice* dice dove.
 
 | Funzionalità | Stato | Cosa fa | Codice | Capitolo |
 |---|---|---|---|---|
-| Tavola e abbinamento | TO DO | tessera libera, coppie (tris nei livelli Tris), selezione | TO DO | `docs/gioco-originale.md` |
-| Motore dei livelli | TO DO | `LevelSpec`, generazione risolvibile con seme, livelli infiniti | TO DO | `docs/motore-livelli.md` |
+| Tavola e abbinamento | PARZIALE | tessera libera, coppie (tris nei livelli Tris), `applyMove`; selezione e `hitTest` `TO DO` | `src/domain/geometry.ts`, `src/domain/gameState.ts` | `docs/dominio-di-gioco.md`, `docs/gioco-originale.md` |
+| Motore dei livelli | PARZIALE | `LevelSpec`, generazione risolvibile con seme, solver di verifica; livelli infiniti (`levelForIndex`) `TO DO` | `src/domain/types.ts`, `generator.ts`, `solver.ts`, `prng.ts` | `docs/motore-livelli.md`, `docs/dominio-di-gioco.md` |
 | Difficoltà | TO DO | indice di livello e 6 profili scelti dal giocatore | TO DO | `docs/motore-livelli.md` |
 | Isole e progressione | TO DO | isole da 20 livelli con temi, sblocco per stelle, mappa | TO DO | `docs/motore-livelli.md` |
 | Meccaniche speciali | TO DO | tessere nascoste, d'oro, nebbiose; boss | TO DO | `docs/gioco-originale.md` |
@@ -67,7 +67,7 @@ Le dipendenze puntano verso il dominio: il dominio non importa nulla dagli altri
     API native)                         nessuna dipendenza)
 ```
 
-Struttura delle cartelle (`DRAFT`: esiste solo `src/app/`; le altre cartelle di `src/` e `tools/` non esistono ancora):
+Struttura delle cartelle (`DRAFT`: esistono `src/app/` e `src/domain/`; `application/`, `infrastructure/`, `ui/` e `tools/` non ancora):
 
 ```text
 package.json, app.json, tsconfig.json  # configurazione dell'app, nella radice
@@ -104,7 +104,7 @@ Ogni scelta che condiziona il progetto ha una riga: cosa vale oggi, perché, e c
 | Decisione | Motivo | Scartato e perché |
 |---|---|---|
 | Expo SDK 57, TypeScript `strict`, development build con EAS, Expo Router; solo Android | stack già in uso; New Architecture obbligatoria; serve una build nativa per gli annunci; S1 è validato sulla 57; identificativo Android `it.luigiscialpi.majoa`; le dipendenze native che Expo Router richiede come peer (`expo-font`, `react-dom`, `react-native-reanimated`, `react-native-worklets`, `react-native-gesture-handler`) sono fissate alle versioni dell'SDK 57 (`bundledNativeModules.json`) | non passare per ora alla SDK 58 (uscita il 15/10/2026): da rivalutare al prossimo aggiornamento; non usare Flutter o app native doppie: stack nuovo o due codebase; non avvolgere l'HTML in una WebView: contraddice la riscrittura; non usare Unity o Godot: motore pesante, dominio non riusabile; non rilasciare su iOS: nessun rilascio previsto su App Store; non lasciare che npm risolva da solo i peer di Expo Router: installa le versioni più recenti, fuori SDK (duplicati nativi, `expo-doctor` fallisce) |
-| Quattro livelli; dominio puro con stato immutabile (`applyMove(stato, mossa)`) | logica testabile senza dispositivo | non mettere logica nei componenti: non testabile senza renderer |
+| Quattro livelli; dominio puro con stato immutabile verso l'esterno (`applyMove(stato, gruppo)` restituisce un nuovo stato o un errore tipizzato; solo solver e generatore mutano una copia) | logica testabile senza dispositivo; il solver visita decine di migliaia di stati | non mettere logica nei componenti: non testabile senza renderer; non chiamare `GameState.apply` fuori dal dominio: muta lo stato |
 | Livelli descritti da `LevelSpec`, generati con PRNG con seme; campagna dell'originale esportata in JSON | livelli infiniti, test deterministici, porting fedele e verificabile; verificato in S4 (1000 tavole su Android senza fallimenti, solver indipendente) | non usare `Math.random()` senza seme: livelli non riproducibili e risolvibilità non verificabile |
 | Indice di difficoltà del livello distinto dal profilo scelto dal giocatore; isole infinite da 20 livelli con temi; sblocco con una quota delle stelle della sola isola precedente (`docs/motore-livelli.md`) | mantiene viaggio, boss e album; si estende all'infinito; indice con pesi uniformi: la campagna dell'originale non li identifica (S4) | non tarare i pesi sulla campagna dell'originale: non li identifica; non usare soglie cumulative di stelle: margine costante di 40, sempre più severe; non usare un solo asse senza isole, né campagna fissa più modalità infinita separata, né sola campagna fissa |
 | Tavola a due strati in un canvas Skia: strato fermo in un'unica immagine (corpo delle tessere in cache), strato vivo con le sole tessere libere e in rimozione (al massimo circa 30); animazioni Reanimated; tocco risolto da `hitTest` del dominio (`docs/rendering.md`) | misurato su dispositivo: con tutte le tessere dal vivo l'eco col thread UI è 0,7-2,7 s anche con 2 tessere animate, a strati sotto 50 ms | non disegnare tutte le tessere dal vivo con valori condivisi: il costo segue le tessere disegnate, non quelle animate; non usare una vista per tessera con SVG: costo e tocco legato alle viste; non usare sprite PNG: sfocatura su tablet e risorse moltiplicate |
@@ -131,7 +131,7 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Area | Come viene verificata | Stato |
 |---|---|---|
 | Scaffold dell'app | `tsc --noEmit`, `expo export --platform android` (bundle Hermes), `expo-doctor` offline | verificato: 19 controlli su 21 di `expo-doctor` (restano i 2 che richiedono la rete); avvio su dispositivo non verificato |
-| Dominio | Jest, test sui semi, regressione sulla campagna esportata | non verificato (nessun codice) |
+| Dominio (`src/domain/`) | Jest: 35 test su forme sintetiche (regole, `applyMove`, generatore, solver) e 15 difetti introdotti di proposito, tutti rilevati; regressione sulla campagna esportata prevista | verificato su forme sintetiche; campagna dell'originale, indice di difficoltà e `hitTest` non ancora portati; prestazioni su dispositivo non rimisurate sul codice dell'app |
 | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; tablet e fascia bassa no; iOS escluso dal rilascio |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
 | Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | verificato su un dispositivo Android con `--no-dev --minify`; latenza combo e polifonia ok, decisione confermata |
@@ -148,6 +148,7 @@ Ogni capitolo spiega un'area in modo tecnico e aggiornato allo stato attuale. I 
 |---|---|---|
 | `docs/linee-guida-codice.md` | Principi di codice con esempi | Prima di scrivere codice |
 | `docs/gioco-originale.md` | Regole, livelli, aiuti, punteggi, rompicapi, album, grafica, impostazioni e salvataggi dell'originale; difetti noti | Prima di implementare una funzione che nasce dall'originale |
+| `docs/dominio-di-gioco.md` | Tessere, tessera libera, stato di partita, `applyMove`, determinismo (`DRAFT`) | Prima di toccare `src/domain/` |
 | `docs/motore-livelli.md` | `LevelSpec`, generazione, indice di difficoltà, isole da 20 livelli, sblocco (`DRAFT`) | Prima di toccare livelli, mappa o progressione |
 | `docs/rendering.md` | Tavola a due strati, tessere vive, vincoli degli SVG, tocco e rimozione, misure di S1 (`DRAFT`) | Prima di scrivere il rendering, le animazioni o la pipeline dei disegni |
 | `docs/decisioni-tecniche.md` | Ragionamento esteso delle decisioni: alternative scartate, verifiche sulle piattaforme, prototipi S1-S5 | Prima di rimettere in discussione una decisione della sezione 5 |
@@ -168,4 +169,5 @@ Elenco delle aree non ancora decise o analizzate: segnala che il documento è vi
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
 - `TO DO`: S1 chiuso (`docs/rendering.md`); resta da provare tablet e un telefono di fascia bassa. iOS escluso dal rilascio.
 - `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; scintille di rimozione; fantasmi con un giocatore più veloce; font definitivo di lettere e numeri (provvisori Poppins Bold e DejaVu Serif Bold).
+- `TO DO`: portare nel dominio i 100 livelli esportati (dati, adattatore, regressione), `difficulty.ts` e `weights.ts` (indice di difficoltà) e il layout con `hitTest`, oggi nei prototipi S4 e S1; limite del solver: con budget di 200000 nodi, su una griglia piatta di 90 tessere in tris con 8 tipi 3 tavole su 20 restano `unknown`.
 - `TO DO`: creare `tools/`; capitoli di salvataggi, audio, lingue, pubblicità, contenuti OTA.
