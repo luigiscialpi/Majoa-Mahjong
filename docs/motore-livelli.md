@@ -96,13 +96,14 @@ Regole del modello:
 
 ## Punti d'ingresso nel codice
 
-`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). Indice di difficoltà, isole e progressione hanno solo il percorso previsto (`TO DO`); per l'indice esiste un'implementazione di partenza nel prototipo S4, in `prototipi/s4-generatore/src/engine/` (`difficulty.ts`, `weights.ts`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`).
+`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). Indice di difficoltà, isole e progressione hanno solo il percorso previsto (`TO DO`); per l'indice esiste un'implementazione di partenza nel prototipo S4, in `prototipi/s4-generatore/src/engine/` (`difficulty.ts`, `weights.ts`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`). I 100 livelli dell'originale sono dati in `src/infrastructure/content/legacy-levels.json`, esportati con `prototipi/s4-generatore/tools/export-levels.js` (richiede Playwright); `legacyLevels.ts` li tipizza e `toSpec` li converte in `LevelSpec`.
 
 | Elemento | Percorso | Ruolo | Riferimento nell'originale |
 |---|---|---|---|
 | `LevelSpec` | `src/domain/types.ts` | Descrizione dati di un livello | `LEVELS` (1191), `ISL_CFG` (1271), `ISL_SHAPES` (1248) |
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile con seme | `makeGroups` (1778), `assign` (1810) |
 | `solve()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità e partite simulate | nessuno |
+| `legacyLevels`, `toSpec()` | `src/infrastructure/content/legacyLevels.ts` | Campagna dell'originale come specifiche | `LEVELS` (1191), `layoutList` (1302) |
 | `levelDifficulty()` | `src/domain/difficulty.ts` (`TO DO`) | Indice di difficoltà | nessuno (nell'originale `L.diff` è un'etichetta) |
 | `levelForIndex()`, `islandForIndex()` | `src/domain/islands.ts` (`TO DO`) | Livelli e isole oltre la campagna | `ISLANDS` (1159), `layoutList` (1302) |
 | `isIslandUnlocked()` | `src/domain/progress.ts` (`TO DO`) | Regola di sblocco | `worldState` (2472), `islandEarned` (3213) |
@@ -120,10 +121,10 @@ Regole del modello:
 
 ## Verifica
 
-- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`); nel prototipo S4, 14 test, tra cui i 100 livelli dell'originale e l'indice.
-- **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; regressione sui livelli esportati dell'originale contro le tabelle di `docs/gioco-originale.md`.
+- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); nel prototipo S4, 14 test, tra cui l'indice.
+- **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; confronto dei livelli esportati con le tabelle di `docs/gioco-originale.md`.
 - **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
-- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); `src/domain/` sui 100 livelli dell'originale; il solver su tris piatti molto grandi (90 tessere, 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi); iOS.
+- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
 
 ## Collegamenti
 

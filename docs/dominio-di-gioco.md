@@ -53,6 +53,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile per costruzione |
 | `solve()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità, partite simulate |
 | `grid()`, `pyramid90()` | `src/domain/__fixtures__/shapes.ts` | Forme sintetiche per i test |
+| `replay()`, `checkInvariants()` | `src/domain/__fixtures__/checks.ts` | Verifiche condivise sulle tavole generate |
 
 ## Vincoli e scartato
 
@@ -64,9 +65,9 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 
 ## Verifica
 
-- **Coperto da test**: 35 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione). Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati.
+- **Coperto da test**: 35 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione). Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati. La regola della tessera libera è inoltre confrontata con `isFree` dell'originale su tutti i 100 livelli, in partite casuali, in `src/infrastructure/content/legacyLevels.test.ts` (alterandola di proposito il test fallisce).
 - **Come eseguirli**: `npx jest src/domain`.
-- **Non verificato**: i 100 livelli dell'originale con questo codice (la regressione è ancora nel prototipo S4); prestazioni di `src/domain/` su dispositivo (misurate nel prototipo S4, stesso algoritmo); il solver su tris piatti molto grandi: su una griglia di 90 tessere con 8 tipi, 3 tavole su 20 restano `unknown` entro 200000 nodi (le tavole risolvibili per costruzione restano tali).
+- **Non verificato**: prestazioni di `src/domain/` su dispositivo (misurate nel prototipo S4, stesso algoritmo); il solver su tris piatti molto grandi: su una griglia sintetica di 90 tessere con 8 tipi, 3 tavole su 20 restano `unknown` entro 200000 nodi (le tavole risolvibili per costruzione restano tali; sui 100 livelli dell'originale nessuna).
 
 ## Collegamenti
 
