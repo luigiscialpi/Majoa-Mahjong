@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore e solver sono implementati in `src/domain/`; le misure dell'indice e la verifica sui 100 livelli dell'originale stanno nel prototipo S4 (`prototipi/s4-generatore/`); restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver e indice di difficoltà sono implementati in `src/domain/` e verificati sui 100 livelli dell'originale in `src/infrastructure/content/`; restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -16,7 +16,7 @@ Il progetto usa la parola «difficoltà» per due cose diverse, che nel codice h
 
 | Termine | Nome nel codice | Significato |
 |---|---|---|
-| **Indice di difficoltà** | `levelDifficulty` | Numero da 0 a 100, proprietà del livello, calcolato dal modello per il profilo Normale. Governa generazione, ordinamento e etichetta. |
+| **Indice di difficoltà** | `difficultyIndex` | Numero da 0 a 100, proprietà del livello, calcolato dal modello per il profilo Normale. Governa generazione, ordinamento e etichetta. |
 | **Profilo di difficoltà** | `DifficultyProfile` | Facile, Normale, Medio, Difficile, Esperto, Maestro: scelta del giocatore. Modifica aiuti, numero di tipi, rimescoli automatici, tempo per le stelle, nebbia, scurimento e bonus ✨ (tabella in `docs/gioco-originale.md`, sezione «Aiuti»). **Non ricalcola** l'indice. |
 | **Etichetta di difficoltà** | `difficultyLabel` | Puntini da 1 a 5 mostrati nel menu: l'indice diviso in cinque fasce uguali. Per i livelli esportati dall'originale resta il valore originale. |
 
@@ -96,7 +96,7 @@ Regole del modello:
 
 ## Punti d'ingresso nel codice
 
-`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). Indice di difficoltà, isole e progressione hanno solo il percorso previsto (`TO DO`); per l'indice esiste un'implementazione di partenza nel prototipo S4, in `prototipi/s4-generatore/src/engine/` (`difficulty.ts`, `weights.ts`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`). I 100 livelli dell'originale sono dati in `src/infrastructure/content/legacy-levels.json`, esportati con `prototipi/s4-generatore/tools/export-levels.js` (richiede Playwright); `legacyLevels.ts` li tipizza e `toSpec` li converte in `LevelSpec`.
+`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). L'indice di difficoltà è in `src/domain/difficulty.ts` e `weights.ts`; isole e progressione hanno solo il percorso previsto (`TO DO`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`). I 100 livelli dell'originale sono dati in `src/infrastructure/content/legacy-levels.json`, esportati con `prototipi/s4-generatore/tools/export-levels.js` (richiede Playwright); `legacyLevels.ts` li tipizza e `toSpec` li converte in `LevelSpec`. Le misure di riferimento dei 100 livelli (media su 5 semi × 60 partite simulate) sono in `src/infrastructure/content/__fixtures__/legacy-measures.json`, prodotte da `prototipi/s4-generatore/tools/measures.ts`.
 
 | Elemento | Percorso | Ruolo | Riferimento nell'originale |
 |---|---|---|---|
@@ -104,7 +104,7 @@ Regole del modello:
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile con seme | `makeGroups` (1778), `assign` (1810) |
 | `solve()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità e partite simulate | nessuno |
 | `legacyLevels`, `toSpec()` | `src/infrastructure/content/legacyLevels.ts` | Campagna dell'originale come specifiche | `LEVELS` (1191), `layoutList` (1302) |
-| `levelDifficulty()` | `src/domain/difficulty.ts` (`TO DO`) | Indice di difficoltà | nessuno (nell'originale `L.diff` è un'etichetta) |
+| `staticMeasures()`, `dynamicMeasures()`, `difficultyIndex()`, `difficultyLabel()` | `src/domain/difficulty.ts`, `src/domain/weights.ts` | Nove misure, indice di difficoltà e etichetta 1-5 | nessuno (nell'originale `L.diff` è un'etichetta) |
 | `levelForIndex()`, `islandForIndex()` | `src/domain/islands.ts` (`TO DO`) | Livelli e isole oltre la campagna | `ISLANDS` (1159), `layoutList` (1302) |
 | `isIslandUnlocked()` | `src/domain/progress.ts` (`TO DO`) | Regola di sblocco | `worldState` (2472), `islandEarned` (3213) |
 
@@ -121,7 +121,7 @@ Regole del modello:
 
 ## Verifica
 
-- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); nel prototipo S4, 14 test, tra cui l'indice.
+- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`) e dell'indice di difficoltà (misure calcolate a mano, pesi, intervalli, etichetta); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; misure statiche uguali a quelle salvate; correlazione di Spearman 0,991 con l'ordine di progetto e 0,943 con le etichette 1-5 su 80 livelli; intervallo di libertà osservato; libertà e blocchi simulati riprodotti dal prototipo su 4 livelli; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); nel prototipo S4, 14 test.
 - **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; confronto dei livelli esportati con le tabelle di `docs/gioco-originale.md`.
 - **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
 - **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
