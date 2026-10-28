@@ -1,6 +1,6 @@
 # Dominio di gioco
 
-> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, generatore con seme, solver e indice di difficoltà. Isole, progressione, aiuti e punteggi non sono ancora nel dominio (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, mossa suggerita, generatore con seme, solver e indice di difficoltà. Isole, progressione, Annulla, Mischia e punteggi non sono ancora nel dominio (README, sezione 8).
 
 Questo capitolo spiega come il dominio rappresenta la tavola e le regole di abbinamento, e come una mossa produce il nuovo stato o un errore tipizzato. Si legge prima di toccare il codice di `src/domain/`.
 
@@ -38,6 +38,10 @@ Una cella è `{x, y, z}` (`z` è il piano). Una tessera posata (`PlacedTile`) ag
 
 `applyMove` non modifica lo stato ricevuto: lavora su una copia (`clone`). `GameState.apply` invece muta, ed è usato solo da solver e test.
 
+### Mossa suggerita e stato bloccato
+
+`findMove(stato)` restituisce la mossa che propone l'Aiuto: `groupSize` tessere giocabili dello stesso tipo, oppure `null`. `null` è lo stato «bloccato» (nessuna mossa possibile), che nell'originale avvia il rimescolo automatico. Finché restano gruppi nascosti chiusi preferisce il gruppo di stelle; altrimenti sceglie il gruppo che contiene la prima tessera giocabile nell'ordine delle tessere. Nei Tris l'originale sceglie il tipo con l'indice più basso: qui vale la stessa regola delle coppie, quindi la mossa suggerita può differire, la regola no. Contare gli usi, evidenziare le tessere e rimescolare non fanno parte di `findMove`.
+
 ### Generatore e piano di rimozione
 
 `generateLevel(spec, seme)` costruisce la tavola simulando la partita in avanti e restituisce, oltre alle tessere, il **piano**: i blocchi di tessere nell'ordine di rimozione. Un blocco ha `groupSize` oppure `2 × groupSize` tessere uguali, libere nello stesso momento. `applyMove` accetta solo gruppi di `groupSize`, quindi chi rigioca il piano spezza ogni blocco in gruppi consecutivi.
@@ -53,6 +57,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `Cell`, `PlacedTile`, `LevelSpec`, `Result`, `MoveError` | `src/domain/types.ts` | Tipi del dominio |
 | `buildAdjacency()`, `FreeTracker` | `src/domain/geometry.ts` | Tessera libera, aggiornamento incrementale |
 | `GameState`, `applyMove()` | `src/domain/gameState.ts` | Stato di partita e mossa |
+| `findMove()` | `src/domain/hint.ts` | Mossa suggerita e stato bloccato |
 | `boardMetrics()`, `tileRect()`, `drawOrder()`, `hitTest()`, `visibleFraction()`, `gameColumn()` | `src/domain/board.ts` | Layout sullo schermo e tocco |
 | `createRng()`, `hashSeed()` | `src/domain/prng.ts` | Generatore con seme |
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile per costruzione |
@@ -71,7 +76,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 
 ## Verifica
 
-- **Coperto da test**: 60 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione), indice di difficoltà (misure, intervalli, pesi, etichetta), layout e `hitTest` (formula calcolata a mano, costanti dell'originale, ordine di disegno, tocco sul bordino, tolleranza). Sul livello 20 dell'originale e su tutti i 100 livelli, `src/infrastructure/content/legacyBoard.test.ts` verifica che la tavola stia nell'area a più schermi e che le 26 tessere libere iniziali siano raggiungibili al tocco. Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati. La regola della tessera libera è inoltre confrontata con `isFree` dell'originale su tutti i 100 livelli, in partite casuali, in `src/infrastructure/content/legacyLevels.test.ts` (alterandola di proposito il test fallisce).
+- **Coperto da test**: 67 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione), indice di difficoltà (misure, intervalli, pesi, etichetta), layout e `hitTest` (formula calcolata a mano, costanti dell'originale, ordine di disegno, tocco sul bordino, tolleranza), mossa suggerita (ordine, preferenza per le stelle, tris, coerenza con `applyMove`). Sul livello 20 dell'originale e su tutti i 100 livelli, `src/infrastructure/content/legacyBoard.test.ts` verifica che la tavola stia nell'area a più schermi e che le 26 tessere libere iniziali siano raggiungibili al tocco. `src/infrastructure/content/legacyHint.test.ts` confronta `findMove` con quello dell'originale (coppie) in partite casuali su tutti i 100 livelli. Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati. La regola della tessera libera è inoltre confrontata con `isFree` dell'originale su tutti i 100 livelli, in partite casuali, in `src/infrastructure/content/legacyLevels.test.ts` (alterandola di proposito il test fallisce).
 - **Come eseguirli**: `npx jest src/domain`.
 - **Non verificato**: prestazioni di `src/domain/` su dispositivo (misurate nel prototipo S4, stesso algoritmo); il layout e il tocco su dispositivo (nessuna schermata ancora); il solver su tris piatti molto grandi: su una griglia sintetica di 90 tessere con 8 tipi, 3 tavole su 20 restano `unknown` entro 200000 nodi (le tavole risolvibili per costruzione restano tali; sui 100 livelli dell'originale nessuna).
 
