@@ -1,27 +1,12 @@
 import { checkInvariants, replay } from '../../domain/__fixtures__/checks';
+import { originalIsFree } from '../../domain/__fixtures__/original';
 import { FreeTracker, buildAdjacency } from '../../domain/geometry';
 import { generateLevel } from '../../domain/generator';
 import { createRng } from '../../domain/prng';
 import { solve } from '../../domain/solver';
-import type { Cell } from '../../domain/types';
 import { legacyLevels, toSpec } from './legacyLevels';
 
 jest.setTimeout(120_000);
-
-// Oracolo: `isFree` dell'originale, copiato da `reference/majoa-originale/Majoa Mahjong.html` (riga 1762).
-function originalIsFree(t: Cell, alive: readonly Cell[]): boolean {
-  let left = false;
-  let right = false;
-  for (const u of alive) {
-    if (u === t) continue;
-    if (u.z === t.z + 1 && Math.abs(u.x - t.x) < 1 && Math.abs(u.y - t.y) < 1) return false;
-    if (u.z === t.z && Math.abs(u.y - t.y) < 1) {
-      if (u.x < t.x && t.x - u.x < 2) left = true;
-      if (u.x > t.x && u.x - t.x < 2) right = true;
-    }
-  }
-  return !(left && right);
-}
 
 describe('campagna dell\'originale', () => {
   test('sono i 100 livelli, in ordine, con una forma valida', () => {
