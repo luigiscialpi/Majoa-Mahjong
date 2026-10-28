@@ -1,6 +1,6 @@
 # Dominio di gioco
 
-> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, generatore con seme, solver e indice di difficoltà. Isole, progressione, aiuti e punteggi non sono ancora nel dominio (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, generatore con seme, solver e indice di difficoltà. Isole, progressione, aiuti e punteggi non sono ancora nel dominio (README, sezione 8).
 
 Questo capitolo spiega come il dominio rappresenta la tavola e le regole di abbinamento, e come una mossa produce il nuovo stato o un errore tipizzato. Si legge prima di toccare il codice di `src/domain/`.
 
@@ -19,6 +19,10 @@ Una cella è `{x, y, z}` (`z` è il piano). Una tessera posata (`PlacedTile`) ag
 - è **libera** se non è coperta né chiusa ai lati.
 
 `buildAdjacency(celle)` calcola una volta per forma le relazioni (coperture e vicine, dirette e inverse). `FreeTracker` tiene i conteggi di tessere sopra e vicine per ogni tessera: `remove(i)` li aggiorna in modo incrementale, quindi le tessere libere si ottengono senza ripetere il confronto tra tutte le coppie.
+
+### Layout e tocco
+
+`boardMetrics(celle, larghezza, altezza)` calcola la dimensione della tessera e l'origine della tavola perché stia nell'area, con la formula del `layout()` dell'originale: ogni piano è spostato di −4 px in `x` e −5 px in `y`, la tessera è alta 1,3 volte la larghezza. `tileRect` dà il rettangolo di una tessera, `drawOrder` l'ordine di disegno dal fondo alla cima e `gameColumn` la colonna di gioco (rapporto massimo 3:4). `hitTest(celle, metriche, x, y, tolleranza)` restituisce la tessera più in alto nel punto, anche se coperta: dal bordino scoperto tra i piani si raggiunge la tessera sotto, ma se sia selezionabile lo decide `applyMove`. `visibleFraction` misura la quota di area di una tessera raggiungibile al tocco.
 
 ### Stato di partita e mosse
 
@@ -49,6 +53,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `Cell`, `PlacedTile`, `LevelSpec`, `Result`, `MoveError` | `src/domain/types.ts` | Tipi del dominio |
 | `buildAdjacency()`, `FreeTracker` | `src/domain/geometry.ts` | Tessera libera, aggiornamento incrementale |
 | `GameState`, `applyMove()` | `src/domain/gameState.ts` | Stato di partita e mossa |
+| `boardMetrics()`, `tileRect()`, `drawOrder()`, `hitTest()`, `visibleFraction()`, `gameColumn()` | `src/domain/board.ts` | Layout sullo schermo e tocco |
 | `createRng()`, `hashSeed()` | `src/domain/prng.ts` | Generatore con seme |
 | `generateLevel()` | `src/domain/generator.ts` | Tavola risolvibile per costruzione |
 | `solve()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità, partite simulate |
@@ -66,9 +71,9 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 
 ## Verifica
 
-- **Coperto da test**: 44 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione) e indice di difficoltà (misure, intervalli, pesi, etichetta). Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati. La regola della tessera libera è inoltre confrontata con `isFree` dell'originale su tutti i 100 livelli, in partite casuali, in `src/infrastructure/content/legacyLevels.test.ts` (alterandola di proposito il test fallisce).
+- **Coperto da test**: 60 test in `src/domain/` su forme sintetiche (5 piani con 90 tessere, griglie piatte): valori fissati del PRNG, tessera libera e aggiornamento incrementale, `applyMove` (errori, immutabilità, stelle e gruppi nascosti, tris), generatore (determinismo, specifiche non valide, `generation-failed`, soluzione rigiocata con `applyMove`, conteggi di tipi, stelle, nascoste, nebbia e oro) e solver (casi risolvibili e non, budget, tavole generate verificate in modo indipendente dalla costruzione), indice di difficoltà (misure, intervalli, pesi, etichetta), layout e `hitTest` (formula calcolata a mano, costanti dell'originale, ordine di disegno, tocco sul bordino, tolleranza). Sul livello 20 dell'originale e su tutti i 100 livelli, `src/infrastructure/content/legacyBoard.test.ts` verifica che la tavola stia nell'area a più schermi e che le 26 tessere libere iniziali siano raggiungibili al tocco. Sensibilità controllata introducendo 15 difetti di proposito (regole della tessera libera, `applyMove`, PRNG, generatore, solver): tutti rilevati. La regola della tessera libera è inoltre confrontata con `isFree` dell'originale su tutti i 100 livelli, in partite casuali, in `src/infrastructure/content/legacyLevels.test.ts` (alterandola di proposito il test fallisce).
 - **Come eseguirli**: `npx jest src/domain`.
-- **Non verificato**: prestazioni di `src/domain/` su dispositivo (misurate nel prototipo S4, stesso algoritmo); il solver su tris piatti molto grandi: su una griglia sintetica di 90 tessere con 8 tipi, 3 tavole su 20 restano `unknown` entro 200000 nodi (le tavole risolvibili per costruzione restano tali; sui 100 livelli dell'originale nessuna).
+- **Non verificato**: prestazioni di `src/domain/` su dispositivo (misurate nel prototipo S4, stesso algoritmo); il layout e il tocco su dispositivo (nessuna schermata ancora); il solver su tris piatti molto grandi: su una griglia sintetica di 90 tessere con 8 tipi, 3 tavole su 20 restano `unknown` entro 200000 nodi (le tavole risolvibili per costruzione restano tali; sui 100 livelli dell'originale nessuna).
 
 ## Collegamenti
 

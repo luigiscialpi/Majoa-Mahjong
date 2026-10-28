@@ -1,6 +1,6 @@
 # Rendering della tavola
 
-> **Stato: DRAFT.** Il capitolo descrive l'architettura validata dal prototipo S1 (`prototipi/s1-rendering/`) su un solo dispositivo Android; l'app non esiste ancora. iOS, tablet e telefoni di fascia bassa non sono stati provati.
+> **Stato: DRAFT.** Il capitolo descrive l'architettura validata dal prototipo S1 (`prototipi/s1-rendering/`) su un solo dispositivo Android; il rendering dell'app non esiste ancora (geometria e `hitTest` sono in `src/domain/board.ts`). iOS, tablet e telefoni di fascia bassa non sono stati provati.
 
 Questo capitolo spiega come si disegna la tavola con React Native Skia, quali vincoli impongono gli SVG delle tessere e quante tessere si possono animare insieme. Si legge prima di scrivere il rendering, le animazioni o la pipeline dei disegni.
 
@@ -48,15 +48,15 @@ Le 129 tessere sono SVG esportati una volta dall'originale (`prototipi/s1-render
 
 ### Tocco e rimozione
 
-Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 96 tessere del livello 20, 26 sono libere all'inizio e ciascuna è raggiungibile al tocco per almeno l'84% della propria area; una tessera coperta si raggiunge solo dal bordino scoperto (4-5 px tra i piani), ma non è selezionabile. La rimozione riproduce l'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms. Le scintille dell'originale (`burstAt`) non sono ancora riprodotte.
+Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 96 tessere del livello 20, 26 sono libere all'inizio e ciascuna è raggiungibile al tocco per più dell'80% della propria area (tra l'82% e l'85% su telefoni da 360 a 412 px di larghezza, oltre il 90% a 768 px); una tessera coperta si raggiunge solo dal bordino scoperto (4-5 px tra i piani), ma non è selezionabile. La rimozione riproduce l'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms. Le scintille dell'originale (`burstAt`) non sono ancora riprodotte.
 
 ## Punti d'ingresso nel codice
 
-Il rendering non esiste ancora. La regola della tessera libera è in `src/domain/geometry.ts` (`docs/dominio-di-gioco.md`); `hitTest`, geometria di layout e colonna di gioco sono ancora nel prototipo S1, da cui partire: `prototipi/s1-rendering/`.
+Il rendering non esiste ancora. Regola della tessera libera, geometria di layout, `hitTest` e colonna di gioco sono in `src/domain/` (`geometry.ts`, `board.ts`; `docs/dominio-di-gioco.md`); il resto è ancora nel prototipo S1, da cui partire: `prototipi/s1-rendering/`.
 
 | Elemento | Percorso | Ruolo |
 |---|---|---|
-| Geometria, `isFree`, `hitTest`, colonna di gioco | `prototipi/s1-rendering/src/board.ts` | Dominio puro, con test in `board.test.ts` |
+| Geometria di layout, `hitTest`, colonna di gioco | `src/domain/board.ts` | Dominio puro, con test in `board.test.ts` e in `src/infrastructure/content/legacyBoard.test.ts` |
 | Tavola a due strati | `prototipi/s1-rendering/src/TileBoardLayered.tsx` | Strato fermo, strato vivo, partita simulata |
 | Corpo della tessera e cache | `prototipi/s1-rendering/src/TileBody.tsx` | `TileBody`, `useBodyImage` |
 | Disegno di un SVG | `prototipi/s1-rendering/src/SvgAt.tsx` | Posizione e ritaglio |
@@ -73,7 +73,7 @@ Il rendering non esiste ancora. La regola della tessera libera è in `src/domain
 
 ## Verifica
 
-- **Coperto da test**: 12 test del dominio in `board.test.ts`; confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS.
+- **Coperto da test**: 21 test del dominio (`src/domain/board.test.ts`, `src/infrastructure/content/legacyBoard.test.ts`); confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS.
 - **Misurato su dispositivo**: un Android (modello non indicato), in produzione: tabella sopra; equivalenza strato fermo / vivo 0% di pixel diversi; nessun fantasma nella partita simulata (una coppia al secondo).
 - **Non verificato**: iOS, tablet, telefoni di fascia bassa; fantasmi con un giocatore più veloce di una coppia al secondo; animazioni dell'intera tavola; scintille di rimozione; Expo SDK 58.
 
