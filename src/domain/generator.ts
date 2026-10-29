@@ -4,8 +4,6 @@ import { STAR_TYPE, type GenError, type Generated, type LevelSpec, type PlacedTi
 
 export const MAX_ATTEMPTS = 1500;
 
-type Chunk = { size: number; type: number };
-
 function validate(spec: LevelSpec): string | null {
   const n = spec.cells.length;
   const g = spec.groupSize;
@@ -39,24 +37,27 @@ export function generateLevel(spec: LevelSpec, seed: number, maxAttempts = MAX_A
   return { ok: false, error: { kind: 'generation-failed', attempts: maxAttempts } };
 }
 
-function tryOnce(spec: LevelSpec, adj: Adjacency, rng: Rng): Omit<Generated, 'attempts'> | null {
-  const n = spec.cells.length;
-  const g = spec.groupSize;
-  const G = spec.hidden.length;
+export type Chunk = { size: number; type: number };
 
+/**
+ * Piano dei blocchi di una soluzione: per `tileCount` tessere di cui `starGroups` gruppi di stelle, la sequenza di blocchi
+ * (ciascuno `groupSize` o `2 × groupSize` tessere uguali, con il loro tipo) perché ogni tipo compaia almeno una volta.
+ * I gruppi di stelle stanno nella prima parte della sequenza.
+ */
+export function planChunks(tileCount: number, g: number, starGroups: number, types: number, poolSize: number, rng: Rng): Chunk[] {
   // Piano dei gruppi: quanti gruppi grandi (2g) e piccoli (g) servono perché ogni tipo compaia almeno una volta.
-  const P = (n - G * g) / g;
-  const K = Math.min(spec.types, P);
+  const P = (tileCount - starGroups * g) / g;
+  const K = Math.min(types, P);
   const quads = Math.max(0, Math.min(Math.floor(P / 2), P - K));
   const sizes = rng.shuffle([...Array<number>(quads).fill(2 * g), ...Array<number>(P - 2 * quads).fill(g)]);
   const C0 = sizes.length;
-  const pool = rng.shuffle(Array.from({ length: spec.poolSize }, (_, i) => i)).slice(0, K);
+  const pool = rng.shuffle(Array.from({ length: poolSize }, (_, i) => i)).slice(0, K);
   const labels = rng.shuffle(Array.from({ length: C0 }, (_, i) => pool[i % K]));
 
   // Posizione dei gruppi di stelle: nella prima parte della soluzione.
-  const C = C0 + G;
-  const window = Math.min(C, Math.max(G, Math.ceil(0.4 * C)));
-  const starPos = rng.shuffle(Array.from({ length: window }, (_, i) => i)).slice(0, G).sort((a, b) => a - b);
+  const C = C0 + starGroups;
+  const window = Math.min(C, Math.max(starGroups, Math.ceil(0.4 * C)));
+  const starPos = rng.shuffle(Array.from({ length: window }, (_, i) => i)).slice(0, starGroups).sort((a, b) => a - b);
   const starSet = new Set(starPos);
   const chunks: Chunk[] = [];
   for (let i = 0, k = 0; i < C; i++) {
@@ -66,6 +67,23 @@ function tryOnce(spec: LevelSpec, adj: Adjacency, rng: Rng): Omit<Generated, 'at
       k++;
     }
   }
+  return chunks;
+}
+
+/** Sceglie a caso `size` tessere tra quelle libere (rimescola `free` sul posto). */
+export function pickRandom(free: number[], size: number, rng: Rng): number[] {
+  for (let k = 0; k < size; k++) {
+    const j = k + rng.int(free.length - k);
+    [free[k], free[j]] = [free[j], free[k]];
+  }
+  return free.slice(0, size);
+}
+
+function tryOnce(spec: LevelSpec, adj: Adjacency, rng: Rng): Omit<Generated, 'attempts'> | null {
+  const n = spec.cells.length;
+  const g = spec.groupSize;
+  const G = spec.hidden.length;
+  const chunks = planChunks(n, g, G, spec.types, spec.poolSize, rng);
 
   // Simulazione in avanti.
   const ft = new FreeTracker(adj);
@@ -74,11 +92,7 @@ function tryOnce(spec: LevelSpec, adj: Adjacency, rng: Rng): Omit<Generated, 'at
   for (const chunk of chunks) {
     const free = ft.freeList();
     if (free.length < chunk.size) return null;
-    for (let k = 0; k < chunk.size; k++) {
-      const j = k + rng.int(free.length - k);
-      [free[k], free[j]] = [free[j], free[k]];
-    }
-    const picked = free.slice(0, chunk.size);
+    const picked = pickRandom(free, chunk.size, rng);
     for (const t of picked) type[t] = chunk.type;
     for (const t of picked) ft.remove(t);
     plan.push(picked);

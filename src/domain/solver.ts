@@ -46,6 +46,11 @@ export type SolveResult = { status: 'solvable' | 'unsolvable' | 'unknown'; nodes
  * `budget` limita i nodi visitati: oltre, l'esito è `unknown`.
  */
 export function solve(tiles: readonly PlacedTile[], groupSize: number, poolSize: number, budget = 200000): SolveResult {
+  return solveFrom(new GameState(tiles, groupSize, poolSize), budget);
+}
+
+/** Come `solve`, ma a partire da uno stato di partita già avviato (tessere tolte, gruppi nascosti aperti). */
+export function solveFrom(start: GameState, budget = 200000): SolveResult {
   const dead = new Set<string>();
   let nodes = 0;
   let exceeded = false;
@@ -100,7 +105,7 @@ export function solve(tiles: readonly PlacedTile[], groupSize: number, poolSize:
     return false;
   };
 
-  const ok = dfs(new GameState(tiles, groupSize, poolSize));
+  const ok = dfs(start);
   if (ok) return { status: 'solvable', nodes };
   return { status: exceeded ? 'unknown' : 'unsolvable', nodes };
 }

@@ -24,13 +24,21 @@ export class GameState {
     if (source) {
       this.ft = source.ft.clone();
       this.unlocked = source.unlocked;
-      this.left = source.left.slice();
+      // Con le stesse tessere i conteggi si copiano; se i tipi sono stati riassegnati (rimescolo) si ricalcolano.
+      this.left = tiles === source.tiles ? source.left.slice() : this.countLeft();
     } else {
       this.ft = new FreeTracker(buildAdjacency(tiles));
       this.unlocked = 0;
-      this.left = new Int16Array(this.slots);
-      for (const t of tiles) this.left[this.slot(t.type)]++;
+      this.left = this.countLeft();
     }
+  }
+
+  private countLeft(): Int16Array {
+    const left = new Int16Array(this.slots);
+    this.tiles.forEach((t, i) => {
+      if (this.ft.alive[i] === 1) left[this.slot(t.type)]++;
+    });
+    return left;
   }
 
   slot(type: number): number {
