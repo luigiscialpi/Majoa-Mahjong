@@ -1,6 +1,6 @@
 # Dominio di gioco
 
-> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, mossa suggerita, rimescolo, profili di difficoltà, stelle e ✨ di una vittoria, generatore con seme, solver e indice di difficoltà. Isole, progressione, Annulla e record non sono ancora nel dominio (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, mossa suggerita, rimescolo, profili di difficoltà, stelle e ✨ di una vittoria, generatore con seme, solver e indice di difficoltà. Annulla e la partita in corso stanno in `src/application/` (`docs/sessione-di-gioco.md`); isole, progressione e record non sono ancora nel dominio (README, sezione 8).
 
 Questo capitolo spiega come il dominio rappresenta la tavola e le regole di abbinamento, e come una mossa produce il nuovo stato o un errore tipizzato. Si legge prima di toccare il codice di `src/domain/`.
 
@@ -44,7 +44,7 @@ Una cella è `{x, y, z}` (`z` è il piano). Una tessera posata (`PlacedTile`) ag
 
 ### Mischia e rimescolo
 
-`reshuffle(stato, tipi, seme)` riassegna i disegni delle tessere rimaste e restituisce un nuovo stato, senza modificare quello ricevuto. Restano uguali le posizioni, le tessere tolte, i gruppi nascosti aperti e i flag di nascosta, nebbia e oro; cambiano i tipi, stelle comprese: i gruppi di stelle ancora da aprire si ripianificano. Il metodo è quello del generatore, ma parte dallo stato in corso: pianifica i blocchi (`planChunks`) e simula la partita in avanti scegliendo solo tessere libere e già giocabili, quindi lo stato ottenuto è risolvibile per costruzione. Se un tentativo non riesce ne prova un altro con un seme derivato, fino a 1500; se nessuno riesce restituisce `generation-failed` (l'originale in quel caso assegna senza garanzia). `tipi` è il numero di disegni normali da usare. Chi chiama decide se il rimescolo conta come aiuto e se azzera la cronologia: nell'originale la Mischia conta e il rimescolo automatico no, e dopo entrambi non si annulla più.
+`reshuffle(stato, tipi, seme)` riassegna i disegni delle tessere rimaste e restituisce un nuovo stato, senza modificare quello ricevuto. Restano uguali le posizioni, le tessere tolte, i gruppi nascosti aperti e i flag di nascosta, nebbia e oro; cambiano i tipi, stelle comprese: i gruppi di stelle ancora da aprire si ripianificano. Il metodo è quello del generatore, ma parte dallo stato in corso: pianifica i blocchi (`planChunks`) e simula la partita in avanti scegliendo solo tessere libere e già giocabili, quindi lo stato ottenuto è risolvibile per costruzione. Se un tentativo non riesce ne prova un altro con un seme derivato, fino a 1500; se nessuno riesce restituisce `generation-failed` (l'originale in quel caso assegna senza garanzia). `tipi` è il numero di disegni normali da usare. La sessione (`docs/sessione-di-gioco.md`) decide se il rimescolo conta come aiuto e se azzera la cronologia: come nell'originale la Mischia conta e il rimescolo automatico no, e dopo entrambi non si annulla più.
 
 ### Profili di difficoltà, stelle e ✨
 
@@ -108,3 +108,4 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 - `docs/rendering.md`: come la tavola si disegna e come il tocco arriva al dominio.
 - `docs/gioco-originale.md`: regole dell'originale da cui derivano tessera libera e abbinamento.
 - README, sezione 5: decisioni correlate.
+- `docs/sessione-di-gioco.md`: la partita in corso, che usa questo dominio.
