@@ -39,12 +39,18 @@ Circa 30 tessere vive. Nel livello 20 le libere insieme sono al massimo 26-27. L
 
 ### Disegni (SVG)
 
-Le 129 tessere sono SVG esportati una volta dall'originale (`prototipi/s1-rendering/tools/`). Vincoli del motore SVG di Skia, verificati con `skia-python` e sul dispositivo:
+Le 129 tessere sono SVG esportati una volta dall'originale (`prototipi/s1-rendering/tools/`); una copia sta in `assets/tiles/`. Vincoli del motore SVG di Skia, verificati con `skia-python` e sul dispositivo:
 
 - **Nessun `<text>`**: SkSVG non lo disegna. Lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √) sono convertiti in tracciati; i font usati, Poppins Bold e DejaVu Serif Bold, sono provvisori e la scelta finale è una decisione di grafica (`TO DO`).
 - **Solo `viewBox`, mai `width` e `height` fissi**: con attributi fissi SkSVG ignora la dimensione richiesta e disegna sempre 60 × 80.
 - **Ritaglio sul riquadro**: il browser ritaglia sul `viewBox`, SkSVG no, e 10 disegni sporgono (per esempio il koala). `SvgAt` ritaglia sul riquadro del disegno.
 - **`ImageSVG` con x o y a zero** ignora la posizione (`if (x && y)` nel player di Skia): si trasla con un `Group` (`SvgAt`).
+
+### Quale disegno per ogni tessera
+
+Il generatore assegna ai tipi posizioni astratte `0…poolSize-1`, mentre i 129 disegni sono indicizzati come nell'originale. `designOf(isola, tipo)` fa la corrispondenza: la posizione indica un disegno nel gruppo dell'isola (`legacy-themes.json`: per esempio `animals` usa 0-11, 16-21 e 30-39) e la stella ha il suo, il 26. Tipi diversi hanno sempre disegni diversi. Ogni livello ha la sua tavolozza di cinque colori (`levelPalette`): feltro chiaro, feltro scuro, accento, bordo e bordo scuro; quella del livello 20 è la stessa che usa S1.
+
+Disegni e tavolozze si ricavano dall'originale eseguito in jsdom (`tools/export-themes.js`, con lo stesso gancio dello strumento di S4, senza browser). `TILE_SOURCES` (`tileSources.ts`, generato da `tools/generate-tile-index.js`) elenca gli SVG di `assets/tiles/` in ordine di indice.
 
 ### Tocco e rimozione
 
@@ -62,6 +68,9 @@ Il rendering non esiste ancora. Regola della tessera libera, geometria di layout
 | Disegno di un SVG | `prototipi/s1-rendering/src/SvgAt.tsx` | Posizione e ritaglio |
 | Equivalenza strato fermo / vivo | `prototipi/s1-rendering/src/equivalence.tsx` | Confronto sui pixel |
 | Esportazione, conversione dei testi, fedeltà | `prototipi/s1-rendering/tools/` | Pipeline dei disegni |
+| `designOf()`, `levelPalette()` | `src/infrastructure/content/legacyThemes.ts` | Disegno di un tipo e tavolozza di un livello |
+| `TILE_SOURCES` | `src/infrastructure/content/tileSources.ts` | Elenco dei 129 SVG di `assets/tiles/` |
+| `extract()` | `tools/export-themes.js` | Disegni e tavolozze dall'originale |
 
 ## Vincoli e scartato
 
@@ -73,7 +82,7 @@ Il rendering non esiste ancora. Regola della tessera libera, geometria di layout
 
 ## Verifica
 
-- **Coperto da test**: 21 test del dominio (`src/domain/board.test.ts`, `src/infrastructure/content/legacyBoard.test.ts`); confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS.
+- **Coperto da test**: 21 test del dominio (`src/domain/board.test.ts`, `src/infrastructure/content/legacyBoard.test.ts`); 6 test su disegni e tavolozze (`legacyThemes.test.ts`, `originalThemes.test.ts`: coerenza con i 100 livelli, corrispondenza tipo → disegno, confronto con l'originale rieseguito in jsdom; 6 difetti introdotti di proposito, tutti rilevati); confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS.
 - **Misurato su dispositivo**: un Android (modello non indicato), in produzione: tabella sopra; equivalenza strato fermo / vivo 0% di pixel diversi; nessun fantasma nella partita simulata (una coppia al secondo).
 - **Non verificato**: iOS, tablet, telefoni di fascia bassa; fantasmi con un giocatore più veloce di una coppia al secondo; animazioni dell'intera tavola; scintille di rimozione; Expo SDK 58.
 

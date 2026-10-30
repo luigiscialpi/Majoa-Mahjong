@@ -16,7 +16,7 @@ La sezione dichiara il *perché* prima del *cosa* e fissa i confini del progetto
 
 - **Scopo (PERCHÉ)**: portare su Android il gioco di abbinamento tessere in stile mahjong «Majoa Mahjong», nato come gioco HTML/CSS/JavaScript, riscrivendolo da zero (il vecchio codice è solo riferimento per grafica e funzionalità) e aggiungendo un motore di livelli infiniti, organizzati in isole da 20 livelli e ampliabili con nuovi contenuti. iOS escluso: non è previsto un rilascio su App Store.
 - **Piattaforme e stack**: Android (telefoni e tablet; target unico; iOS escluso dal rilascio), interfaccia sempre in verticale. Expo SDK 57, TypeScript `strict`, React Native Skia, Reanimated.
-- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; l'app è avviata (Expo Router e Jest, schermata segnaposto) `src/domain/` contiene il nucleo del dominio con test (tessere libere, mosse, mossa suggerita, rimescolo, layout e `hitTest`, generatore con seme, solver, indice di difficoltà, profili, stelle e ✨ di una vittoria) e `src/infrastructure/content/` i 100 livelli dell'originale con test di regressione, e `src/application/` la sessione di gioco; non esistono ancora schermate né funzionalità per il giocatore (sezione 2).
+- **Stato**: `DRAFT`. Esistono la documentazione, la copia dell'originale in `reference/majoa-originale/` e tutti i 5 prototipi di validazione (S1 rendering, S2 audio, S3 layout, S4 motore dei livelli, S5 OTA) in `prototipi/`; l'app è avviata (Expo Router e Jest, schermata segnaposto) `src/domain/` contiene il nucleo del dominio con test (tessere libere, mosse, mossa suggerita, rimescolo, layout e `hitTest`, generatore con seme, solver, indice di difficoltà, profili, stelle e ✨ di una vittoria) e `src/infrastructure/content/` i 100 livelli dell'originale con i loro disegni e tavolozze e test di regressione, e `src/application/` la sessione di gioco; non esistono ancora schermate né funzionalità per il giocatore (sezione 2).
 - **Fuori ambito**: layout orizzontale; account e sincronizzazione cloud; banner pubblicitari in partita; mediazione con altre reti pubblicitarie; destinazione dell'app ai bambini.
 
 ## 2. Funzionalità
@@ -68,7 +68,7 @@ Le dipendenze puntano verso il dominio: il dominio non importa nulla dagli altri
     API native)                         nessuna dipendenza)
 ```
 
-Struttura delle cartelle (`DRAFT`: esistono `src/app/`, `src/domain/`, `src/application/` e `src/infrastructure/content/`; `ui/`, il resto di `infrastructure/` e `tools/` non ancora):
+Struttura delle cartelle (`DRAFT`: esistono `src/app/`, `src/domain/`, `src/application/`, `src/infrastructure/content/` e `tools/`; `ui/` e il resto di `infrastructure/` non ancora):
 
 ```text
 package.json, app.json, tsconfig.json  # configurazione dell'app, nella radice
@@ -79,9 +79,10 @@ src/
   infrastructure/  # storage, ads, audio, contenuti, API native
   ui/              # schermate, componenti, rendering
 docs/              # capitoli di approfondimento
+assets/            # icone dell'app e i 129 disegni delle tessere (assets/tiles/, SVG)
 reference/         # copia di sola lettura del gioco HTML originale (majoa-originale/)
 prototipi/         # prototipi di validazione usa e getta (S1: rendering; S2: audio; S3: layout; S4: motore; S5: OTA)
-tools/             # script di esportazione (livelli, disegni, campioni audio)
+tools/             # script di esportazione e generazione (tavolozze, indice dei disegni); gli altri sono ancora nei prototipi
 ```
 
 ## 4. Regole essenziali
@@ -134,7 +135,7 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Area | Come viene verificata | Stato |
 |---|---|---|
 | Scaffold dell'app | `tsc --noEmit`, `expo export --platform android` (bundle Hermes), `expo-doctor` offline | verificato: 19 controlli su 21 di `expo-doctor` (restano i 2 che richiedono la rete); avvio su dispositivo non verificato |
-| Dominio (`src/domain/`), sessione (`src/application/`) e campagna (`src/infrastructure/content/`) | Jest: 151 test; 127 su forme sintetiche (regole, `applyMove`, generatore, solver, misure e indice, layout e `hitTest`, mossa suggerita, rimescolo, profili, stelle, sessione) e 24 sui 100 livelli dell'originale (forma dei dati, tessera libera contro `isFree` dell'originale, generazione con soluzione rigiocata, solver, indice contro ordine di progetto ed etichette, misure simulate riprodotte dal prototipo, tavola dentro l'area, tessere libere del livello 20 raggiungibili al tocco, mossa suggerita contro `findMove` dell'originale, rimescolo a un terzo e a due terzi della partita, tavole generate fissate a parità di seme, profili: costanti lette dall'HTML dell'originale e 600 specifiche livello × profilo generate e verificate, sessione: 300 partite casuali complete con contatori, stelle e ricostruzione da eventi coerenti); 15 difetti introdotti di proposito nel dominio, 3 sulla regola della tessera libera, 7 sull'indice, 10 sul layout, 6 sulla mossa suggerita, 8 sul rimescolo, 14 su profili e stelle e 22 sulla sessione, tutti rilevati | verificato; prestazioni su dispositivo non rimisurate sul codice dell'app |
+| Dominio (`src/domain/`), sessione (`src/application/`) e campagna (`src/infrastructure/content/`) | Jest: 157 test; 127 su forme sintetiche (regole, `applyMove`, generatore, solver, misure e indice, layout e `hitTest`, mossa suggerita, rimescolo, profili, stelle, sessione) e 30 sui 100 livelli dell'originale (forma dei dati, tessera libera contro `isFree` dell'originale, generazione con soluzione rigiocata, solver, indice contro ordine di progetto ed etichette, misure simulate riprodotte dal prototipo, tavola dentro l'area, tessere libere del livello 20 raggiungibili al tocco, mossa suggerita contro `findMove` dell'originale, rimescolo a un terzo e a due terzi della partita, tavole generate fissate a parità di seme, profili: costanti lette dall'HTML dell'originale e 600 specifiche livello × profilo generate e verificate, sessione: 300 partite casuali complete con contatori, stelle e ricostruzione da eventi coerenti, disegni e tavolozze: coerenza con i livelli e confronto con l'originale eseguito in jsdom); 15 difetti introdotti di proposito nel dominio, 3 sulla regola della tessera libera, 7 sull'indice, 10 sul layout, 6 sulla mossa suggerita, 8 sul rimescolo, 14 su profili e stelle, 22 sulla sessione e 6 su disegni e tavolozze, tutti rilevati | verificato; prestazioni su dispositivo non rimisurate sul codice dell'app |
 | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; tablet e fascia bassa no; iOS escluso dal rilascio |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
 | Prototipo S2 (audio) | `expo-audio` e `expo-haptics`, 24 campioni WAV da Chromium, benchmark latenza e combo (`prototipi/s2-audio/README.md`) | verificato su un dispositivo Android con `--no-dev --minify`; latenza combo e polifonia ok, decisione confermata |
@@ -166,8 +167,8 @@ Elenco delle aree non ancora decise o analizzate: segnala che il documento è vi
 Ordine di lavoro: per vedere presto l'app giocabile si porta prima l'interfaccia di gioco; tutto il resto resta in sospeso e va fatto, nell'ordine sotto salvo nuove decisioni. Si aggiorna quando cambia.
 
 1. Fatto: sessione di gioco (`src/application/session.ts`, `docs/sessione-di-gioco.md`).
-2. Prossimo: schermata della tavola (disegno con Skia dal prototipo S1, tocco con `hitTest`, pulsanti Aiuto, Annulla e Mischia, avviso e rimescolo automatico, schermata di vittoria con le stelle) e pulsante «Gioca» nella home.
-3. In sospeso, da fare dopo: salvataggio e ripristino della partita (SQLite, ricostruita con `replaySession`); isole, progressione e sblocco (`levelForIndex`, `islandForIndex`, parametri aperti più sotto); progressi per livello (migliore stella, record di tempo, profilo più alto battuto); scelta del profilo e Modalità comoda; decisioni aperte sui Tris e sulla nebbia (difetti 6 e 7); rompicapi e album; audio, lingue, pubblicità e contenuti OTA; `tools/`.
+2. Prossimo: schermata della tavola (i dati per disegnare, cioè disegni per tipo, tavolozze e i 129 SVG, sono già nel progetto; resta il disegno con Skia dal prototipo S1, tocco con `hitTest`, pulsanti Aiuto, Annulla e Mischia, avviso e rimescolo automatico, schermata di vittoria con le stelle) e pulsante «Gioca» nella home.
+3. In sospeso, da fare dopo: salvataggio e ripristino della partita (SQLite, ricostruita con `replaySession`); isole, progressione e sblocco (`levelForIndex`, `islandForIndex`, parametri aperti più sotto); progressi per livello (migliore stella, record di tempo, profilo più alto battuto); scelta del profilo e Modalità comoda; decisioni aperte sui Tris e sulla nebbia (difetti 6 e 7); rompicapi e album; audio, lingue, pubblicità e contenuti OTA; spostare in `tools/` gli altri script di esportazione (livelli, audio), oggi nei prototipi.
 
 - Prototipi di validazione: S1, S2, S3, S4 e S5 sono tutti completati e chiusi.
 - `DRAFT`: isole 3-7 dell'originale estese a 20 livelli con 10 livelli generati (ipotesi da confermare).
@@ -182,4 +183,4 @@ Ordine di lavoro: per vedere presto l'app giocabile si porta prima l'interfaccia
 - `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; scintille di rimozione; fantasmi con un giocatore più veloce; font definitivo di lettere e numeri (provvisori Poppins Bold e DejaVu Serif Bold).
 - Limite del solver: con budget di 200000 nodi, su una griglia piatta sintetica di 90 tessere in tris con 8 tipi 3 tavole su 20 restano `unknown` (sui 100 livelli dell'originale nessuna).
 - `TO DO`: Modalità comoda (meno disegni, niente nebbia, rimescoli illimitati); scelta del profilo per partita; migliore stella, record di tempo e profilo più alto battuto per livello (salvataggio dei progressi).
-- `TO DO`: creare `tools/`; capitoli di salvataggi, audio, lingue, pubblicità, contenuti OTA.
+- `TO DO`: spostare in `tools/` gli script di esportazione dei livelli e dell'audio; capitoli di salvataggi, audio, lingue, pubblicità, contenuti OTA.
