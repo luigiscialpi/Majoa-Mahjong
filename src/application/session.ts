@@ -218,14 +218,15 @@ export function shuffle(session: Session): Step {
 
 /**
  * Rimescolo automatico quando non c'è più nessuna mossa: gratuito e senza contare come aiuto, ma limitato dal profilo.
- * Esauriti i gratuiti (o se il rimescolo non riesce) suggerisce Mischia, poi Annulla; senza altre vie la partita è bloccata.
- * Se una mossa esiste ancora non fa nulla.
+ * Esauriti i gratuiti suggerisce Mischia, poi Annulla; senza altre vie la partita è bloccata. Se il rimescolo non riesce, la
+ * tavola non ha soluzione con nessun disegno (per esempio tessere impilate in colonna): Mischia fallirebbe allo stesso modo,
+ * quindi si salta e si consiglia Annulla. Se una mossa esiste ancora non fa nulla.
  */
 export function rescue(session: Session): Step {
   if (session.phase !== 'playing' || session.game.remaining < 2 || findMove(session.game) !== null) return ignored(session);
   if (session.freeShuffles !== null && session.freeShuffles <= 0) return advise(session);
   const shuffled = reshuffleGame(session);
-  if (!shuffled.ok) return advise(session);
+  if (!shuffled.ok) return advise(session, true);
   const next: Session = {
     ...session,
     game: shuffled.value,
@@ -239,8 +240,8 @@ export function rescue(session: Session): Step {
   return step(next, { kind: 'rescued' });
 }
 
-function advise(session: Session): Step {
-  if (session.left.shuffles === null || session.left.shuffles > 0) return step(session, { kind: 'advice', use: 'shuffle' });
+function advise(session: Session, shuffleUseless = false): Step {
+  if (!shuffleUseless && (session.left.shuffles === null || session.left.shuffles > 0)) return step(session, { kind: 'advice', use: 'shuffle' });
   if (session.history.length > 0 && (session.left.undo === null || session.left.undo > 0)) return step(session, { kind: 'advice', use: 'undo' });
   return step({ ...session, phase: 'dead' }, { kind: 'dead' });
 }

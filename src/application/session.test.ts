@@ -274,6 +274,33 @@ describe('rescue', () => {
   });
 });
 
+describe('rescue su una tavola senza soluzione', () => {
+  // Quattro tessere impilate in colonna: una sola libera per volta, quindi nessun disegno dà una coppia.
+  const stack = () => new GameState([0, 1, 2, 3].map((z) => ({ x: 0, y: 0, z, type: z < 2 ? 0 : 1, hiddenGroup: 0, fog: false, gold: false })), 2, 24);
+
+  test('il rimescolo non riesce: si salta Mischia, che fallirebbe uguale, e si consiglia Annulla', () => {
+    const s0 = start();
+    const stuck: Session = { ...s0, game: stack(), history: [s0.game] };
+    expect(isStuck(stuck)).toBe(true);
+    expect(rescue(stuck)).toMatchObject({ feedback: { kind: 'advice', use: 'undo' } }); // anche se Mischia ha ancora usi
+    expect(stuck.left.shuffles).toBeGreaterThan(0);
+  });
+
+  test('senza cronologia o senza Annulla la partita è bloccata', () => {
+    const s0 = start();
+    const stuck: Session = { ...s0, game: stack(), history: [s0.game] };
+    expect(rescue({ ...stuck, history: [] }).feedback).toEqual({ kind: 'dead' });
+    expect(rescue({ ...stuck, left: { ...stuck.left, undo: 0 } }).feedback).toEqual({ kind: 'dead' });
+  });
+
+  test('Mischia a mano fallisce senza consumare nulla', () => {
+    const s0 = start();
+    const stuck: Session = { ...s0, game: stack(), history: [s0.game] };
+    const r = shuffle(stuck);
+    expect([r.feedback, r.session.left.shuffles, r.session.aidsUsed, r.session.history.length]).toEqual([{ kind: 'shuffle-failed' }, stuck.left.shuffles, 0, 1]);
+  });
+});
+
 describe('vittoria e tempo', () => {
   test('rigiocando il piano del generatore la partita è vinta, con stelle, aiuti e oro', () => {
     const won = playPlan(start(hiddenSpec()));

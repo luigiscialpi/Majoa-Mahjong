@@ -50,7 +50,6 @@ describe('sessione di gioco sui 100 livelli dell\'originale', () => {
   });
 
   test('con Difficile e Maestro ogni partita finisce; se è bloccata non restava nessuna via d\'uscita', () => {
-    let dead = 0;
     for (const profile of ['hard', 'master'] as const) {
       legacyLevels.forEach((_, i) => {
         const { l, input, started, played } = play(i, profile);
@@ -58,13 +57,11 @@ describe('sessione di gioco sui 100 livelli dell\'originale', () => {
         expect({ label, finita: played.phase !== 'playing' }).toEqual({ label, finita: true });
         checkConsistency(label, input, started, played);
         if (played.phase === 'dead') {
-          dead++;
           const noShuffle = played.left.shuffles !== null && played.left.shuffles <= 0;
           const noUndo = played.history.length === 0 || (played.left.undo !== null && played.left.undo <= 0);
           expect({ label, gratuitiFiniti: played.freeShuffles === 0, noShuffle, noUndo }).toEqual({ label, gratuitiFiniti: true, noShuffle: true, noUndo: true });
         }
       });
     }
-    console.log(`partite bloccate con Difficile e Maestro: ${dead} su 200`);
   });
 });
