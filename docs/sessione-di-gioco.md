@@ -1,6 +1,6 @@
 # Sessione di gioco
 
-> **Stato: DRAFT.** Il capitolo descrive `src/application/session.ts` così com'è: una partita in corso, senza interfaccia. Schermata, suoni, animazioni, salvataggio su disco e progressi per livello non esistono ancora (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive `src/application/session.ts` così com'è: una partita in corso, senza interfaccia (la schermata che la usa è descritta in `docs/rendering.md`). Suoni, salvataggio su disco e progressi per livello non esistono ancora (README, sezione 8).
 
 Questo capitolo spiega la sessione di gioco: come si rappresenta una partita in corso, cosa fa ogni azione del giocatore e come una partita si ricostruisce da specifica, seme ed eventi. Si legge prima di toccare `src/application/` o di collegare la schermata di gioco.
 
@@ -12,7 +12,7 @@ La sessione mette insieme i pezzi del dominio (`docs/dominio-di-gioco.md`) in un
 
 ### Modello
 
-`Session` è un valore immutabile. Contiene la specifica con il profilo già applicato (`spec`), il profilo, il seme e `noTimePressure`; la partita (`game`, un `GameState`); la cronologia degli stati precedenti per Annulla (`history`); la selezione (`selected`); gli aiuti rimasti (`left`, con `null` = illimitati) e quelli usati (`aidsUsed`); i rimescoli automatici gratuiti rimasti (`freeShuffles`); i secondi (`seconds`); la fase (`phase`: `playing`, `won` o `dead`); l'esito della vittoria (`outcome`) e il registro degli eventi (`events`). `startSession({ spec, profile, seed, noTimePressure })` applica il profilo, genera la tavola con il seme e restituisce `Result<Session, GenError>`.
+`Session` è un valore immutabile. Contiene la specifica con il profilo già applicato (`spec`), il profilo, il seme e `noTimePressure`; la partita (`game`, un `GameState`); la cronologia degli stati precedenti per Annulla (`history`); la selezione (`selected`); gli aiuti rimasti (`left`, con `null` = illimitati) e quelli usati (`aidsUsed`); i rimescoli automatici gratuiti rimasti (`freeShuffles`); i secondi (`seconds`); la fase (`phase`: `playing`, `won` o `dead`); l'esito della vittoria (`outcome`) e il registro degli eventi (`events`). `startSession({ spec, profile, seed, noTimePressure })` applica il profilo, genera la tavola con il seme e restituisce `Result<Session, GenError>`. `src/application/round.ts` avvolge la sessione per `useReducer`: `Round` (sessione, ultimo feedback e numero progressivo), `startRound` e `reduceRound`; se il tempo non cambia nulla (partita finita) restituisce lo stesso round.
 
 ### Azioni e feedback
 
@@ -34,7 +34,7 @@ Gli aiuti iniziali e i rimescoli gratuiti vengono dal profilo (`applyProfile` e 
 
 ### Rimescolo automatico e fine della partita
 
-`rescue` esaurisce le vie in quest'ordine. Se restano rimescoli gratuiti (o sono illimitati), rimescola. Se sono finiti, o se il rimescolo non riesce, consiglia Mischia (`advice` con `use: 'shuffle'`) finché ne restano; poi Annulla (`use: 'undo'`) se c'è cronologia e usi; altrimenti la partita passa a `dead` e il tempo si ferma.
+`rescue` esaurisce le vie in quest'ordine. Se restano rimescoli gratuiti (o sono illimitati), rimescola. Se sono finiti, consiglia Mischia (`advice` con `use: 'shuffle'`) finché ne restano; poi Annulla (`use: 'undo'`) se c'è cronologia e usi; altrimenti la partita passa a `dead` e il tempo si ferma. Se invece il rimescolo non riesce, la tavola non ha soluzione con nessun disegno (per esempio tessere impilate in colonna, come le ultime 4 del livello 10 con certi semi): Mischia fallirebbe allo stesso modo, quindi si salta e si consiglia subito Annulla.
 
 ### Fine partita
 
@@ -53,6 +53,7 @@ Ogni azione che cambia la partita aggiunge un evento (`move` con il gruppo, `hin
 | `hint()`, `undo()`, `shuffle()`, `rescue()` | `src/application/session.ts` | Aiuti e rimescolo automatico |
 | `tick()`, `isStuck()`, `goldCount()` | `src/application/session.ts` | Tempo e stato derivato |
 | `replaySession()`, `SessionEvent` | `src/application/session.ts` | Ricostruzione da eventi |
+| `startRound()`, `reduceRound()`, `Round` | `src/application/round.ts` | Sessione e feedback per `useReducer` |
 | `playRandomSession()`, `snapshot()` | `src/application/__fixtures__/play.ts` | Partite casuali e confronti nei test |
 
 ## Vincoli e scartato
@@ -61,13 +62,13 @@ Ogni azione che cambia la partita aggiunge un evento (`move` con il gruppo, `hin
 - Nessun timer, ritardo o accesso a disco nella sessione: l'interfaccia chiama `tick` e, dopo l'avviso, `rescue`.
 - Ogni azione restituisce una nuova sessione e non modifica quella ricevuta. Le funzioni non iniziano con `use`: le regole degli hook di React le leggerebbero come hook.
 - Un evento si registra solo se cambia la partita. Non cambiare il seme derivato dei rimescoli né l'ordine degli eventi senza una decisione esplicita: le partite salvate si ricostruiranno da lì.
-- Se un rimescolo non riesce (`generation-failed`) la Mischia non consuma nulla e il rimescolo automatico passa ai consigli; cosa fare se capitasse davvero è da decidere (nei test non succede mai).
+- Se un rimescolo non riesce (`generation-failed`) la Mischia non consuma nulla e il rimescolo automatico consiglia Annulla, saltando Mischia.
 
 ## Verifica
 
-- **Coperto da test**: 33 test in `src/application/session.test.ts` su partite generate (selezione e rifiuti, gruppi nascosti e stelle, Tris, Aiuto, Annulla, Mischia, rimescolo automatico e consigli fino alla partita bloccata, vittoria, stelle per tempo e aiuti, tempo, immutabilità, ricostruzione da eventi con tre profili, errori). `src/infrastructure/content/legacySession.test.ts` gioca a caso partite complete su tutti i 100 livelli: 100 con Normale (tutte vinte) e 200 con Difficile e Maestro (una sola finisce bloccata), controllando che i contatori degli aiuti coincidano con gli eventi, che le stelle e l'oro siano quelli attesi, che una partita bloccata non avesse vie d'uscita e che ogni partita si ricostruisca dagli eventi. Sensibilità controllata introducendo 22 difetti di proposito: tutti rilevati.
+- **Coperto da test**: 36 test in `src/application/session.test.ts` su partite generate (selezione e rifiuti, gruppi nascosti e stelle, Tris, Aiuto, Annulla, Mischia, rimescolo automatico e consigli fino alla partita bloccata, tavola senza soluzione, vittoria, stelle per tempo e aiuti, tempo, immutabilità, ricostruzione da eventi con tre profili, errori). `src/infrastructure/content/legacySession.test.ts` gioca a caso partite complete su tutti i 100 livelli: 100 con Normale (tutte vinte) e 200 con Difficile e Maestro (una sola finisce bloccata), controllando che i contatori degli aiuti coincidano con gli eventi, che le stelle e l'oro siano quelli attesi, che una partita bloccata non avesse vie d'uscita e che ogni partita si ricostruisca dagli eventi. `src/application/round.test.ts` (5 test) prova il reducer. Sensibilità controllata introducendo 22 difetti di proposito nella sessione: tutti rilevati.
 - **Come eseguirli**: `npx jest src/application src/infrastructure/content/legacySession`.
-- **Non verificato**: come la partita si gioca davvero (nessuna schermata ancora; i test giocano a caso); il ritardo dell'avviso prima del rimescolo e la reazione dell'interfaccia; il caso di un rimescolo che non riesce.
+- **Non verificato**: come la partita si gioca davvero (la schermata non è mai stata provata su un dispositivo; i test giocano a caso o con una regola fissa).
 
 ## Collegamenti
 
