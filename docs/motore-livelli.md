@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver e indice di difficoltà sono implementati in `src/domain/` e verificati sui 100 livelli dell'originale in `src/infrastructure/content/`; restano `TO DO` la tolleranza dell'indice, la curva tra isole, `ρ` di sblocco e la generazione delle forme (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver, indice di difficoltà, progressi e regole di sblocco sono implementati in `src/domain/` e verificati sui 100 livelli dell'originale in `src/infrastructure/content/`; restano `TO DO` la tolleranza dell'indice, la curva tra isole, la decisione su `ρ` di sblocco, la generazione delle forme e delle isole oltre la campagna (README, sezione 8).
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -87,7 +87,7 @@ Per spiegare la regola serve l'originale: un'isola si apriva quando la precedent
 
 Regole del modello:
 1. Dentro un'isola i livelli si sbloccano in sequenza, vincendo il precedente con almeno una stella.
-2. L'isola `i+1` si apre quando l'isola `i` è completata (livello 20 con almeno una stella) **e** le stelle della sola isola `i` raggiungono `ρ × 60`. Proposta di partenza: `ρ = 2/3`, cioè 40 stelle su 60, che corrisponde alla prima soglia dell'originale (80 su 120). `ρ` è `TO DO`.
+2. L'isola `i+1` si apre quando l'isola `i` è completata (livello 20 con almeno una stella) **e** le stelle della sola isola `i` raggiungono `ρ × 60`. Proposta di partenza: `ρ = 2/3`, cioè 40 stelle su 60, che corrisponde alla prima soglia dell'originale (80 su 120). `ρ` è `TO DO`: nel codice è la costante `UNLOCK_RATIO` (2/3), un parametro esplicito di tutte le funzioni di sblocco, quindi cambiarlo non tocca la logica. L'isola completata e le sue stelle si contano a partire dai livelli dell'isola, qualunque ne sia il numero (oggi 20 per le prime due isole e 10 per le altre cinque, in attesa dei livelli da generare): la soglia è `⌈ρ × 3 × livelli⌉`.
 3. Un solo criterio per le stelle (1-3 per livello, da tempo e aiuti come nell'originale): la stessa somma alimenta sblocco e album.
 4. Il regalo ✨ all'apertura di un'isola è un dato dell'isola (nell'originale: 3 per l'Isola degli animali, 5 per le altre).
 5. Le spiegazioni delle meccaniche compaiono alla **prima comparsa** della meccanica nel gioco, non per numero di livello.
@@ -106,7 +106,10 @@ Regole del modello:
 | `legacyLevels`, `toSpec()` | `src/infrastructure/content/legacyLevels.ts` | Campagna dell'originale come specifiche | `LEVELS` (1191), `layoutList` (1302) |
 | `staticMeasures()`, `dynamicMeasures()`, `difficultyIndex()`, `difficultyLabel()` | `src/domain/difficulty.ts`, `src/domain/weights.ts` | Nove misure, indice di difficoltà e etichetta 1-5 | nessuno (nell'originale `L.diff` è un'etichetta) |
 | `levelForIndex()`, `islandForIndex()` | `src/domain/islands.ts` (`TO DO`) | Livelli e isole oltre la campagna | `ISLANDS` (1159), `layoutList` (1302) |
-| `isIslandUnlocked()` | `src/domain/progress.ts` (`TO DO`) | Regola di sblocco | `worldState` (2472), `islandEarned` (3213) |
+| `newProgress()`, `recordWin()`, `levelProgress()` | `src/domain/progress.ts` | Progressi per livello e ✨ di una vittoria | `prog` (stelle, oro, record, profilo), `win` (2279) |
+| `isLevelUnlocked()`, `isIslandUnlocked()`, `unlockThreshold()`, `islandStars()`, `isIslandCompleted()` | `src/domain/progress.ts` | Regole di sblocco di livelli e isole | `worldState` (2472), `islandEarned` (3213) |
+| `openGifts()` | `src/domain/progress.ts` | Regalo ✨ delle isole appena aperte | campo `gift` delle isole |
+| `legacyIslands`, `trisLevelIds`, `islandData()` | `src/infrastructure/content/legacyIslands.ts`, `legacyThemes.ts` | Le 7 isole della campagna, i Tris a parte, regali letti dall'originale | `ISLANDS` (1159) |
 
 ## Vincoli e scartato
 
@@ -121,10 +124,10 @@ Regole del modello:
 
 ## Verifica
 
-- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`) e dell'indice di difficoltà (misure calcolate a mano, pesi, intervalli, etichetta); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; misure statiche uguali a quelle salvate; correlazione di Spearman 0,991 con l'ordine di progetto e 0,943 con le etichette 1-5 su 80 livelli; intervallo di libertà osservato; libertà e blocchi simulati riprodotti dal prototipo su 4 livelli; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); nel prototipo S4, 14 test.
+- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`) e dell'indice di difficoltà (misure calcolate a mano, pesi, intervalli, etichetta); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; misure statiche uguali a quelle salvate; correlazione di Spearman 0,991 con l'ordine di progetto e 0,943 con le etichette 1-5 su 80 livelli; intervallo di libertà osservato; libertà e blocchi simulati riprodotti dal prototipo su 4 livelli; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); in `src/domain/progress.test.ts` e `src/infrastructure/content/legacyIslands.test.ts`, regole di sblocco, record, ✨, regali e simulazioni di giocatori sulle isole della campagna (13 difetti introdotti di proposito, tutti rilevati; un quattordicesimo, equivalente, non cambia nulla); nel prototipo S4, 14 test.
 - **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; confronto dei livelli esportati con le tabelle di `docs/gioco-originale.md`.
 - **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
-- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; generazione di forme e di livelli oltre la campagna (`levelForIndex`); il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
+- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; sblocco dei Tris (nell'originale bloccati finché non si finiscono i livelli iniziali); salvataggio dei progressi; generazione di forme e di livelli oltre la campagna (`levelForIndex`); il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
 
 ## Collegamenti
 

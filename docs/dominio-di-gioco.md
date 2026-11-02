@@ -1,6 +1,6 @@
 # Dominio di gioco
 
-> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, mossa suggerita, rimescolo, profili di difficoltà, stelle e ✨ di una vittoria, generatore con seme, solver e indice di difficoltà. Annulla e la partita in corso stanno in `src/application/` (`docs/sessione-di-gioco.md`); isole, progressione e record non sono ancora nel dominio (README, sezione 8).
+> **Stato: DRAFT.** Il capitolo descrive il codice di `src/domain/` così com'è: tavola, regole di abbinamento, geometria sullo schermo con `hitTest`, mossa suggerita, rimescolo, profili di difficoltà, stelle e ✨ di una vittoria, progressi con sblocco di livelli e isole, generatore con seme, solver e indice di difficoltà. Annulla e la partita in corso stanno in `src/application/` (`docs/sessione-di-gioco.md`); le isole oltre la campagna e la mappa non sono ancora nel dominio (README, sezione 8).
 
 Questo capitolo spiega come il dominio rappresenta la tavola e le regole di abbinamento, e come una mossa produce il nuovo stato o un errore tipizzato. Si legge prima di toccare il codice di `src/domain/`.
 
@@ -57,7 +57,7 @@ I sei profili (`Profile`: facile, normale, medio, difficile, esperto, maestro) h
 
 `starsFor({ seconds, tiles, aidsUsed, profile, noTimePressure })` dà le stelle di una vittoria: vale il minore tra le stelle per tempo (3 entro `coppie × 5 × k` secondi, 2 entro `coppie × 10 × k`, con `k` fattore del profilo) e per aiuti (3 con 0-1 aiuti, 2 con al più `max(3, ⌈coppie / 6⌉)`, altrimenti 1). Come nell'originale le «coppie» sono `tessere / 2` anche nei Tris. `coinsForWin(...)` dà le ✨ di una vittoria: una per ogni stella in più del massimo precedente, una per ogni tessera d'oro in più e la differenza di bonus del profilo rispetto al più alto già battuto; non comprende i regali all'apertura delle isole né i rompicapi.
 
-Conservare la migliore stella, il record di tempo e il profilo più alto battuto spetta a chi chiama (progressione); la Modalità comoda non è ancora nel dominio.
+Conservare la migliore stella, il record di tempo e il profilo più alto battuto lo fa `recordWin` in `src/domain/progress.ts` (`docs/motore-livelli.md`, «Progressione e sblocco»); la Modalità comoda non è ancora nel dominio.
 
 ### Generatore e piano di rimozione
 
@@ -81,6 +81,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `reshuffle()` | `src/domain/reshuffle.ts` | Mischia e rimescolo automatico |
 | `PROFILE_RULES`, `applyProfile()`, `scaleAid()`, `effectiveTypes()`, `fogCount()` | `src/domain/profile.ts` | Profili di difficoltà |
 | `starsFor()`, `coinsForWin()` | `src/domain/stars.ts` | Stelle e ✨ di una vittoria |
+| `newProgress()`, `recordWin()`, `isLevelUnlocked()`, `isIslandUnlocked()`, `openGifts()` | `src/domain/progress.ts` | Progressi e sblocco (`docs/motore-livelli.md`) |
 | `solve()`, `solveFrom()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità, partite simulate |
 | `staticMeasures()`, `dynamicMeasures()`, `difficultyIndex()`, `difficultyLabel()` | `src/domain/difficulty.ts`, `src/domain/weights.ts` | Misure e indice di difficoltà (`docs/motore-livelli.md`) |
 | `grid()`, `pyramid90()` | `src/domain/__fixtures__/shapes.ts` | Forme sintetiche per i test |
