@@ -5,7 +5,17 @@ import themes from './legacy-themes.json';
 export type Palette = readonly [string, string, string, string, string];
 
 // ponytail: il JSON entra senza controlli di forma; li fa `legacyThemes.test.ts`, che lo confronta anche con l'originale.
-const data = themes as unknown as { starDesign: number; designCount: number; islands: Record<string, number[]>; palettes: Palette[] };
+const data = themes as unknown as { starDesign: number; designCount: number; islands: Record<string, number[]>; islandInfo: Record<string, IslandData>; palettes: Palette[] };
+
+/** Dati di un'isola dell'originale: icona, ✨ regalate all'apertura (0 = nessuna) e se è un'isola bonus (i Tris). */
+export type IslandData = { icon: string; gift: number; bonus: boolean };
+
+/** Dati dell'isola `id` (per esempio `animals`). */
+export function islandData(id: string): IslandData {
+  const info = data.islandInfo[id];
+  if (!info) throw new Error(`isola sconosciuta: ${id}`);
+  return info;
+}
 
 /** Disegno (0-128) della tessera stella. */
 export const STAR_DESIGN = data.starDesign;

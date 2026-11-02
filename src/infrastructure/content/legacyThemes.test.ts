@@ -1,6 +1,6 @@
 import { generateLevel } from '../../domain/generator';
 import { STAR_TYPE } from '../../domain/types';
-import { DESIGN_COUNT, STAR_DESIGN, designOf, levelPalette } from './legacyThemes';
+import { DESIGN_COUNT, STAR_DESIGN, designOf, islandData, levelPalette } from './legacyThemes';
 import { legacyLevels, toSpec } from './legacyLevels';
 import { TILE_SOURCES } from './tileSources';
 import themes from './legacy-themes.json';
@@ -54,5 +54,12 @@ describe('disegni e tavolozze dell\'originale', () => {
       }
       expect({ id: l.id, tipi: designOfType.size, disegni: new Set(designOfType.values()).size }).toEqual({ id: l.id, tipi: designOfType.size, disegni: designOfType.size });
     }
+  });
+
+  test('dati delle isole: regalo ✨ (animali 3, le altre 5, livelli iniziali e Tris nessuno) e isola bonus dei Tris', () => {
+    const gifts = Object.fromEntries(Object.keys(islands).map((id) => [id, islandData(id).gift]));
+    expect(gifts).toEqual({ prologue: 0, animals: 3, sweets: 5, art: 5, science: 5, sea: 5, flowers: 5, tris: 0 });
+    expect(Object.keys(islands).filter((id) => islandData(id).bonus)).toEqual(['tris']);
+    expect(() => islandData('inesistente')).toThrow();
   });
 });

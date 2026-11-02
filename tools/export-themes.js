@@ -1,4 +1,4 @@
-// Esporta dall'HTML originale i disegni di ogni isola e la tavolozza di ogni livello.
+// Esporta dall'HTML originale i disegni di ogni isola, la tavolozza di ogni livello e i dati delle isole (icona, regalo ✨, bonus).
 // Uso: node tools/export-themes.js "<percorso di Majoa Mahjong.html>" <file di uscita .json>
 // Carica l'originale in jsdom (installato con jest-expo) con lo stesso gancio di prototipi/s4-generatore/tools/export-levels.js,
 // quindi non serve un browser. Il modulo esporta anche `extract`, che usa il test che confronta il JSON con l'originale.
@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const HOOK = 'openMap(); window.__x={get ISLANDS(){return ISLANDS},get LEVELS(){return LEVELS},get STAR_IDX(){return STAR_IDX},get NT(){return NT}};})();</script>';
 
-/** Esegue l'originale in jsdom e ne legge isole e livelli. Restituisce { starDesign, designCount, islands, palettes }. */
+/** Esegue l'originale in jsdom e ne legge isole e livelli. Restituisce { starDesign, designCount, islands, islandInfo, palettes }. */
 async function extract(htmlPath) {
   const { JSDOM, VirtualConsole } = require('jsdom');
   const patched = fs.readFileSync(htmlPath, 'utf8').replace(/openMap\(\);\s*\}\)\(\);\s*<\/script>/, HOOK);
@@ -35,8 +35,12 @@ async function extract(htmlPath) {
     const x = dom.window.__x;
     if (!x) throw new Error(`l'originale non ha esposto i dati (errori: ${errors.slice(0, 2).join('; ') || 'nessuno'})`);
     const islands = {};
-    for (const w of x.ISLANDS) islands[w.id] = w.pool.filter((k) => k !== x.STAR_IDX);
-    return { starDesign: x.STAR_IDX, designCount: x.NT, islands, palettes: x.LEVELS.map((l) => l.th) };
+    const islandInfo = {};
+    for (const w of x.ISLANDS) {
+      islands[w.id] = w.pool.filter((k) => k !== x.STAR_IDX);
+      islandInfo[w.id] = { icon: w.icon, gift: w.gift || 0, bonus: !!w.bonus };
+    }
+    return { starDesign: x.STAR_IDX, designCount: x.NT, islands, islandInfo, palettes: x.LEVELS.map((l) => l.th) };
   } finally {
     dom.window.close();
   }
