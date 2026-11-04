@@ -1,6 +1,6 @@
 # Salvataggi
 
-> **Stato: DRAFT, nessun codice.** Il capitolo descrive l'esperienza e il modello decisi per i progressi e la partita in corso; i nomi nel codice sono quelli previsti. Si aggiorna a ogni passo di costruzione (formato, archiviazione, collegamento alla UI). I principi generali di interazione sono in `docs/ux.md`.
+> **Stato: DRAFT, in parte costruito.** Esistono il formato della partita salvata, la ricostruzione, il codec dei progressi e l'archivio in memoria (passo a); l'archiviazione SQLite e il collegamento alla UI (passi b e c) sono ancora da fare e i loro nomi sono quelli previsti. I principi generali di interazione sono in `docs/ux.md`.
 
 Questo capitolo spiega cosa si salva, quando, come si riprende e cosa succede quando qualcosa va storto. Si legge prima di toccare la persistenza (`src/application/`, `src/infrastructure/`) o la home.
 
@@ -28,15 +28,15 @@ Il tempo corre solo mentre si gioca: `tick` si chiama solo con l'app in primo pi
 
 ### Modello
 
-**Partita salvata** (`SavedGame`, JSON con numero di versione del formato): `levelId` (il numero del livello nei progressi, che serve a `recordWin` e alla scheda «Continua»; `LevelSpec.id` è una stringa come `legacy-20` e non si interpreta), `spec` (la specifica di base, senza il profilo applicato), `profile`, `seed`, `noTimePressure`, `events`, `seconds` e `fingerprint`. Le tessere non si salvano: la partita si ricostruisce con `replaySession(ingresso, eventi, secondi)` (`docs/sessione-di-gioco.md`), che riparte da specifica, profilo e seme e riapplica gli eventi. Si salva la specifica e non solo il numero del livello perché la partita non dipende da contenuti che cambiano dopo.
+**Partita salvata** (`SavedGame`, JSON con numero di versione del formato, oggi 1): `levelId` (il numero del livello nei progressi, che serve a `recordWin` e alla scheda «Continua»; `LevelSpec.id` è una stringa come `legacy-20` e non si interpreta), `spec` (la specifica di base, `Session.base`, senza il profilo applicato: applicato due volte cambierebbe la tavola), `profile`, `seed`, `noTimePressure`, `events`, `seconds` e `fingerprint`. Le tessere non si salvano: `restoreSession` ricostruisce la partita con `replaySession(ingresso, eventi, secondi)` (`docs/sessione-di-gioco.md`), che riparte da specifica, profilo e seme e riapplica gli eventi. Si salva la specifica e non solo il numero del livello perché la partita non dipende da contenuti che cambiano dopo. Una partita salvata subito dopo l'ultima mossa può risultare già vinta: la registrazione dell'esito spetta a chi chiama. La lettura (`parseSavedGame`) è rigida: una versione sconosciuta dà `unsupported-version`; campi mancanti o in più, tipi e valori fuori intervallo danno `malformed` con il percorso del campo (per esempio `spec.cells[2].z`). Le coordinate delle tessere sono numeri finiti, non solo interi, perché le tessere possono stare a mezzi passi; non c'è un tetto ai conteggi.
 
-**Impronta della tavola**: valore a 64 bit (due FNV-1a a 32 bit con moltiplicatori diversi, come in `legacyGolden.test.ts`) calcolato sulla partita al momento del salvataggio: per ogni tessera, in ordine, posizione, disegno, gruppo nascosto, nebbia, oro e se è ancora in tavola, più i gruppi aperti. Dopo la ricostruzione si ricalcola e si confronta: se il generatore, i rimescoli o le regole sono cambiati, la partita non coincide e si scarta invece di riprendere su una tavola diversa (difetto 5 dell'originale).
+**Impronta della tavola** (`boardFingerprint`, `src/domain/fingerprint.ts`): valore a 64 bit (due FNV-1a a 32 bit con moltiplicatori diversi, la funzione `fingerprint` che fissa anche le tavole in `legacyGolden.test.ts`) calcolato sulla partita al momento del salvataggio: per ogni tessera, in ordine, posizione, disegno, gruppo nascosto, nebbia, oro e se è ancora in tavola, più i gruppi aperti. Dopo la ricostruzione si ricalcola e si confronta: se il generatore, i rimescoli o le regole sono cambiati, la partita non coincide (`board-mismatch`) e si scarta invece di riprendere su una tavola diversa (difetto 5 dell'originale).
 
-**Progressi**: `Progress` serializzato con versione. In JSON le chiavi di `levels` sono stringhe: la lettura le riconverte in interi e rifiuta le altre. La lettura valida forma e valori (stelle 0-3, tempi e ✨ non negativi, profilo noto, regali senza duplicati) e restituisce errori tipizzati, senza correggere nulla di nascosto.
+**Progressi** (`serializeProgress`, `parseProgress`): `Progress` serializzato con versione, oggi 1. In JSON le chiavi di `levels` sono stringhe: devono essere interi positivi in forma canonica (`3`, non `03`). La lettura valida forma e valori (stelle 0-3, record di tempo `null` o numero non negativo, oro e ✨ interi non negativi, profilo `null` o noto, regali come testi non vuoti e senza duplicati), rifiuta campi mancanti o in più e restituisce errori tipizzati, senza correggere nulla di nascosto.
 
-**Porta `SaveStore`** (asincrona): leggere e scrivere i progressi; leggere, scrivere e cancellare la partita; `finishGame(progress)` (scrive i progressi e cancella la partita insieme); `resetAll()` (progressi predefiniti e partita cancellata insieme). Ogni operazione restituisce un valore con l'errore tipizzato, non un'eccezione. Esiste una versione in memoria per i test e per sviluppare la UI.
+**Porta `SaveStore`** (asincrona): `loadProgress` e `saveProgress`; `loadGame`, `saveGame` e `clearGame`; `finishGame(progress)` (scrive i progressi e cancella la partita insieme); `resetAll()` (progressi iniziali e partita cancellata insieme). Ogni operazione restituisce un `Result` con `SaveError`, non un'eccezione; senza dati salvati `loadProgress` dà i progressi iniziali e `loadGame` dà `null`. `createMemorySaveStore({ progress, game })` è la versione in memoria per i test e per sviluppare la UI: tiene i testi serializzati come un archivio vero, quindi passa dagli stessi codec, e accetta contenuti iniziali scritti a mano, anche illeggibili. Non produce mai `storage-failed`.
 
-**Archiviazione** (passo successivo): SQLite con `expo-sqlite` dietro l'interfaccia minima `SqlDatabase`; schema versionato con migrazioni; `finishGame` e `resetAll` in una transazione. L'adattatore di `expo-sqlite` si verifica solo in compilazione: sul dispositivo non è provato. Per i test si usa un SQLite vero.
+**Archiviazione** (passo b, non costruito): SQLite con `expo-sqlite` dietro l'interfaccia minima `SqlDatabase`; schema versionato con migrazioni; `finishGame` e `resetAll` in una transazione. L'adattatore di `expo-sqlite` si verifica solo in compilazione: sul dispositivo non è provato. Per i test si usa un SQLite vero.
 
 ### Stati ed errori
 
@@ -63,14 +63,15 @@ Proposte da confermare prima di costruire il passo c:
 
 ## Punti d'ingresso nel codice
 
-Nessun codice oggi. Percorsi e nomi previsti:
-
 | Elemento | Percorso | Ruolo |
 |---|---|---|
-| `SavedGame`, `toSavedGame()`, `restoreSession()`, `boardFingerprint()` | `src/application/savedGame.ts` | Formato della partita salvata e ricostruzione con controllo dell'impronta |
-| `serializeProgress()`, `parseProgress()`, `SaveError` | `src/application/progressCodec.ts` | Serializzazione e validazione dei progressi |
+| `SavedGame`, `toSavedGame()`, `restoreSession()`, `serializeSavedGame()`, `parseSavedGame()` | `src/application/savedGame.ts` | Formato della partita salvata, ricostruzione con controllo dell'impronta, lettura e scrittura |
+| `serializeProgress()`, `parseProgress()` | `src/application/progressCodec.ts` | Serializzazione e validazione dei progressi |
+| `SaveError`, `isInt()`, `keysMismatch()`, `parseJson()` | `src/application/saveFormat.ts` | Errori tipizzati e predicati comuni di lettura |
 | `SaveStore`, `createMemorySaveStore()` | `src/application/saveStore.ts` | Porta di archiviazione e versione in memoria |
-| `SqlDatabase`, adattatori, migrazioni | `src/infrastructure/storage/` | SQLite |
+| `fingerprint()`, `boardFingerprint()` | `src/domain/fingerprint.ts` | Impronta a 64 bit e impronta della tavola |
+| `Session.base` | `src/application/session.ts` | Specifica di partenza, senza profilo |
+| `SqlDatabase`, adattatori, migrazioni (previsti, passo b) | `src/infrastructure/storage/` | SQLite |
 
 ## Vincoli e scartato
 
@@ -79,14 +80,17 @@ Nessun codice oggi. Percorsi e nomi previsti:
 - Non salvare le tessere: la partita si ricostruisce. L'originale le salvava una per una e non controllava la tavola.
 - Non cambiare il generatore a parità di seme (`legacyGolden.test.ts`), il seme derivato dei rimescoli né l'ordine degli eventi senza una decisione esplicita: le partite salvate si ricostruiscono da lì.
 - Il tempo non è un evento: si salva a parte in `seconds`.
+- Non cambiare l'algoritmo di `fingerprint()`: lo fissano `legacyGolden.test.ts` e le partite salvate.
+- Non salvare la specifica con il profilo applicato (`Session.spec`): si salva `Session.base`. Il numero del livello (`levelId`) lo passa chi chiama `toSavedGame`.
 - Il dominio non legge l'orologio: nessun timestamp nella partita salvata.
 - Un cambio di formato è una migrazione con nuova versione, mai una lettura tollerante.
 - Non usare MMKV, AsyncStorage o file JSON: niente transazioni né schema (README, sezione 5).
 
 ## Verifica
 
-- **Coperto da test**: nulla, perché non c'è codice.
-- **Non verificato**: tutto il capitolo. Un confronto con l'originale: sezione 12 di `docs/gioco-originale.md`, letta dal codice.
+- **Coperto da test**: impronta (`src/domain/fingerprint.test.ts`, 13 test: valori fissi dell'algoritmo, ogni attributo della tessera, quale tessera è uscita, parti delimitate); partita salvata (`src/application/savedGame.test.ts`, 97 test: `toSavedGame`, ricostruzione con sei profili, a metà e a fine partita, partita vinta, `event-rejected`, `start-failed` e `board-mismatch`, lettura con ogni campo mancante, in più o fuori intervallo, versioni); progressi (`progressCodec.test.ts`, 46 test); archivio in memoria (`saveStore.test.ts`, 10 test: vuoto, scritture e letture, `finishGame`, `resetAll`, contenuti illeggibili); 100 livelli dell'originale salvati, letti e ricostruiti, a metà con sei profili e a fine partita con Normale e Maestro (`src/infrastructure/content/legacySave.test.ts`, 2 test). Sensibilità controllata introducendo 65 difetti di proposito: 63 rilevati; i 2 sopravvissuti sono equivalenti (il `;` dopo `alive` nell'impronta, perché `alive` è una sola cifra e la stringa resta non ambigua; una modifica che cambia solo i tipi).
+- **Come eseguirli**: `npx jest src/application src/domain/fingerprint src/infrastructure/content/legacySave`.
+- **Non verificato**: l'archiviazione su disco e `storage-failed`, che l'archivio in memoria non produce mai; l'esperienza descritta (nessuna parte è collegata alla UI); le decisioni aperte; il tempo in secondo piano. Per l'originale, sezione 12 di `docs/gioco-originale.md`, letta dal codice.
 
 ## Collegamenti
 
