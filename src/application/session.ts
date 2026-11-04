@@ -27,6 +27,8 @@ export type SessionEvent =
 export type Outcome = { stars: Stars; seconds: number; aidsUsed: number; gold: number; goldTotal: number };
 
 export type Session = {
+  /** Specifica di partenza, senza il profilo applicato: con profilo, seme ed eventi basta a ricostruire la partita. */
+  readonly base: LevelSpec;
   /** Specifica con il profilo già applicato. */
   readonly spec: LevelSpec;
   readonly profile: Profile;
@@ -83,6 +85,7 @@ export function startSession(input: StartInput): Result<Session, GenError> {
   return {
     ok: true,
     value: {
+      base: input.spec,
       spec,
       profile: input.profile,
       seed: input.seed,
