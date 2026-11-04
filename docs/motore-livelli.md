@@ -132,4 +132,5 @@ Regole del modello:
 ## Collegamenti
 
 - `docs/gioco-originale.md`: regole, livelli, difficoltà e punteggi dell'originale.
+- `docs/salvataggi.md`: come si salvano e si leggono i progressi.
 - README, sezione 5: decisioni correlate; sezione 8: `TO DO` aperti.

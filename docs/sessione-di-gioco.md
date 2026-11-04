@@ -73,5 +73,6 @@ Ogni azione che cambia la partita aggiunge un evento (`move` con il gruppo, `hin
 ## Collegamenti
 
 - `docs/dominio-di-gioco.md`: tessere, `applyMove`, mossa suggerita, Mischia, profili e stelle usati dalla sessione.
+- `docs/salvataggi.md`: come la partita si salva e si riprende da eventi.
 - `docs/gioco-originale.md`: sezioni 6 e 7, regole di aiuti, rimescolo, stelle e ✨ da cui deriva.
 - README, sezioni 5 e 8: decisioni correlate e punti in sospeso.
