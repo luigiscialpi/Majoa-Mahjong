@@ -12,7 +12,7 @@ Dà una regola unica a ogni scelta visibile al giocatore, così che schermate di
 
 ### Metodo
 
-Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa teme, cosa può sbagliare. Poi si documenta e si propone prima di costruirla; le proposte non ancora decise stanno nella sezione «Decisioni aperte» del capitolo dell'area.
+Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa teme, cosa può sbagliare. Poi si documenta e si propone prima di costruirla; le proposte non ancora confermate stanno nella sezione «Proposte» del capitolo dell'area.
 
 ### Principi
 
