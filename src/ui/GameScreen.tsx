@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { reduceRound, startRound, type Round } from '../application/round';
-import { goldCount, isStuck } from '../application/session';
+import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
+import { createAutosaver, finishWin, type Rewards } from '../application/saveFlow';
+import type { SaveStore } from '../application/saveStore';
+import { goldCount, isStuck, type Session } from '../application/session';
 import { gameColumn } from '../domain/board';
 import type { GameState } from '../domain/gameState';
 import type { Profile } from '../domain/profile';
+import type { IslandInfo, Progress } from '../domain/progress';
+import type { GenError, Result } from '../domain/types';
+import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
+import { Button } from './Button';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
-import { PROFILE_NAMES, aidText, formatTime, starsText } from './format';
+import { PROFILE_NAMES, aidText, formatTime, islandName, starsText } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
+import { useAppActive } from './useAppActive';
 import type { SkSVG } from '@shopify/react-native-skia';
 
 const REMOVE_MS = 250;
@@ -20,20 +27,49 @@ const RESCUE_DELAY_MS = 1100;
 const NOTICE_MS = 2000;
 const EMPTY: ReadonlySet<number> = new Set();
 
-export type GameScreenProps = { level: LegacyLevel; profile: Profile; onExit: () => void };
+export type GameScreenProps = {
+  level: LegacyLevel;
+  profile: Profile;
+  onExit: () => void;
+  store: SaveStore;
+  progress: Progress;
+  /** Chiamata con i progressi nuovi quando una partita si vince. */
+  onProgress: (progress: Progress) => void;
+  /** Partita ricostruita da un salvataggio, da riprendere; senza, ne parte una nuova. */
+  resume?: Session;
+  islands?: readonly IslandInfo[];
+};
 
-/** Schermata di gioco di un livello: carica i disegni, sceglie un seme nuovo a ogni partita e ricomincia a richiesta. */
-export function GameScreen({ level, profile, onExit }: GameScreenProps) {
+/**
+ * Schermata di gioco di un livello: carica i disegni, sceglie un seme nuovo a ogni partita e ricomincia a richiesta. La
+ * partita si salva da sola (`docs/salvataggi.md`) e il tempo corre solo con l'app in primo piano.
+ */
+export function GameScreen({ level, profile, onExit, store, progress, onProgress, resume, islands = legacyIslands }: GameScreenProps) {
   const [attempt, setAttempt] = useState(0);
   // Il seme è casuale a ogni partita (nell'originale non esiste seme); il dominio resta deterministico.
   const seed = useMemo(() => Math.floor(Math.random() * 2147483647), [attempt]);
-  const started = useMemo(() => startRound({ spec: toSpec(level), profile, seed }), [level, profile, seed]);
+  const started: Result<Round, GenError> = useMemo(() => (attempt === 0 && resume ? { ok: true, value: resumeRound(resume) } : startRound({ spec: toSpec(level), profile, seed })), [level, profile, seed, attempt, resume]);
   const svgs = useTileSvgs();
   const palette = levelPalette(level.id);
 
   if (!started.ok) return <Notice palette={palette} text={`Impossibile generare il livello (${started.error.kind})`} onExit={onExit} />;
   if (!svgs) return <Notice palette={palette} text="Caricamento dei disegni…" onExit={onExit} />;
-  return <RoundView key={attempt} level={level} profile={profile} palette={palette} svgs={svgs} initial={started.value} onRestart={() => setAttempt((a) => a + 1)} onExit={onExit} />;
+  return (
+    <RoundView
+      key={attempt}
+      level={level}
+      profile={profile}
+      palette={palette}
+      svgs={svgs}
+      initial={started.value}
+      store={store}
+      progress={progress}
+      onProgress={onProgress}
+      islands={islands}
+      onRestart={() => setAttempt((a) => a + 1)}
+      onExit={onExit}
+    />
+  );
 }
 
 function Notice({ palette, text, onExit }: { palette: Palette; text: string; onExit: () => void }) {
@@ -42,17 +78,27 @@ function Notice({ palette, text, onExit }: { palette: Palette; text: string; onE
     <View style={[styles.root, { backgroundColor: palette[1], paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.center}>
         <Text style={styles.noticeText}>{text}</Text>
-        <Pressable style={styles.button} onPress={onExit} accessibilityRole="button">
-          <Text style={styles.buttonText}>Livelli</Text>
-        </Pressable>
+        <Button label="Livelli" onPress={onExit} />
       </View>
     </View>
   );
 }
 
-type RoundViewProps = { level: LegacyLevel; profile: Profile; palette: Palette; svgs: readonly (SkSVG | null)[]; initial: Round; onRestart: () => void; onExit: () => void };
+type RoundViewProps = {
+  level: LegacyLevel;
+  profile: Profile;
+  palette: Palette;
+  svgs: readonly (SkSVG | null)[];
+  initial: Round;
+  store: SaveStore;
+  progress: Progress;
+  onProgress: (progress: Progress) => void;
+  islands: readonly IslandInfo[];
+  onRestart: () => void;
+  onExit: () => void;
+};
 
-function RoundView({ level, profile, palette, svgs, initial, onRestart, onExit }: RoundViewProps) {
+function RoundView({ level, profile, palette, svgs, initial, store, progress, onProgress, islands, onRestart, onExit }: RoundViewProps) {
   const [round, dispatch] = useReducer(reduceRound, initial);
   const { session } = round;
   const game = session.game;
@@ -60,6 +106,11 @@ function RoundView({ level, profile, palette, svgs, initial, onRestart, onExit }
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [hintGroup, setHintGroup] = useState<readonly number[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState(false);
+  const [rewards, setRewards] = useState<Rewards | null>(null);
+  const [progressNotSaved, setProgressNotSaved] = useState(false);
+  const appActive = useAppActive();
+  const autosaver = useMemo(() => createAutosaver(store, level.id, setTrouble), [store, level.id]);
 
   // Tessere che si stanno togliendo (animazione di 250 ms). Si ricava durante il render, non in un effetto, perché le
   // tessere appena tolte non devono sparire per un fotogramma prima di comparire come «in rimozione».
@@ -75,12 +126,44 @@ function RoundView({ level, profile, palette, svgs, initial, onRestart, onExit }
     return () => clearTimeout(id);
   }, [view.key, view.removing.size]);
 
-  // Tempo di gioco.
+  // Tempo di gioco: corre solo con l'app in primo piano.
   useEffect(() => {
-    if (session.phase !== 'playing') return;
+    if (session.phase !== 'playing' || !appActive) return;
     const id = setInterval(() => dispatch({ type: 'tick' }), 1000);
     return () => clearInterval(id);
-  }, [session.phase]);
+  }, [session.phase, appActive]);
+
+  // Salvataggio automatico: a ogni azione che entra negli eventi (mossa, aiuto, annulla, rimescolo) e quando l'app va in
+  // secondo piano, con il tempo trascorso. Non a partita vinta o bloccata: la chiusura è qui sotto.
+  const savedEvents = useRef(initial.session.events);
+  useEffect(() => {
+    if (session.phase !== 'playing' || session.events === savedEvents.current) return;
+    savedEvents.current = session.events;
+    void autosaver.save(session);
+  }, [session, autosaver]);
+  useEffect(() => {
+    if (appActive || session.phase !== 'playing') return;
+    savedEvents.current = session.events;
+    void autosaver.save(session);
+  }, [appActive, session, autosaver]);
+
+  // Fine partita, anche se la partita ricostruita era già finita: la vittoria registra i progressi e cancella la partita
+  // salvata in un'unica scrittura; il blocco cancella la partita salvata.
+  const closed = useRef(false);
+  useEffect(() => {
+    if (closed.current) return;
+    if (session.phase === 'won') {
+      closed.current = true;
+      void finishWin(store, progress, session, level.id, islands).then((done) => {
+        onProgress(done.progress);
+        setRewards(done.rewards);
+        setProgressNotSaved(!done.saved.ok);
+      });
+    } else if (session.phase === 'dead') {
+      closed.current = true;
+      void store.clearGame();
+    }
+  }, [session.phase]); // eslint-disable-line react-hooks/exhaustive-deps -- si chiude una volta sola, con i valori di quando la fase cambia
 
   // Senza mosse: dopo un breve avviso parte il rimescolo automatico (o un consiglio, se i gratuiti sono finiti).
   const stuck = isStuck(session);
@@ -132,6 +215,12 @@ function RoundView({ level, profile, palette, svgs, initial, onRestart, onExit }
         </Text>
       </View>
 
+      {trouble ? (
+        <View style={styles.trouble} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="save-trouble">
+          <Text style={styles.troubleText}>⚠ Non riesco a salvare la partita</Text>
+        </View>
+      ) : null}
+
       <View style={styles.boardArea} onLayout={onLayout}>
         {area.width > 0 ? (
           <View style={{ width: column.w, height: column.h, marginLeft: column.x }}>
@@ -171,8 +260,16 @@ function RoundView({ level, profile, palette, svgs, initial, onRestart, onExit }
           <Text style={styles.overlayTitle}>Livello completato!</Text>
           <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
           <Text style={styles.overlayLine}>Tempo {formatTime(session.outcome.seconds)}</Text>
+          {rewards?.newRecord ? <Text style={styles.overlayRecord}>Nuovo record!</Text> : null}
           <Text style={styles.overlayLine}>Aiuti usati: {session.outcome.aidsUsed}</Text>
           {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>Tessere d'oro: {session.outcome.gold}/{session.outcome.goldTotal}</Text> : null}
+          {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
+          {rewards?.gifts.map((island) => (
+            <Text key={island.id} style={styles.overlayReward}>
+              Isola {islandName(island.id)} aperta: +{island.gift} ✨
+            </Text>
+          ))}
+          {progressNotSaved ? <Text style={styles.overlayWarning}>⚠ Non riesco a salvare i progressi</Text> : null}
           <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Rigioca" />
         </Overlay>
       ) : null}
@@ -209,12 +306,8 @@ function Overlay({ children }: { children: React.ReactNode }) {
 function OverlayButtons({ onRestart, onExit, restartLabel }: { onRestart: () => void; onExit: () => void; restartLabel: string }) {
   return (
     <View style={styles.row}>
-      <Pressable style={styles.button} onPress={onRestart} accessibilityRole="button" testID="btn-restart">
-        <Text style={styles.buttonText}>{restartLabel}</Text>
-      </Pressable>
-      <Pressable style={styles.button} onPress={onExit} accessibilityRole="button" testID="btn-levels">
-        <Text style={styles.buttonText}>Livelli</Text>
-      </Pressable>
+      <Button label={restartLabel} onPress={onRestart} testID="btn-restart" />
+      <Button label="Livelli" onPress={onExit} testID="btn-levels" />
     </View>
   );
 }
@@ -224,7 +317,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
   noticeText: { color: '#ffffff', fontSize: 16, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6 },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#ffffff', fontSize: 32, lineHeight: 36 },
   headerCenter: { flex: 1, alignItems: 'center' },
   title: { color: '#ffffff', fontSize: 17, fontWeight: '700' },
@@ -244,7 +337,10 @@ const styles = StyleSheet.create({
   overlayTitle: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
   overlayStars: { fontSize: 40, letterSpacing: 4 },
   overlayLine: { color: 'rgba(255,255,255,0.85)', fontSize: 15, textAlign: 'center' },
+  overlayRecord: { color: '#ffd166', fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  overlayReward: { color: '#ffffff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  overlayWarning: { color: '#ffd166', fontSize: 14, textAlign: 'center' },
+  trouble: { marginHorizontal: 12, marginBottom: 4, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center' },
+  troubleText: { color: '#ffd166', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   row: { flexDirection: 'row', gap: 12, marginTop: 12 },
-  button: { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)' },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
 });

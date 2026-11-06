@@ -1,9 +1,14 @@
 import { Children } from 'react';
-import { Text } from 'react-native';
+import { AppState, StyleSheet, Text } from 'react-native';
+import { playRandomSession } from '../application/__fixtures__/play';
+import { createMemorySaveStore, type SaveStore } from '../application/saveStore';
+import { restoreSession, toSavedGame } from '../application/savedGame';
+import { startSession, type Session } from '../application/session';
 import type { Profile } from '../domain/profile';
+import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
-import { legacyLevels } from '../infrastructure/content/legacyLevels';
-import { GameScreen } from './GameScreen';
+import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { GameScreen, type GameScreenProps } from './GameScreen';
 import type { TileBoardProps } from './TileBoard';
 
 // Si prova la logica della schermata (effetti, timer, avvisi, animazione, vittoria) con la tavola Skia sostituita da un
@@ -49,15 +54,17 @@ const texts = (renderer: any): string => renderer.root.findAllByType(Text).map((
 const layout = (renderer: any) =>
   act(() => renderer.root.findAll((n: any) => typeof n.props.onLayout === 'function')[0].props.onLayout({ nativeEvent: { layout: { width: 360, height: 560 } } }));
 
-function mount(levelId = 1, profile: Profile = 'normal') {
+function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<GameScreenProps> = {}) {
   const onExit = jest.fn();
+  const onProgress = jest.fn();
+  const store = extra.store ?? createMemorySaveStore();
   let renderer: any;
   act(() => {
-    renderer = create(<GameScreen level={legacyLevels[levelId - 1]} profile={profile} onExit={onExit} />);
+    renderer = create(<GameScreen level={legacyLevels[levelId - 1]} profile={profile} onExit={onExit} store={store} progress={newProgress()} onProgress={onProgress} {...extra} />);
   });
   layout(renderer);
   mounted.push(renderer);
-  return { renderer, onExit };
+  return { renderer, onExit, onProgress, store };
 }
 
 /**
@@ -219,3 +226,307 @@ describe('GameScreen', () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 });
+
+// Salvataggi: salvataggio automatico, tempo fermo in secondo piano, ripresa, chiusura della partita (docs/salvataggi.md).
+describe('GameScreen: salvataggi', () => {
+  const flush = () => act(async () => {});
+  const savedGame = async (store: SaveStore) => {
+    const loaded = await store.loadGame();
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.error));
+    return loaded.value;
+  };
+  const DISK_FULL = { ok: false, error: { kind: 'storage-failed', message: 'disco pieno' } } as const;
+
+  /** Sessione del livello `levelId` giocata a caso con quel seme; con `pick` si cerca il primo seme che dà l'esito voluto. */
+  function sessionOf(levelId: number, profile: Profile, seed: number, maxActions: number): Session {
+    const started = startSession({ spec: toSpec(legacyLevels[levelId - 1]), profile, seed });
+    if (!started.ok) throw new Error('avvio');
+    return playRandomSession(started.value, seed, maxActions);
+  }
+  function wonSession(levelId: number, profile: Profile): Session {
+    for (let seed = 1; seed < 400; seed++) {
+      const s = sessionOf(levelId, profile, seed, 5000);
+      if (s.phase === 'won') return s;
+    }
+    throw new Error('nessuna partita vinta');
+  }
+  function playToEnd(renderer: any) {
+    for (let n = 0; n < 600 && !texts(renderer).includes('Livello completato!'); n++) {
+      const pair = freePair();
+      if (pair) playPair(pair);
+      else advance(1200);
+      advance(300);
+    }
+    expect(texts(renderer)).toContain('Livello completato!');
+  }
+
+  test('si salva dopo una mossa, con livello, profilo ed evento; non per un tocco di selezione né per il passare del tempo', async () => {
+    const { renderer, store } = mount(3, 'hard');
+    advance(5000);
+    act(() => board().onTap([...board().free][0]));
+    await flush();
+    expect(await savedGame(store)).toBeNull();
+    const pair = freePair()!;
+    playPair(pair);
+    await flush();
+    const saved = (await savedGame(store))!;
+    expect([saved.levelId, saved.profile, saved.events.length, saved.events[0].kind]).toEqual([3, 'hard', 1, 'move']);
+    expect(saved.seconds).toBe(5);
+    expect(texts(renderer)).not.toContain('Non riesco a salvare');
+  });
+
+  /** Archivio che ricorda ogni partita scritta. */
+  function recording() {
+    const base = createMemorySaveStore();
+    const writes: Awaited<ReturnType<typeof savedGame>>[] = [];
+    const store: SaveStore = { ...base, saveGame: async (game) => (writes.push(game), base.saveGame(game)) };
+    return { store, writes };
+  }
+
+  test('una mossa si scrive una volta sola: il tempo che passa dopo non riscrive nulla', async () => {
+    const { store, writes } = recording();
+    mount(1, 'normal', { store });
+    playPair(freePair()!);
+    await flush();
+    advance(8000);
+    await flush();
+    expect(writes).toHaveLength(1);
+  });
+
+  test('si scrivono solo partite in corso: l\'ultima mossa, che vince, non si salva', async () => {
+    const { store, writes } = recording();
+    const { renderer } = mount(1, 'normal', { store });
+    playToEnd(renderer);
+    await flush();
+    expect(writes.length).toBeGreaterThan(0);
+    for (const game of writes) {
+      const restored = restoreSession(game!);
+      expect(restored.ok && restored.value.phase).toBe('playing');
+    }
+    expect(writes[writes.length - 1]!.events.length).toBeLessThan(legacyLevels[0].cells.length);
+  });
+
+  test('la freccia di ritorno è almeno 48 dp, come ogni controllo', () => {
+    const { renderer } = mount(1);
+    const style = StyleSheet.flatten(renderer.root.findAllByProps({ testID: 'btn-back' }).find((n: any) => n.props.style)!.props.style);
+    expect(Math.min(style.width, style.height)).toBeGreaterThanOrEqual(48);
+  });
+
+  test('si registra con il numero del livello giocato', async () => {
+    const { renderer, onProgress } = mount(2);
+    playToEnd(renderer);
+    await flush();
+    expect(Object.keys(onProgress.mock.calls[0][0].levels)).toEqual(['2']);
+  });
+
+  test('anche un aiuto entra nel salvataggio', async () => {
+    const { renderer, store } = mount(1);
+    press(renderer, 'btn-hint');
+    await flush();
+    expect((await savedGame(store))!.events).toEqual([{ kind: 'hint' }]);
+  });
+
+  describe('in secondo piano', () => {
+    let handlers: ((state: string) => void)[];
+    beforeEach(() => {
+      handlers = [];
+      jest.spyOn(AppState, 'addEventListener').mockImplementation(((_: string, handler: (state: string) => void) => {
+        handlers.push(handler);
+        return { remove: () => (handlers = handlers.filter((h) => h !== handler)) };
+      }) as never);
+    });
+    const goTo = (state: string) => act(() => handlers.forEach((h) => h(state)));
+
+    test('il tempo si ferma e la partita si salva con il tempo trascorso; al ritorno il tempo riparte', async () => {
+      const { renderer, store } = mount(1);
+      advance(3000);
+      expect(texts(renderer)).toContain('0:03');
+      goTo('background');
+      await flush();
+      expect((await savedGame(store))!.seconds).toBe(3);
+      advance(10000);
+      expect(texts(renderer)).toContain('0:03');
+      goTo('active');
+      advance(2000);
+      expect(texts(renderer)).toContain('0:05');
+    });
+
+    test('smontando la schermata si smette di ascoltare lo stato dell\'app', () => {
+      const { renderer } = mount(1);
+      expect(handlers).toHaveLength(1);
+      act(() => renderer.unmount());
+      mounted.splice(mounted.indexOf(renderer), 1);
+      expect(handlers).toHaveLength(0);
+    });
+
+    test('se l\'app parte già in secondo piano il tempo non corre', () => {
+      // Nel mock di React Native `currentState` è una funzione: lo si imposta e lo si ripristina a mano.
+      const original = AppState.currentState;
+      (AppState as { currentState: unknown }).currentState = 'background';
+      try {
+        const { renderer } = mount(1);
+        advance(4000);
+        expect(texts(renderer)).toContain('0:00');
+      } finally {
+        (AppState as { currentState: unknown }).currentState = original;
+      }
+    });
+
+    test('anche «inactive» ferma il tempo; una partita vinta non si salva in secondo piano', async () => {
+      const { renderer, store } = mount(1);
+      advance(1000);
+      goTo('inactive');
+      advance(5000);
+      expect(texts(renderer)).toContain('0:01');
+      goTo('active');
+      playToEnd(renderer);
+      await flush();
+      expect(await savedGame(store)).toBeNull();
+      goTo('background');
+      await flush();
+      expect(await savedGame(store)).toBeNull();
+    });
+  });
+
+  test('riprende la partita ricostruita: stesso tempo, stesse tessere, e continua a salvarsi dopo gli eventi già presenti', async () => {
+    const session = sessionOf(1, 'normal', 7, 3);
+    expect(session.phase).toBe('playing');
+    expect(session.events.length).toBeGreaterThan(0);
+    const { renderer, store } = mount(1, 'normal', { resume: session });
+    expect(texts(renderer)).toContain(formatTimeOf(session));
+    expect(texts(renderer)).toContain(`${session.game.remaining} tessere`);
+    expect(board().tiles.length - board().gone.size).toBe(session.game.remaining);
+    await flush();
+    expect(await savedGame(store)).toBeNull(); // riprendere non cambia nulla: non serve riscrivere
+    playPair(freePair()!);
+    await flush();
+    expect((await savedGame(store))!.events.length).toBe(session.events.length + 1);
+  });
+
+  test('«Rigioca» dopo una partita ripresa ne avvia una nuova, non rifà la salvata', async () => {
+    const session = wonSession(1, 'normal');
+    const { renderer } = mount(1, 'normal', { resume: session });
+    await flush();
+    press(renderer, 'btn-restart');
+    layout(renderer);
+    expect(texts(renderer)).not.toContain('Livello completato!');
+    expect(texts(renderer)).toContain(`${legacyLevels[0].cells.length} tessere`);
+  });
+
+  describe('fine partita', () => {
+    test('la vittoria registra i progressi, cancella la partita salvata e mostra stelle, ✨ e nessun «Nuovo record!» alla prima vittoria', async () => {
+      const { renderer, store, onProgress } = mount(1);
+      playPair(freePair()!);
+      await flush();
+      expect(await savedGame(store)).not.toBeNull();
+      playToEnd(renderer);
+      await flush();
+      expect(await savedGame(store)).toBeNull();
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      const progress = onProgress.mock.calls[0][0];
+      expect(progress.levels[1].stars).toBeGreaterThanOrEqual(1);
+      expect(await store.loadProgress()).toEqual({ ok: true, value: progress });
+      expect(texts(renderer)).toMatch(/[★☆]{3}/);
+      const coins = progress.coins - newProgress().coins;
+      if (coins > 0) expect(texts(renderer)).toContain(`+${coins} ✨`);
+      expect(texts(renderer)).not.toContain('Nuovo record!');
+      expect(texts(renderer)).not.toContain('Non riesco a salvare');
+    });
+
+    test('un tempo migliore di un record esistente mostra «Nuovo record!»', async () => {
+      const slow = recordWin(newProgress(), { levelId: 1, stars: 1, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const { renderer } = mount(1, 'normal', { progress: slow });
+      playToEnd(renderer);
+      await flush();
+      expect(texts(renderer)).toContain('Nuovo record!');
+    });
+
+    test('una vittoria che non migliora nulla non dà ✨ né «Nuovo record!»', async () => {
+      const best = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 1, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const { renderer, onProgress } = mount(1, 'normal', { progress: best });
+      playToEnd(renderer);
+      await flush();
+      expect(onProgress.mock.calls[0][0].coins).toBe(best.coins);
+      expect(texts(renderer)).not.toContain('✨');
+      expect(texts(renderer)).not.toContain('Nuovo record!');
+    });
+
+    test('aprire un\'isola mostra il regalo, una volta sola', async () => {
+      const islands = [
+        { id: 'prologue', levelIds: [1], gift: 0 },
+        { id: 'animals', levelIds: [2], gift: 3 },
+      ];
+      const before = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const { renderer, onProgress } = mount(1, 'normal', { progress: before, islands });
+      playToEnd(renderer);
+      await flush();
+      expect(texts(renderer)).toContain('Isola Animali aperta: +3 ✨');
+      expect(onProgress.mock.calls[0][0].giftsOpened).toEqual(['animals']);
+    });
+
+    test('se i progressi non si scrivono si mostrano comunque le ricompense, con un avviso, e la partita salvata resta', async () => {
+      const base = createMemorySaveStore();
+      const store: SaveStore = { ...base, finishGame: async () => DISK_FULL };
+      const { renderer, onProgress } = mount(1, 'normal', { store });
+      playPair(freePair()!);
+      await flush();
+      playToEnd(renderer);
+      await flush();
+      expect(texts(renderer)).toContain('⚠ Non riesco a salvare i progressi');
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      expect(await savedGame(base)).not.toBeNull();
+    });
+
+    test('una partita ricostruita già vinta registra la vittoria al primo disegno', async () => {
+      const session = wonSession(1, 'normal');
+      const store = createMemorySaveStore();
+      await store.saveGame(toSavedGame(session, 1));
+      const { renderer, onProgress } = mount(1, 'normal', { resume: session, store });
+      await flush();
+      expect(texts(renderer)).toContain('Livello completato!');
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      expect(await savedGame(store)).toBeNull();
+    });
+
+    test('una partita ricostruita già bloccata cancella la partita salvata', async () => {
+      // Una partita bloccata vera è rara con il gioco a caso: come negli altri test la si costruisce dalla fase.
+      const session: Session = { ...sessionOf(1, 'normal', 7, 3), phase: 'dead' };
+      const store = createMemorySaveStore();
+      await store.saveGame(toSavedGame(session, 1));
+      const { renderer, onProgress } = mount(1, 'normal', { resume: session, store });
+      await flush();
+      expect(texts(renderer)).toContain('Bloccato!');
+      expect(onProgress).not.toHaveBeenCalled();
+      expect(await savedGame(store)).toBeNull();
+    });
+  });
+
+  describe('salvataggio che non riesce', () => {
+    function flaky() {
+      const base = createMemorySaveStore();
+      const state = { failing: true };
+      const store: SaveStore = { ...base, saveGame: async (game) => (state.failing ? DISK_FULL : base.saveGame(game)) };
+      return { store, state };
+    }
+
+    test('il gioco continua; l\'avviso compare al secondo errore di fila e sparisce al primo salvataggio riuscito', async () => {
+      const { store, state } = flaky();
+      const { renderer } = mount(1, 'normal', { store });
+      playPair(freePair()!);
+      await flush();
+      expect(texts(renderer)).not.toContain('Non riesco a salvare la partita');
+      advance(300);
+      playPair(freePair()!);
+      await flush();
+      expect(texts(renderer)).toContain('⚠ Non riesco a salvare la partita');
+      expect(texts(renderer)).toContain(`${legacyLevels[0].cells.length - 4} tessere`);
+      state.failing = false;
+      advance(300);
+      playPair(freePair()!);
+      await flush();
+      expect(texts(renderer)).not.toContain('Non riesco a salvare la partita');
+    });
+  });
+});
+
+const formatTimeOf = (session: Session) => `${Math.floor(session.seconds / 60)}:${String(session.seconds % 60).padStart(2, '0')}`;

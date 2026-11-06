@@ -23,3 +23,10 @@ export function starsText(stars: number): string {
 export function aidText(left: number | null): string {
   return left === null ? '∞' : String(left);
 }
+
+/** Nomi brevi delle isole della campagna, per i messaggi («Isola Animali aperta», «Servono 40 ★ per aprire Animali»). */
+export const ISLAND_NAMES: Readonly<Record<string, string>> = { prologue: 'Livelli iniziali', animals: 'Animali', sweets: 'Dolci', art: 'Arte', science: 'Scienza', sea: 'Mare', flowers: 'Fiori' };
+
+export function islandName(id: string): string {
+  return ISLAND_NAMES[id] ?? id;
+}

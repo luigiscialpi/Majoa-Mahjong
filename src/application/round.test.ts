@@ -1,7 +1,7 @@
 import { pyramid90 } from '../domain/__fixtures__/shapes';
 import { findMove } from '../domain/hint';
 import type { LevelSpec } from '../domain/types';
-import { reduceRound, startRound, type Round } from './round';
+import { reduceRound, resumeRound, startRound, type Round } from './round';
 import { hint, shuffle, tap, tick, undo } from './session';
 
 const spec = (over: Partial<LevelSpec> = {}): LevelSpec => ({ id: 'test', cells: pyramid90(), groupSize: 2, types: 12, poolSize: 24, hidden: [], fog: 0, gold: 0, aids: { hints: 5, shuffles: 3, undo: null }, ...over });
@@ -50,4 +50,15 @@ test('a partita finita il tempo non produce un round nuovo (React non ridisegna)
   expect(reduceRound(finished, { type: 'tick' })).toBe(finished);
   const playing = start();
   expect(reduceRound(playing, { type: 'tick' })).not.toBe(playing);
+});
+
+test('resumeRound: una partita già avviata, senza feedback, su cui si continua a giocare', () => {
+  const [a, b] = findMove(start().session.game) ?? [];
+  const played = reduceRound(reduceRound(start(), { type: 'tap', tile: a }), { type: 'tap', tile: b }).session;
+  const round = resumeRound(played);
+  expect(round.session).toBe(played);
+  expect([round.feedback, round.seq]).toEqual([null, 0]);
+  const next = reduceRound(round, { type: 'tick' });
+  expect([next.session.seconds, next.seq]).toEqual([played.seconds + 1, 0]);
+  expect(reduceRound(round, { type: 'undo' }).seq).toBe(1);
 });

@@ -12,10 +12,15 @@ export type Round = {
 
 export type RoundAction = { type: 'tap'; tile: number } | { type: 'hint' } | { type: 'undo' } | { type: 'shuffle' } | { type: 'rescue' } | { type: 'tick'; seconds?: number };
 
+/** Round di una partita già avviata, per esempio ricostruita da un salvataggio. */
+export function resumeRound(session: Session): Round {
+  return { session, feedback: null, seq: 0 };
+}
+
 export function startRound(input: StartInput): Result<Round, GenError> {
   const started = startSession(input);
   if (!started.ok) return started;
-  return { ok: true, value: { session: started.value, feedback: null, seq: 0 } };
+  return { ok: true, value: resumeRound(started.value) };
 }
 
 export function reduceRound(round: Round, action: RoundAction): Round {
