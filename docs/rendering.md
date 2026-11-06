@@ -60,7 +60,7 @@ La schermata riceve l'archivio (`store`), i progressi (`progress`, `onProgress`)
 
 `TileBoard` è la tavola a due strati di S1, portata con queste differenze: la tavolozza è quella del livello; le tessere libere si disegnano dal vivo senza valori condivisi, e si animano solo quelle in rimozione (scala e rotazione come nell'originale); selezione e suggerimento sono anelli sopra la tavola e la selezione può avere più tessere (Tris); il tocco si risolve con `hitTest` sulle sole tessere vive; non ci sono ingresso, pulsazione e oscillazione, che S1 aveva per le misure. Le tessere nascoste, nebbiose e d'oro hanno un aspetto essenziale: velo scuro con «?», velo chiaro, bordo dorato. L'immagine dello strato fermo si rifà quando cambia l'insieme delle tessere vive o l'aspetto di qualche tessera (`statusKey`). I disegni SVG si caricano una sola volta (`useTileSvgs`).
 
-`LevelPicker` è un selettore provvisorio dei 100 livelli e dei sei profili, che sostituirà la mappa delle isole. Le rotte in `src/app/` instradano soltanto: `/` mostra il selettore e `/play?level=<n>&profile=<profilo>` la partita (`parsePlayParams`); i testi sono in italiano e provvisori.
+`LevelPicker` è un selettore provvisorio dei 100 livelli e dei sei profili, con le stelle sotto ogni livello, i lucchetti col motivo (`levelStatus`) e la «Modalità prova», che sostituirà la mappa delle isole; `HomeScreen` lo affianca alla scheda «Continua», alla conferma di sostituzione e agli errori di lettura (`docs/salvataggi.md`). Le rotte in `src/app/` instradano soltanto: `/` mostra la home e `/play?level=<n>&profile=<profilo>` la partita (`parsePlayParams`); i testi sono in italiano e provvisori.
 
 ### Tocco e rimozione
 
@@ -91,7 +91,10 @@ Regola della tessera libera, geometria di layout, `hitTest` e colonna di gioco s
 | `useTileSvgs()` | `src/ui/svgs.ts` | Caricamento dei 129 SVG |
 | `newlyRemoved()`, `goneTiles()`, `tileStatuses()`, `statusKey()` | `src/ui/boardView.ts` | Stato della vista della tavola |
 | `messageFor()`, `formatTime()`, `starsText()` | `src/ui/messages.ts`, `src/ui/format.ts` | Testi e formati |
-| `LevelPicker`, `parsePlayParams()` | `src/ui/LevelPicker.tsx`, `src/ui/playParams.ts` | Selettore provvisorio e parametri della rotta |
+| `LevelPicker`, `parsePlayParams()` | `src/ui/LevelPicker.tsx`, `src/ui/playParams.ts` | Selettore provvisorio con progressi e lucchetti, e parametri della rotta |
+| `HomeScreen` | `src/ui/HomeScreen.tsx` | Home: «Continua», conferma di sostituzione, errori di lettura |
+| `levelStatus()` | `src/ui/levelStatus.ts` | Se un livello è aperto e, se no, perché |
+| `ConfirmDialog` | `src/ui/ConfirmDialog.tsx` | Finestra di conferma |
 | `reduceRound()` | `src/application/round.ts` | Reducer della partita |
 
 ## Vincoli e scartato

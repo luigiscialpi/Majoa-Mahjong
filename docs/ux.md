@@ -37,7 +37,10 @@ Frasi brevi, in italiano, con il verbo dell'azione sul pulsante. Le conferme dic
 | `formatTime()`, `starsText()`, `PROFILE_NAMES` | `src/ui/format.ts` | Tempo, stelle e nomi dei profili |
 | `Button` | `src/ui/Button.tsx` | Pulsante da almeno 48 dp, con feedback alla pressione, aspetto spento e stato per i lettori di schermo |
 | `islandName()` | `src/ui/format.ts` | Nomi brevi delle isole nei messaggi |
-| `LevelPicker` | `src/ui/LevelPicker.tsx` | Selettore provvisorio (non mostra ancora progressi né lucchetti) |
+| `HomeScreen` | `src/ui/HomeScreen.tsx` | Home: scheda «Continua», conferma di sostituzione, errori di lettura |
+| `ConfirmDialog` | `src/ui/ConfirmDialog.tsx` | Conferma con pulsanti a verbo, uno per riga, scelta sicura in rilievo |
+| `levelStatus()` | `src/ui/levelStatus.ts` | Perché un livello è bloccato |
+| `LevelPicker` | `src/ui/LevelPicker.tsx` | Selettore provvisorio con stelle, lucchetti col motivo e «Modalità prova» |
 
 ## Vincoli e scartato
 
@@ -51,7 +54,7 @@ Frasi brevi, in italiano, con il verbo dell'azione sul pulsante. Le conferme dic
 ## Verifica
 
 - **Coperto da test**: nulla di questo capitolo come insieme; i testi delle partite sono provati da `src/ui/messages.test.ts` e `format.test.ts`.
-- **Non verificato**: tutti i principi sulla UI reale; nessuna schermata è stata provata su un dispositivo. Aree da 48 dp, contrasto e lettori di schermo non sono stati controllati.
+- **Non verificato**: tutti i principi sulla UI reale; nessuna schermata è stata provata su un dispositivo. Le aree da 48 dp sono controllate negli stili dei controlli (test), non misurate su dispositivo; contrasto e lettori di schermo non sono stati verificati.
 
 ## Collegamenti
 
