@@ -12,7 +12,7 @@ Dà una regola unica a ogni scelta visibile al giocatore, così che schermate di
 
 ### Metodo
 
-Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa teme, cosa può sbagliare. Poi si documenta e si propone prima di costruirla; le proposte non ancora confermate stanno nella sezione «Proposte» del capitolo dell'area.
+Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa teme, cosa può sbagliare. Poi si documenta e si propone prima di costruirla; le scelte non ancora confermate stanno nella sezione «Scelte» o «Decisioni aperte» del capitolo dell'area.
 
 ### Principi
 
@@ -35,6 +35,8 @@ Frasi brevi, in italiano, con il verbo dell'azione sul pulsante. Le conferme dic
 |---|---|---|
 | `messageFor()` | `src/ui/messages.ts` | Avvisi della partita |
 | `formatTime()`, `starsText()`, `PROFILE_NAMES` | `src/ui/format.ts` | Tempo, stelle e nomi dei profili |
+| `Button` | `src/ui/Button.tsx` | Pulsante da almeno 48 dp, con feedback alla pressione, aspetto spento e stato per i lettori di schermo |
+| `islandName()` | `src/ui/format.ts` | Nomi brevi delle isole nei messaggi |
 | `LevelPicker` | `src/ui/LevelPicker.tsx` | Selettore provvisorio (non mostra ancora progressi né lucchetti) |
 
 ## Vincoli e scartato

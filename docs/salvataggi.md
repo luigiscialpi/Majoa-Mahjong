@@ -1,6 +1,6 @@
 # Salvataggi
 
-> **Stato: DRAFT, in parte costruito.** Esistono il formato della partita salvata, la ricostruzione, il codec dei progressi, gli archivi in memoria e SQLite e la logica che li usa senza interfaccia (passi a e b e prima parte del c); la UI è ancora da fare. I principi generali di interazione sono in `docs/ux.md`.
+> **Stato: DRAFT, in parte costruito.** Esistono il formato della partita salvata, la ricostruzione, il codec dei progressi, gli archivi in memoria e SQLite e la logica che li usa senza interfaccia e il salvataggio nella schermata di gioco (passi a e b e prime due parti del c); la home con «Continua», le conferme, gli errori e il selettore sono ancora da fare. I principi generali di interazione sono in `docs/ux.md`.
 
 Questo capitolo spiega cosa si salva, quando, come si riprende e cosa succede quando qualcosa va storto. Si legge prima di toccare la persistenza (`src/application/`, `src/infrastructure/`) o la home.
 
@@ -71,9 +71,9 @@ I progressi illeggibili (`malformed` o `unsupported-version` nella lettura dei p
 3. **Progressi illeggibili**: messaggio che lo dice con «Riprova» e «Riparti da zero»; la seconda spiega cosa si perde e ha come scelta predefinita quella sicura.
 4. **Scrittura non riuscita**: la porta segnala l'errore (`storage-failed`) e il gioco non si interrompe; avviso breve solo al secondo errore di fila.
 
-### Proposte per la UI
+### Scelte per la UI
 
-Scelte visibili al giocatore da confermare prima di costruirle:
+Scelte visibili al giocatore, tutte approvate. Costruite: la 3, la 6 e la 8 (nella schermata di gioco); da costruire: la 1, la 2, la 4, la 5 e la 7 (home, conferme, errori e selettore).
 
 1. **Home**: in cima la scheda «Continua» (titolo «Livello 20», sotto «Normale · 4:12 · 40 tessere»), poi il selettore dei livelli. Senza partita salvata la scheda non c'è.
 2. **Conferma di sostituzione**: titolo «Hai una partita in corso», testo «La partita del livello 20 (Normale, 4:12) andrà persa.», pulsanti «Continua quella» (predefinito, riprende la salvata) e «Sostituisci».
@@ -93,6 +93,8 @@ Scelte visibili al giocatore da confermare prima di costruirle:
 | `SaveError`, `isInt()`, `keysMismatch()`, `parseJson()` | `src/application/saveFormat.ts` | Errori tipizzati e predicati comuni di lettura |
 | `SaveStore`, `createMemorySaveStore()` | `src/application/saveStore.ts` | Porta di archiviazione e versione in memoria |
 | `loadHome()`, `planStart()`, `createAutosaver()`, `finishWin()` | `src/application/saveFlow.ts` | Logica dei salvataggi senza interfaccia |
+| `SaveProvider`, `useSaves()` | `src/ui/SaveProvider.tsx` | Apre l'archivio e legge lo stato all'avvio; attesa ed errore di apertura con «Riprova» |
+| `GameScreen` | `src/ui/GameScreen.tsx` | Salvataggio automatico, tempo fermo in secondo piano, chiusura della partita e ricompense |
 | `fingerprint()`, `boardFingerprint()` | `src/domain/fingerprint.ts` | Impronta a 64 bit e impronta della tavola |
 | `Session.base` | `src/application/session.ts` | Specifica di partenza, senza profilo |
 | `SqlDatabase`, `SqlValue` | `src/infrastructure/storage/sqlDatabase.ts` | Interfaccia minima di un database SQL |
@@ -120,7 +122,7 @@ Scelte visibili al giocatore da confermare prima di costruirle:
 
 - **Coperto da test**: impronta (`src/domain/fingerprint.test.ts`, 13 test: valori fissi dell'algoritmo, ogni attributo della tessera, quale tessera è uscita, parti delimitate); partita salvata (`src/application/savedGame.test.ts`, 97 test: `toSavedGame`, ricostruzione con sei profili, a metà e a fine partita, partita vinta, `event-rejected`, `start-failed` e `board-mismatch`, lettura con ogni campo mancante, in più o fuori intervallo, versioni); progressi (`progressCodec.test.ts`, 46 test); archivio in memoria (`saveStore.test.ts`, 10 test: vuoto, scritture e letture, `finishGame`, `resetAll`, contenuti illeggibili); 100 livelli dell'originale salvati, letti e ricostruiti, a metà con sei profili e a fine partita con Normale e Maestro (`src/infrastructure/content/legacySave.test.ts`, 2 test); logica dei salvataggi (`src/application/saveFlow.test.ts`, 27 test: home con partita pronta, illeggibile o non ricostruibile, progressi illeggibili, conferma, regola dei due errori di fila, fine partita con record, oro, regali una volta sola e scrittura fallita); archivio SQLite su un SQLite vero (`src/infrastructure/storage/sqliteSaveStore.test.ts`, 27 test: i 10 comuni a ogni archivio, schema e migrazioni (parziali, fallite, database più recente), righe, errori di scrittura, `finishGame` e `resetAll` tutto o niente, operazioni in coda). `expo export` per Android riesce e `expo-doctor` offline passa 19 controlli su 21 (gli altri due richiedono la rete). Sensibilità controllata introducendo 117 difetti di proposito: 114 rilevati; i 3 sopravvissuti sono equivalenti (il `;` dopo `alive` nell'impronta, perché `alive` è una sola cifra e la stringa resta non ambigua; una modifica che cambia solo i tipi; il valore di riserva di `PRAGMA user_version`, che restituisce sempre una riga).
 - **Come eseguirli**: `npx jest src/application src/domain/fingerprint src/infrastructure/storage src/infrastructure/content/legacySave` (Node 22.13 o successivo per l'archivio SQLite).
-- **Non verificato**: l'adattatore di `expo-sqlite` su un dispositivo (compilato soltanto), in particolare il comportamento di `withTransactionAsync` e la versione di SQLite inclusa, che può differire da quella di `node:sqlite`; l'esperienza descritta (nessuna parte è collegata alla UI); le proposte per la UI, non ancora confermate; il tempo in secondo piano. Per l'originale, sezione 12 di `docs/gioco-originale.md`, letta dal codice.
+- **Non verificato**: l'adattatore di `expo-sqlite` su un dispositivo (compilato soltanto), in particolare il comportamento di `withTransactionAsync` e la versione di SQLite inclusa, che può differire da quella di `node:sqlite`; la parte dell'esperienza non ancora costruita (home con «Continua», conferme, errori, selettore); il comportamento in secondo piano su un dispositivo (qui simulato con `AppState`); la schermata di gioco con Skia e il tocco, come nel capitolo `docs/rendering.md`. Per l'originale, sezione 12 di `docs/gioco-originale.md`, letta dal codice.
 
 ## Collegamenti
 
