@@ -91,7 +91,7 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Verifica
 
-- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI (530 test passati su 43 suite, typecheck pulito). La suite `sqliteSaveStore.test.ts` richiede Node ≥ 22.5 (`node:sqlite`) e fallisce su Node 20 indipendentemente dalle modifiche UI.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (530 test passati su 43 suite con `npm run test:all` su Node 22, typecheck pulito). Rimossa la dipendenza deprecata `react-test-renderer`.
 - **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito), la tavolozza colori/pannelli a tema e il gradiente radiale di sfondo sono stati verificati visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
 - **Non verificato**: il resto dell'inventario (stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
 

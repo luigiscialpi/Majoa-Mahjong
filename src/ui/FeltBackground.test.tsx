@@ -1,21 +1,16 @@
-import { act, create } from 'react-test-renderer';
+import { render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { FeltBackground } from './FeltBackground';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 describe('FeltBackground', () => {
-  test('renderizza i contenuti figli e il canvas dello sfondo', () => {
-    let renderer!: ReturnType<typeof create>;
-    act(() => {
-      renderer = create(
-        <FeltBackground testID="bg">
-          <Text testID="child">Gioco</Text>
-        </FeltBackground>
-      );
-    });
+  test('renderizza i contenuti figli e il canvas dello sfondo', async () => {
+    await render(
+      <FeltBackground testID="bg">
+        <Text testID="child">Gioco</Text>
+      </FeltBackground>,
+    );
 
-    expect(renderer.root.findByProps({ testID: 'child' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'bg' })).toBeDefined();
+    expect(screen.getByTestId('child')).toBeOnTheScreen();
+    expect(screen.getByTestId('bg')).toBeOnTheScreen();
   });
 });

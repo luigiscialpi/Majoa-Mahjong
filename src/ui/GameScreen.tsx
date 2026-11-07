@@ -225,7 +225,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
           </View>
         ) : null}
 
-        <View style={styles.boardArea} onLayout={onLayout}>
+        <View style={styles.boardArea} onLayout={onLayout} testID="board-area">
           {area.width > 0 ? (
             <View style={{ width: column.w, height: column.h, marginLeft: column.x }}>
               <TileBoard

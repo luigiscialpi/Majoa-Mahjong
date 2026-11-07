@@ -1,185 +1,198 @@
+import { StyleSheet } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { Profile } from '../domain/profile';
 import { newProgress, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LevelPicker, REASON_MS } from './LevelPicker';
 import { TRIS_REASON } from './levelStatus';
-import { StyleSheet } from 'react-native';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-// react-test-renderer non ha tipi nel progetto: `requireActual` lo restituisce come `any`.
-const { act, create } = jest.requireActual('react-test-renderer');
-const originalError = console.error;
-beforeAll(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  console.error = (...args: unknown[]) => {
-    if (!String(args[0]).includes('react-test-renderer is deprecated')) originalError(...args);
-  };
-});
-afterAll(() => {
-  console.error = originalError;
-});
-
-const mounted: any[] = [];
-afterEach(() => {
-  act(() => mounted.splice(0).forEach((r) => r.unmount())); // la FlatList programma aggiornamenti differiti: si smonta a fine test
-});
-
-function render(onPlay: (level: number, profile: Profile) => void, progress: Progress = newProgress()) {
-  let renderer: any;
-  act(() => {
-    renderer = create(<LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />);
-  });
-  mounted.push(renderer);
-  return renderer;
+async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress()) {
+  return render(<LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />);
 }
-const press = (renderer: any, testID: string) => act(() => renderer.root.findAllByProps({ testID })[0].props.onPress());
 
-test('con il profilo Normale di partenza, toccare un livello lo avvia', () => {
-  const calls: [number, Profile][] = [];
-  const r = render((level, profile) => calls.push([level, profile]));
-  press(r, 'level-1');
-  expect(calls).toEqual([[1, 'normal']]);
-});
+const press = async (testID: string) => {
+  await fireEvent.press(screen.getByTestId(testID));
+};
 
-test('il profilo scelto vale per i livelli toccati dopo', () => {
-  const calls: [number, Profile][] = [];
-  const r = render((level, profile) => calls.push([level, profile]));
-  press(r, 'profile-master');
-  press(r, 'level-7');
-  press(r, 'profile-easy');
-  press(r, 'level-3');
-  expect(calls).toEqual([[7, 'master'], [3, 'easy']]);
-});
+const toggle = async (value: boolean) => {
+  await fireEvent(screen.getByTestId('prova-switch'), 'valueChange', value);
+};
+
+function extractTexts(node: unknown): string[] {
+  if (!node) return [];
+  if (typeof node === 'string') return [node];
+  if (Array.isArray(node)) return node.flatMap(extractTexts);
+  if (typeof node === 'object' && 'children' in (node as Record<string, unknown>)) {
+    return extractTexts((node as { children: unknown }).children);
+  }
+  return [];
+}
+const texts = (): string => extractTexts(screen.toJSON()).join('|');
+
+const reason = (): string | null => {
+  const node = screen.queryByTestId('level-reason');
+  return node ? extractTexts(node).join('') : null;
+};
+
+const label = (level: number): string => screen.getByTestId(`level-${level}`).props.accessibilityLabel;
 
 const withStars = (byLevel: Record<number, number>): Progress => ({
   ...newProgress(),
   levels: Object.fromEntries(Object.entries(byLevel).map(([id, stars]) => [id, { stars, bestSeconds: null, gold: 0, profile: null }])),
 });
-const texts = (renderer: any): string => renderer.root.findAll((n: any) => n.type === 'Text').map((n: any) => [n.props.children].flat(Infinity).join('')).join('|');
-const reason = (renderer: any): string | null => {
-  const node = renderer.root.findAllByProps({ testID: 'level-reason' })[0];
-  return node ? [node.findByType('Text' as any).props.children].flat(Infinity).join('') : null;
-};
-const toggle = (renderer: any, value: boolean) => act(() => renderer.root.findAllByProps({ testID: 'prova-switch' })[0].props.onValueChange(value));
-const label = (renderer: any, level: number): string => renderer.root.findAllByProps({ testID: `level-${level}` })[0].props.accessibilityLabel;
+
+test('con il profilo Normale di partenza, toccare un livello lo avvia', async () => {
+  const calls: [number, Profile][] = [];
+  await renderPicker((level, profile) => calls.push([level, profile]));
+  await press('level-1');
+  expect(calls).toEqual([[1, 'normal']]);
+});
+
+test('il profilo scelto vale per i livelli toccati dopo', async () => {
+  const calls: [number, Profile][] = [];
+  await renderPicker((level, profile) => calls.push([level, profile]));
+  await press('profile-master');
+  await press('level-7');
+  await press('profile-easy');
+  await press('level-3');
+  expect(calls).toEqual([
+    [7, 'master'],
+    [3, 'easy'],
+  ]);
+});
 
 describe('modalità prova', () => {
-  test('è accesa all\'inizio, col suo testo, e con lei ogni livello si gioca', () => {
+  test("è accesa all'inizio, col suo testo, e con lei ogni livello si gioca", async () => {
     const calls: [number, Profile][] = [];
-    const r = render((level, profile) => calls.push([level, profile]));
-    expect(texts(r)).toContain('Modalità prova: tutti i livelli aperti');
-    expect(r.root.findAllByProps({ testID: 'prova-switch' })[0].props.value).toBe(true);
-    press(r, 'level-50');
-    press(r, 'level-95');
-    expect(calls).toEqual([[50, 'normal'], [95, 'normal']]);
-    expect(reason(r)).toBeNull();
+    await renderPicker((level, profile) => calls.push([level, profile]));
+    expect(texts()).toContain('Modalità prova: tutti i livelli aperti');
+    expect(screen.getByTestId('prova-switch').props.value).toBe(true);
+    await press('level-50');
+    await press('level-95');
+    expect(calls).toEqual([
+      [50, 'normal'],
+      [95, 'normal'],
+    ]);
+    expect(reason()).toBeNull();
   });
 
-  test('spenta, i livelli chiusi non partono e dicono perché; quelli aperti sì', () => {
+  test('spenta, i livelli chiusi non partono e dicono perché; quelli aperti sì', async () => {
     const calls: number[] = [];
-    const r = render((level) => calls.push(level));
-    toggle(r, false);
-    press(r, 'level-1');
+    await renderPicker((level) => calls.push(level));
+    await toggle(false);
+    await press('level-1');
     expect(calls).toEqual([1]);
-    press(r, 'level-2');
-    expect(reason(r)).toBe('🔒 Vinci il livello 1 per aprire questo');
-    press(r, 'level-21');
-    expect(reason(r)).toBe('🔒 Servono 40 ★ per aprire Animali');
-    press(r, 'level-91');
-    expect(reason(r)).toBe(`🔒 ${TRIS_REASON}`);
+    await press('level-2');
+    expect(reason()).toBe('🔒 Vinci il livello 1 per aprire questo');
+    await press('level-21');
+    expect(reason()).toBe('🔒 Servono 40 ★ per aprire Animali');
+    await press('level-91');
+    expect(reason()).toBe(`🔒 ${TRIS_REASON}`);
     expect(calls).toEqual([1]);
   });
 
-  test('riaccendendola si torna a poter giocare tutto', () => {
+  test('riaccendendola si torna a poter giocare tutto', async () => {
     const calls: number[] = [];
-    const r = render((level) => calls.push(level));
-    toggle(r, false);
-    toggle(r, true);
-    press(r, 'level-30');
+    await renderPicker((level) => calls.push(level));
+    await toggle(false);
+    await toggle(true);
+    await press('level-30');
     expect(calls).toEqual([30]);
   });
 });
 
 describe('progressi nel selettore', () => {
-  test('stelle sotto ogni livello aperto; i chiusi mostrano il lucchetto e non le stelle', () => {
-    const r = render(() => {}, withStars({ 1: 3, 2: 1 }));
-    toggle(r, false);
-    const t = texts(r);
+  test('stelle sotto ogni livello aperto; i chiusi mostrano il lucchetto e non le stelle', async () => {
+    await renderPicker(() => {}, withStars({ 1: 3, 2: 1 }));
+    await toggle(false);
+    const t = texts();
     expect(t).toContain('★★★');
     expect(t).toContain('★☆☆');
     expect(t).toContain('☆☆☆');
     expect(t).toContain('🔒 21');
-    expect(r.root.findAllByProps({ testID: 'level-21' })[0].findAll((n: any) => n.type === 'Text').map((n: any) => [n.props.children].flat(Infinity).join('')).join('')).not.toMatch(/[★☆]/);
+    const level21Text = extractTexts(screen.getByTestId('level-21')).join('');
+    expect(level21Text).not.toMatch(/[★☆]/);
   });
 
-  test('si aggiornano con i progressi', () => {
-    const r = render(() => {}, withStars({ 5: 2 }));
-    expect(label(r, 5)).toBe('Livello 5, 2 stelle su 3');
-    act(() => r.update(<LevelPicker progress={withStars({ 5: 3 })} islands={legacyIslands} onPlay={() => {}} />));
-    expect(label(r, 5)).toBe('Livello 5, 3 stelle su 3');
+  test('si aggiornano con i progressi', async () => {
+    const { rerender } = await renderPicker(() => {}, withStars({ 5: 2 }));
+    expect(label(5)).toBe('Livello 5, 2 stelle su 3');
+    await rerender(<LevelPicker progress={withStars({ 5: 3 })} islands={legacyIslands} onPlay={() => {}} />);
+    expect(label(5)).toBe('Livello 5, 3 stelle su 3');
   });
 
-  test('anche i livelli sbloccati dai progressi si giocano con la modalità prova spenta', () => {
+  test('anche i livelli sbloccati dai progressi si giocano con la modalità prova spenta', async () => {
     const calls: number[] = [];
-    const r = render((level) => calls.push(level), withStars({ 1: 1 }));
-    toggle(r, false);
-    press(r, 'level-2');
+    await renderPicker((level) => calls.push(level), withStars({ 1: 1 }));
+    await toggle(false);
+    await press('level-2');
     expect(calls).toEqual([2]);
   });
 });
 
 describe('lucchetti accessibili e motivo', () => {
-  test('l\'etichetta per i lettori di schermo dice stelle o blocco e motivo', () => {
-    const r = render(() => {}, withStars({ 1: 2 }));
-    toggle(r, false);
-    expect(label(r, 1)).toBe('Livello 1, 2 stelle su 3');
-    expect(label(r, 3)).toBe('Livello 3, bloccato. Vinci il livello 2 per aprire questo');
-    expect(label(r, 91)).toBe(`Livello 91 (Tris), bloccato. ${TRIS_REASON}`);
+  test("l'etichetta per i lettori di schermo dice stelle o blocco e motivo", async () => {
+    await renderPicker(() => {}, withStars({ 1: 2 }));
+    await toggle(false);
+    expect(label(1)).toBe('Livello 1, 2 stelle su 3');
+    expect(label(3)).toBe('Livello 3, bloccato. Vinci il livello 2 per aprire questo');
+    expect(label(91)).toBe(`Livello 91 (Tris), bloccato. ${TRIS_REASON}`);
   });
 
-  test('i Tris aperti si annunciano come tali', () => {
-    expect(label(render(() => {}), 91)).toBe('Livello 91 (Tris), 0 stelle su 3');
+  test('i Tris aperti si annunciano come tali', async () => {
+    await renderPicker(() => {});
+    expect(label(91)).toBe('Livello 91 (Tris), 0 stelle su 3');
   });
 
-  test('il motivo sparisce da solo dopo qualche secondo e un nuovo tocco lo sostituisce', () => {
+  test('il motivo sparisce da solo dopo qualche secondo e un nuovo tocco lo sostituisce', async () => {
     jest.useFakeTimers();
     try {
-      const r = render(() => {});
-      toggle(r, false);
-      press(r, 'level-2');
-      act(() => jest.advanceTimersByTime(REASON_MS - 1));
-      expect(reason(r)).not.toBeNull();
-      press(r, 'level-21'); // un nuovo tocco rinnova il conto
-      act(() => jest.advanceTimersByTime(REASON_MS - 1));
-      expect(reason(r)).toBe('🔒 Servono 40 ★ per aprire Animali');
-      act(() => jest.advanceTimersByTime(1));
-      expect(reason(r)).toBeNull();
+      await renderPicker(() => {});
+      await toggle(false);
+      await press('level-2');
+      await act(async () => {
+        jest.advanceTimersByTime(REASON_MS - 1);
+      });
+      expect(reason()).not.toBeNull();
+      await press('level-21');
+      await act(async () => {
+        jest.advanceTimersByTime(REASON_MS - 1);
+      });
+      expect(reason()).toBe('🔒 Servono 40 ★ per aprire Animali');
+      await act(async () => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(reason()).toBeNull();
     } finally {
       jest.useRealTimers();
     }
   });
 
-  test('toccare lo stesso livello chiuso due volte rinnova il conto', () => {
+  test('toccare lo stesso livello chiuso due volte rinnova il conto', async () => {
     jest.useFakeTimers();
     try {
-      const r = render(() => {});
-      toggle(r, false);
-      press(r, 'level-2');
-      act(() => jest.advanceTimersByTime(REASON_MS - 1));
-      press(r, 'level-2');
-      act(() => jest.advanceTimersByTime(REASON_MS - 1));
-      expect(reason(r)).not.toBeNull();
+      await renderPicker(() => {});
+      await toggle(false);
+      await press('level-2');
+      await act(async () => {
+        jest.advanceTimersByTime(REASON_MS - 1);
+      });
+      await press('level-2');
+      await act(async () => {
+        jest.advanceTimersByTime(REASON_MS - 1);
+      });
+      expect(reason()).not.toBeNull();
     } finally {
       jest.useRealTimers();
     }
   });
 });
 
-test('i controlli del selettore sono alti almeno 48 dp', () => {
-  const r = render(() => {});
+test('i controlli del selettore sono alti almeno 48 dp', async () => {
+  await renderPicker(() => {});
   for (const id of ['profile-easy', 'profile-master']) {
-    const node = r.root.findAllByProps({ testID: id }).find((n: any) => n.props.style);
-    expect(StyleSheet.flatten(node.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    expect(StyleSheet.flatten(screen.getByTestId(id).props.style).minHeight).toBeGreaterThanOrEqual(48);
   }
 });

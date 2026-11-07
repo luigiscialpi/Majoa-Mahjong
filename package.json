@@ -6,7 +6,9 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
-    "test": "jest",
+    "test": "jest --testPathIgnorePatterns='sqliteSaveStore'",
+    "test:sqlite": "source ~/.nvm/nvm.sh && nvm exec 22 npx jest --testPathPattern='sqliteSaveStore'",
+    "test:all": "source ~/.nvm/nvm.sh && nvm exec 22 npx jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -31,11 +33,11 @@
   },
   "devDependencies": {
     "@react-native/jest-preset": "^0.86.3",
+    "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
     "jest": "~29.7.0",
     "jest-expo": "~57.0.6",
-    "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   },
   "jest": {
