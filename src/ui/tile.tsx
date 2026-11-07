@@ -2,9 +2,33 @@ import { useEffect, useState } from 'react';
 import { PixelRatio } from 'react-native';
 import { Group, Image, ImageSVG, LinearGradient, RoundedRect, Shadow, Text, drawAsImage, rect as clipRect, vec, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import type { Profile } from '../domain/profile';
 import type { Rect } from '../domain/board';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import type { TileStatus } from './boardView';
+
+/**
+ * Colore dell'oscuramento per tessere bloccate (non libere) in base al profilo di difficoltà.
+ * Valori ricavati dalle regole CSS dell'originale (righe 48, 49, 285, 286 HTML):
+ * - Facile, Normale, Medio: brightness(.58) -> overlay 'rgba(0,0,0,0.40)'
+ * - Difficile (nodim): brightness(.66) -> overlay 'rgba(0,0,0,0.28)'
+ * - Esperto (nodim2): brightness(.82) -> overlay 'rgba(0,0,0,0.15)'
+ * - Maestro (nodim3): nessun oscuramento (null)
+ */
+export function blockedDimOverlay(profile: Profile = 'normal'): string | null {
+  switch (profile) {
+    case 'easy':
+    case 'normal':
+    case 'medium':
+      return 'rgba(0,0,0,0.40)';
+    case 'hard':
+      return 'rgba(0,0,0,0.28)';
+    case 'expert':
+      return 'rgba(0,0,0,0.15)';
+    case 'master':
+      return null;
+  }
+}
 
 // Disegno di una tessera in Skia, portato dal prototipo S1 (`prototipi/s1-rendering/src/`): corpo, disegno SVG e rimozione.
 
@@ -91,10 +115,20 @@ function Veil({ rect, radius, color, mark, font }: { rect: Rect; radius: number;
   );
 }
 
-export type StaticTileProps = { rect: Rect; radius: number; svg: SkSVG | null; shadow: boolean; body: SkImage | null; palette: Palette; status: TileStatus; font: SkFont | null };
+export type StaticTileProps = {
+  rect: Rect;
+  radius: number;
+  svg: SkSVG | null;
+  shadow: boolean;
+  body: SkImage | null;
+  palette: Palette;
+  status: TileStatus;
+  font: SkFont | null;
+  dimColor?: string | null;
+};
 
 /** Tessera ferma: componente senza hook né valori condivisi, adatto a essere disegnato una volta sola in un'immagine. */
-export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font }: StaticTileProps) {
+export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor }: StaticTileProps) {
   const box = designBox(rect.x, rect.y, rect.w, rect.h);
   const covered = status.locked || status.fog;
   return (
@@ -107,6 +141,9 @@ export function StaticTile({ rect, radius, svg, shadow, body, palette, status, f
         <TileBody x={rect.x} y={rect.y} w={rect.w} h={rect.h} radius={radius} shadow={shadow} palette={palette} />
       )}
       {covered ? null : <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} />}
+      {dimColor && !covered ? (
+        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={dimColor} />
+      ) : null}
       {status.locked ? <Veil rect={rect} radius={radius} color="rgba(35,25,55,0.92)" mark="?" font={font} /> : status.fog ? <Veil rect={rect} radius={radius} color="rgba(245,248,255,0.92)" mark={null} font={font} /> : null}
       {status.gold ? <RoundedRect x={rect.x + 1.5} y={rect.y + 1.5} width={rect.w - 3} height={rect.h - 3} r={radius} style="stroke" strokeWidth={3} color="#ffd54a" /> : null}
     </>

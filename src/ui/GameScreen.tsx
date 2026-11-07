@@ -234,6 +234,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 svgs={svgs}
                 statuses={statuses}
                 palette={palette}
+                profile={profile}
                 width={column.w}
                 height={column.h}
                 free={free}
