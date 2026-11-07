@@ -7,6 +7,20 @@
       "skillPath": "plugins/expo/skills/expo-native-ui/SKILL.md",
       "computedHash": "49d480a3f3b5acd3c027bf2b3a12bcab601be14e9467c956697f9a88bd4fbca0"
     },
+    "ponytail": {
+      "source": "../../../.copilot/skills/ponytail",
+      "sourceType": "local",
+      "computedHash": "061f887d9e3e735f85db3be3655a8936a00f24d5fb65ac4ab74a968a770fe342",
+      "installMode": "copy"
+    },
+    "react-native-testing": {
+      "source": "callstack/react-native-testing-library",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/react-native-testing/SKILL.md",
+      "computedHash": "bb30ad4660a42c71178c91d7a3f2e88556add9dba2213ee26f099dbe352fd649",
+      "installMode": "copy"
+    },
     "vercel-react-native-skills": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
