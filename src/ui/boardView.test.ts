@@ -76,6 +76,6 @@ describe('tileStatuses e statusKey', () => {
   test('la chiave è la stessa se l\'aspetto non cambia', () => {
     const s = start({ hidden: [4, 4], gold: 5 });
     expect(statusKey(tileStatuses(s.game))).toBe(statusKey(tileStatuses(s.game)));
-    expect(statusKey([{ locked: true, fog: false, gold: false }, { locked: false, fog: true, gold: true }])).toBe('16');
+    expect(statusKey([{ locked: true, fog: false, gold: false, match: false }, { locked: false, fog: true, gold: true, match: false }])).toBe('16');
   });
 });

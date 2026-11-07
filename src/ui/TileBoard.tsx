@@ -1,14 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio } from 'react-native';
-import { Canvas, Group, Image, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
+import { Canvas, Circle, Group, Image, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Easing, useSharedValue, withSequence, withTiming, useDerivedValue } from 'react-native-reanimated';
 import { boardMetrics, drawOrder, hitTest, tileRect } from '../domain/board';
 import type { Profile } from '../domain/profile';
 import type { PlacedTile } from '../domain/types';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import { statusKey, type TileStatus } from './boardView';
-import { RemovingTile, StaticTile, blockedDimOverlay, useBodyImage } from './tile';
+import { RemovingTile, StaticTile, blockedDimOverlay, useBodyImage, type StaticTileProps } from './tile';
+
+/** Tessera con animazione shake su tocco rifiutato (CSS @keyframes shake riga 225 HTML, 0.42s ease-in-out). */
+function ShakingTile(props: StaticTileProps & { shakeKey: number }) {
+  const { shakeKey, ...tileProps } = props;
+  const shakeX = useSharedValue(0);
+  const prevKey = useRef(0);
+  const transform = useDerivedValue(() => [{ translateX: shakeX.value }]);
+
+  useEffect(() => {
+    if (shakeKey === prevKey.current) return;
+    prevKey.current = shakeKey;
+    shakeX.value = 0;
+    shakeX.value = withSequence(
+      withTiming(-5, { duration: 105, easing: Easing.inOut(Easing.ease) }),
+      withTiming(5, { duration: 210, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 105, easing: Easing.inOut(Easing.ease) }),
+    );
+  }, [shakeKey, shakeX]);
+
+  return (
+    <Group transform={transform}>
+      <StaticTile {...tileProps} />
+    </Group>
+  );
+}
 
 export type TileBoardProps = {
   tiles: readonly PlacedTile[];
@@ -29,6 +54,16 @@ export type TileBoardProps = {
   removeKey: number;
   selected: readonly number[];
   hint: readonly number[];
+  /**
+   * Indici delle tessere libere con tipo uguale alla tessera selezionata (esclusa la selezionata stessa).
+   * Ricevono l'anello verde con ✔; le altre libere (non selected, non match) vengono attenuate.
+   */
+  match: readonly number[];
+  /**
+   * Indice di una tessera il cui tocco è stato rifiutato (bloccata o nascosta).
+   * Riceve l'animazione di scuotimento (shake 0.42s, CSS riga 225 HTML).
+   */
+  rejected: number | null;
   /** Tessera toccata, oppure `null` se il tocco è fuori da ogni tessera viva. */
   onTap: (index: number | null) => void;
 };
@@ -53,7 +88,7 @@ function useMarkFont(size: number): SkFont | null {
  * togliere) e quelle in rimozione, con valori condivisi solo per l'animazione. Così il costo per fotogramma segue le tessere
  * vive, non l'intera tavola. Il tocco si risolve con `hitTest` del dominio, non con viste per tessera.
  */
-export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = 'normal', width, height, free, gone, removing, removeKey, selected, hint, onTap }: TileBoardProps) {
+export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = 'normal', width, height, free, gone, removing, removeKey, selected, hint, match, rejected, onTap }: TileBoardProps) {
   const metrics = useMemo(() => boardMetrics(tiles, width, height), [tiles, width, height]);
   const order = useMemo(() => drawOrder(tiles), [tiles]);
   const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
@@ -73,6 +108,7 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
   const statusesRef = useRef(statuses);
   statusesRef.current = statuses;
 
+  // Animazione di rimozione: 0→1 in REMOVE_MS.
   const rm = useSharedValue(0);
   useEffect(() => {
     if (removeKey === 0) return;
@@ -123,6 +159,28 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
   const live = order.filter((i) => !gone.has(i) && (!layer.image || layer.excluded.has(i) || desired.has(i)));
   const tappable = useMemo(() => order.filter((i) => !gone.has(i) && !removing.has(i)), [order, gone, removing]);
 
+  // Set per lookup O(1)
+  const matchSet = useMemo(() => new Set(match), [match]);
+  // Tessere libere che non sono la selezionata e non sono una match → attenuate
+  const fadeSet = useMemo(() => {
+    if (match.length === 0) return new Set<number>();
+    const sel = new Set(selected);
+    const result = new Set<number>();
+    for (const i of free) {
+      if (!sel.has(i) && !matchSet.has(i) && !gone.has(i)) result.add(i);
+    }
+    return result;
+  }, [match, selected, free, gone, matchSet]);
+
+  // shakeKey incrementale per ShakingTile: aumenta a ogni nuovo rifiuto (anche sulla stessa tessera).
+  const shakeSeqRef = useRef(0);
+  const prevRejectedRef = useRef<number | null>(null);
+  if (rejected !== null && rejected !== prevRejectedRef.current) {
+    shakeSeqRef.current += 1;
+    prevRejectedRef.current = rejected;
+  }
+  const shakeSeq = shakeSeqRef.current;
+
   // Il gesto si crea una volta sola e legge sempre i dati più recenti da un ref.
   const latest = useRef({ tiles, metrics, tappable, onTap });
   latest.current = { tiles, metrics, tappable, onTap };
@@ -141,8 +199,11 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
     <GestureDetector gesture={tap}>
       <Canvas style={{ width, height }}>
         {layer.image ? <Image image={layer.image} x={0} y={0} width={width} height={height} fit="fill" /> : null}
+
+        {/* Strato vivo: tessere libere e in rimozione */}
         {live.map((i) => {
           const isSelected = selected.includes(i);
+          // Tessera selezionata: sollevata di 4px (CSS .tile.sel translateY(-4px) riga 50 HTML)
           const rect = isSelected ? { ...rects[i], y: rects[i].y - 4 } : rects[i];
           const isBlocked = !free.has(i) && !statuses[i].locked;
           const props = {
@@ -156,11 +217,28 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
             font,
             dimColor: isBlocked ? dimColor : null,
           };
-          return removing.has(i) ? <RemovingTile key={i} rm={rm} {...props} /> : <StaticTile key={i} {...props} />;
+          if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
+          // Tessera rifiutata: shake
+          if (i === rejected) {
+            return <ShakingTile key={i} shakeKey={shakeSeq} {...props} />;
+          }
+          // Tessere attenuate (fade): le libere non-match quando c'è una selezione con match attivi
+          if (fadeSet.has(i)) {
+            return (
+              <Group key={i} opacity={0.5}>
+                <StaticTile {...props} />
+              </Group>
+            );
+          }
+          return <StaticTile key={i} {...props} />;
         })}
+
+        {/* Aiuto: anello bianco */}
         {hint.filter((i) => !gone.has(i) && !removing.has(i)).map((i) => (
           <RoundedRect key={`h${i}`} x={rects[i].x + 1.5} y={rects[i].y + 1.5} width={rects[i].w - 3} height={rects[i].h - 3} r={radius} style="stroke" strokeWidth={4} color="#ffffff" />
         ))}
+
+        {/* Tessere selezionate: bagliore d'accento, bordo 3px, filo interno chiaro (CSS .tile.sel righe 50-53 HTML) */}
         {selected
           .filter((i) => !gone.has(i) && !removing.has(i))
           .map((i) => {
@@ -168,39 +246,33 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
             return (
               <Group key={`s${i}`}>
                 {/* Bagliore d'accento sfumato attorno alla tessera sollevata */}
-                <RoundedRect
-                  x={r.x - 2}
-                  y={r.y - 2}
-                  width={r.w + 4}
-                  height={r.h + 4}
-                  r={radius + 2}
-                  style="stroke"
-                  strokeWidth={3}
-                  color={palette[2]}
-                  opacity={0.35}
-                />
+                <RoundedRect x={r.x - 2} y={r.y - 2} width={r.w + 4} height={r.h + 4} r={radius + 2} style="stroke" strokeWidth={3} color={palette[2]} opacity={0.35} />
                 {/* Bordo principale d'accento (3px) */}
-                <RoundedRect
-                  x={r.x + 1.5}
-                  y={r.y + 1.5}
-                  width={r.w - 3}
-                  height={r.h - 3}
-                  r={radius}
-                  style="stroke"
-                  strokeWidth={3}
-                  color={palette[2]}
-                />
+                <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color={palette[2]} />
                 {/* Filo interno chiaro superiore (replica inset 0 2px 3px rgba(255,255,255,.9)) */}
-                <RoundedRect
-                  x={r.x + 3}
-                  y={r.y + 3}
-                  width={r.w - 6}
-                  height={r.h - 6}
-                  r={radius - 1}
-                  style="stroke"
-                  strokeWidth={1}
-                  color="rgba(255,255,255,0.7)"
-                />
+                <RoundedRect x={r.x + 3} y={r.y + 3} width={r.w - 6} height={r.h - 6} r={radius - 1} style="stroke" strokeWidth={1} color="rgba(255,255,255,0.7)" />
+              </Group>
+            );
+          })}
+
+        {/* Match: anello verde con pallino ✔ (CSS .tile.match box-shadow + ::before righe 228-232 HTML) */}
+        {match
+          .filter((i) => !gone.has(i) && !removing.has(i))
+          .map((i) => {
+            const r = rects[i];
+            // Anello verde 3px interno + alone 4px bianco + alone 8px verde (semplificato: 2 stroke sovrapposti)
+            const checkR = Math.max(8, radius * 0.9);
+            const checkX = r.x + r.w - checkR + 2;
+            const checkY = r.y - checkR + 2;
+            return (
+              <Group key={`m${i}`}>
+                {/* Alone verde esterno */}
+                <RoundedRect x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} r={radius + 4} style="stroke" strokeWidth={4} color="rgba(31,191,90,0.45)" />
+                {/* Bordo verde interno 3px */}
+                <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color="#1fbf5a" />
+                {/* Pallino ✔ in alto a destra */}
+                <Circle cx={checkX} cy={checkY} r={checkR} color="#1fbf5a" />
+                <Circle cx={checkX} cy={checkY} r={checkR + 2} style="stroke" strokeWidth={2} color="#ffffff" />
               </Group>
             );
           })}

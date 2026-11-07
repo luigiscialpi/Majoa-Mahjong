@@ -1,7 +1,7 @@
 import type { GameState } from '../domain/gameState';
 
 /** Aspetto di una tessera oltre al suo disegno. */
-export type TileStatus = { locked: boolean; fog: boolean; gold: boolean };
+export type TileStatus = { locked: boolean; fog: boolean; gold: boolean; match: boolean };
 
 /**
  * Tessere appena tolte tra due stati: sono quelle da animare. Se la tavola è un'altra (rimescolo, nuova partita) o una
@@ -28,7 +28,7 @@ export function goneTiles(game: GameState, removing: ReadonlySet<number>): Set<n
 
 /** Aspetto di ogni tessera: nascosta finché il suo gruppo è chiuso, nebbiosa finché non è libera, oro. */
 export function tileStatuses(game: GameState): TileStatus[] {
-  return game.tiles.map((t, i) => ({ locked: t.hiddenGroup > game.unlocked, fog: t.fog && !game.ft.isFree(i), gold: t.gold }));
+  return game.tiles.map((t, i) => ({ locked: t.hiddenGroup > game.unlocked, fog: t.fog && !game.ft.isFree(i), gold: t.gold, match: false }));
 }
 
 /** Una cifra per tessera: cambia solo se cambia l'aspetto di qualche tessera (serve a sapere quando ridisegnare lo strato fermo). */

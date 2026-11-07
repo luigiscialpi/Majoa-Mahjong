@@ -194,9 +194,39 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const free = useMemo(() => new Set(game.ft.freeList()), [game]);
   const gone = useMemo(() => goneTiles(game, view.removing), [game, view.removing]);
 
+  // Tessere «uguale» alla selezionata: libere, con tipo uguale, esclusa la selezionata stessa.
+  // CSS .tile.match (riga 1928 HTML): eqOn && fr && t.type === sel.type.
+  const match = useMemo(() => {
+    if (session.selected.length === 0) return [];
+    const selType = game.tiles[session.selected[0]]?.type;
+    if (selType === undefined) return [];
+    const selSet = new Set(session.selected);
+    return [...free].filter((i) => !selSet.has(i) && game.tiles[i].type === selType);
+  }, [session.selected, game.tiles, free]);
+
+  // Tessera rifiutata: il feedback 'rejected' dura fino alla prossima azione (seq cambia).
+  const [rejected, setRejected] = useState<number | null>(null);
+  useEffect(() => {
+    const fb = round.feedback;
+    if (fb?.kind === 'rejected') {
+      // L'indice del tocco rifiutato non è nel feedback; lo ricaviamo dalla selezione che non è cambiata.
+      // Strategia: l'ultimo tocco su una tessera bloccata non cambia session.selected.
+      // GameScreen non ha l'indice direttamente, ma TileBoard riceve onTap che lo conosce.
+      // Soluzione minima: si usa un ref sull'ultimo tapped.
+      setRejected((prev) => (prev === lastTapped.current ? null : lastTapped.current)); // forza re-render
+      setRejected(lastTapped.current);
+    } else {
+      setRejected(null);
+    }
+  }, [round.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lastTapped = useRef<number | null>(null);
   const onLayout = useCallback((e: LayoutChangeEvent) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }), []);
   const onTap = useCallback((tile: number | null) => {
-    if (tile !== null) dispatch({ type: 'tap', tile });
+    if (tile !== null) {
+      lastTapped.current = tile;
+      dispatch({ type: 'tap', tile });
+    }
   }, []);
   const column = gameColumn(area.width, area.height);
   const { got, total } = goldCount(session);
@@ -243,6 +273,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 removeKey={view.key}
                 selected={session.selected}
                 hint={hintGroup}
+                match={match}
+                rejected={rejected}
                 onTap={onTap}
               />
             </View>

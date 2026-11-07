@@ -32,13 +32,13 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Sfondo della schermata | riga 20-21: `radial-gradient(ellipse at 50% 40%, var(--felt-a), var(--felt-b) 75%)` | Fatto | `FeltBackground.tsx`: Canvas Skia con `RadialGradient` centrato a `50 % × 40 %`, raggio `max(w, h) × 0.75`; applicato a `LevelPicker` e `GameScreen` |
 | Tipografia | corpo riga 23: «Trebuchet MS», «Segoe UI», Roboto, system-ui; titoli (righe 95, 103, 120, 162, 166, 173, 238): Georgia, serif | Parziale | Lora (titoli, cifre e timer) e Nunito (interfaccia e testi) incorporati con licenza OFL in `assets/fonts/` e centralizzati in `src/ui/theme/typography.ts`; resta il rendering testo Skia per il «?» dei veli |
 | Colori e pannelli dell'interfaccia | righe 12-14 (`--ink`, `--ink-soft`, `--accent`, `--panel`) e 28 (bordo 2 px, raggio 14) | Fatto | Centralizzati in `src/ui/theme/colors.ts` (`feltA`, `feltB`, `ink`, `inkSoft`, `panel`, `btn`, `accent`, `edge`); applicati a selettore, home, dialoghi di conferma, pulsanti e gioco |
-| Tessera selezionata | stato della tessera, sezione 10.1; righe 50-53 CSS | Fatto | Sollevamento di 4 px (`translateY(-4px)`), bordo d'accento 3 px, bagliore esterno d'accento e filo interno chiaro (`TileBoard.tsx`) |
-| Tessera bloccata (scurita, con gradazione per profilo) | sezione 10.1 e 6.2; righe 48, 49, 285, 286 CSS | Fatto | Velo d'oscuramento graduato nel layer statico in base al profilo: Facile/Normale/Medio 40%, Difficile 28%, Esperto 15%, Maestro 0% (`blockedDimOverlay` in `tile.tsx`) |
-| Tessera nascosta: sagoma con «?» e lucchetto | sezione 10.1 | Parziale | Velo scuro con «?»; manca il lucchetto |
-| Tessera nebbiosa: nuvola con «?», deriva e diradamento in 700 ms | `fogdrift` riga 293, `fogaway` riga 296 | Parziale | Velo chiaro fisso; mancano la nuvola e le due animazioni |
-| Tessera d'oro: alone dorato e ✨ | `gemtw` riga 263, `glow` riga 68 | Parziale | Bordo giallo; mancano alone e ✨ |
-| Aiuto, «uguale», attenuata, bloccante | `blk` riga 223, `mglow` riga 230 | Parziale | Anello bianco per l'Aiuto; mancano gli altri |
-| Rifiuto di un tocco | `shake` riga 225 | Da fare | Scuotimento |
+| Tessera selezionata | stato della tessera, sezione 10.1 | Parziale | Oggi è un anello; manca il rialzo e il bagliore dell'originale |
+| Tessera bloccata (scurita, con gradazione per profilo) | sezione 10.1 e 6.2 | Da fare | |
+| Tessera nascosta: sagoma con «?» e lucchetto | sezione 10.1 | Fatto | Sfondo viola-indaco (CSS .tile.locked riga 61 HTML), cerchio tratteggiato, stella a 5 punte, «?» e lucchetto vettoriali scalati al tile; bordo interno dorato 1.5px |
+| Tessera nebbiosa: nuvola con «?», deriva e diradamento in 700 ms | `fogdrift` riga 293, `fogaway` riga 296 | Parziale | Sfondo azzurro (CSS .tile.fog riga 287 HTML), cerchio, nuvola e curva inferiori vettoriali, «?»; mancano le animazioni fogdrift e fogaway |
+| Tessera d'oro: alone dorato e ✨ | `gemtw` riga 263, `glow` riga 68 | Fatto | Gradient dorato sulla faccia (CSS .tile.gold riga 260 HTML), bordo 2.5px #ffd54a, scintilla vettoriale a 4 punte in alto a sinistra (nessun emoji, sicura su tutti i font) |
+| Aiuto, «uguale», attenuata, bloccante | `blk` riga 223, `mglow` riga 230 | Parziale | Anello bianco per l'Aiuto; anello verde + pallino ✔ per le tessere «uguale» (match); attenuazione 50% delle libere non-match (fade); manca il bloccante (blocker con anello rosso) |
+| Rifiuto di un tocco | `shake` riga 225 | Fatto | Animazione shake ±5px in 420 ms su tessera bloccata/nascosta toccata (`ShakingTile` con `useDerivedValue`) |
 | Sparizione della coppia (260 ms) | `.tile.gone` | Fatto | Confronto con un video |
 | Ingresso della tavola con ritardo per tessera (piano, riga, colonna) | `tin` riga 59 | Da fare | |
 | Sblocco di un gruppo nascosto | `flip` riga 67 | Da fare | |
@@ -91,7 +91,7 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Verifica
 
-- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (532 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); logica di oscuramento delle tessere bloccate coperta da `src/ui/tile.test.tsx`. Rimossa la dipendenza deprecata `react-test-renderer`.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (540 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); `blockedDimOverlay`, `designBox` e `starPathD` coperti da `src/ui/tile.test.tsx`. Rimossa la dipendenza deprecata `react-test-renderer`.
 - **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito), la tavolozza colori/pannelli a tema e il gradiente radiale di sfondo sono stati verificati visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
 - **Non verificato**: il resto dell'inventario (stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
 
