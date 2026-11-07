@@ -1,4 +1,4 @@
-import { FreeTracker, buildAdjacency } from './geometry';
+import { FreeTracker, blockersOf, buildAdjacency } from './geometry';
 import type { Cell } from './types';
 
 const free = (cells: Cell[]) => new FreeTracker(buildAdjacency(cells)).freeList();
@@ -48,5 +48,36 @@ describe('FreeTracker', () => {
     copy.remove(1);
     expect(ft.freeList()).toEqual([1]);
     expect(copy.freeList()).toEqual([0]);
+  });
+});
+
+describe('blockersOf', () => {
+  test('restituisce vuoto se la tessera è già libera o tolta', () => {
+    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }]));
+    expect(blockersOf(ft, 0)).toEqual({ blockers: [], reason: 'none' });
+    ft.remove(0);
+    expect(blockersOf(ft, 0)).toEqual({ blockers: [], reason: 'none' });
+  });
+
+  test('identifica tessera coperta dall\'alto (top)', () => {
+    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }]));
+    expect(blockersOf(ft, 0)).toEqual({ blockers: [1], reason: 'top' });
+  });
+
+  test('identifica tessera bloccata ai lati (sides)', () => {
+    const ft = new FreeTracker(buildAdjacency([{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }]));
+    expect(blockersOf(ft, 1)).toEqual({ blockers: [0, 2], reason: 'sides' });
+  });
+
+  test('identifica tessera sia coperta sia bloccata ai lati (both)', () => {
+    const ft = new FreeTracker(
+      buildAdjacency([
+        { x: 0, y: 0, z: 0 },
+        { x: 1, y: 0, z: 0 },
+        { x: 2, y: 0, z: 0 },
+        { x: 1, y: 0, z: 1 },
+      ]),
+    );
+    expect(blockersOf(ft, 1)).toEqual({ blockers: [3, 0, 2], reason: 'both' });
   });
 });

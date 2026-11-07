@@ -64,12 +64,15 @@ export type TileBoardProps = {
    * Riceve l'animazione di scuotimento (shake 0.42s, CSS riga 225 HTML).
    */
   rejected: number | null;
+  /** Tessere che bloccano la tessera toccata (outline rosso #ff4d4d, CSS riga 222 HTML). */
+  blockers?: readonly number[];
   /** Tessera toccata, oppure `null` se il tocco è fuori da ogni tessera viva. */
   onTap: (index: number | null) => void;
 };
 
 const REMOVE_MS = 250;
 const EMPTY: ReadonlySet<number> = new Set();
+const EMPTY_BLOCKERS: readonly number[] = [];
 type Layer = { image: SkImage | null; excluded: ReadonlySet<number> };
 
 function useMarkFont(size: number): SkFont | null {
@@ -88,7 +91,7 @@ function useMarkFont(size: number): SkFont | null {
  * togliere) e quelle in rimozione, con valori condivisi solo per l'animazione. Così il costo per fotogramma segue le tessere
  * vive, non l'intera tavola. Il tocco si risolve con `hitTest` del dominio, non con viste per tessera.
  */
-export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = 'normal', width, height, free, gone, removing, removeKey, selected, hint, match, rejected, onTap }: TileBoardProps) {
+export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = 'normal', width, height, free, gone, removing, removeKey, selected, hint, match, rejected, blockers = EMPTY_BLOCKERS, onTap }: TileBoardProps) {
   const metrics = useMemo(() => boardMetrics(tiles, width, height), [tiles, width, height]);
   const order = useMemo(() => drawOrder(tiles), [tiles]);
   const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
@@ -234,6 +237,39 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
         {hint.filter((i) => !gone.has(i) && !removing.has(i)).map((i) => (
           <RoundedRect key={`h${i}`} x={rects[i].x + 1.5} y={rects[i].y + 1.5} width={rects[i].w - 3} height={rects[i].h - 3} r={radius} style="stroke" strokeWidth={4} color="#ffffff" />
         ))}
+
+        {/* Tessere bloccanti: outline rosso 4px solido con 2px offset + bagliore (CSS .tile.blocker righe 222-223 HTML) */}
+        {blockers
+          .filter((i) => !gone.has(i) && !removing.has(i))
+          .map((i) => {
+            const r = rects[i];
+            return (
+              <Group key={`blk${i}`}>
+                {/* Bagliore rosso esterno */}
+                <RoundedRect
+                  x={r.x - 5}
+                  y={r.y - 5}
+                  width={r.w + 10}
+                  height={r.h + 10}
+                  r={radius + 4}
+                  style="stroke"
+                  strokeWidth={2}
+                  color="rgba(255, 77, 77, 0.45)"
+                />
+                {/* Outline rosso 4px solido (offset 2px) */}
+                <RoundedRect
+                  x={r.x - 3}
+                  y={r.y - 3}
+                  width={r.w + 6}
+                  height={r.h + 6}
+                  r={radius + 2}
+                  style="stroke"
+                  strokeWidth={4}
+                  color="#ff4d4d"
+                />
+              </Group>
+            );
+          })}
 
         {/* Tessere selezionate: bagliore d'accento, bordo 3px, filo interno chiaro (CSS .tile.sel righe 50-53 HTML) */}
         {selected

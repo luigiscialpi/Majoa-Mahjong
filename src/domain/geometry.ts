@@ -98,3 +98,27 @@ export class FreeTracker {
     for (const t of this.adj.leftOf[i]) this.rightN[t]--;
   }
 }
+
+/**
+ * Tessere che bloccano la tessera `i` (al piano superiore o a entrambi i lati).
+ * Regola dell'originale (`blockersOf`, riga 2050 HTML):
+ * - se coperta dall'alto: tessere vive sopra
+ * - se bloccata ai lati: tessere vive sia a sinistra sia a destra
+ */
+export function blockersOf(
+  ft: FreeTracker,
+  i: number,
+): { blockers: number[]; reason: 'top' | 'sides' | 'both' | 'none' } {
+  if (ft.isFree(i) || ft.alive[i] === 0) return { blockers: [], reason: 'none' };
+  const top = ft.adj.above[i].filter((j) => ft.alive[j] === 1);
+  const left = ft.adj.left[i].filter((j) => ft.alive[j] === 1);
+  const right = ft.adj.right[i].filter((j) => ft.alive[j] === 1);
+  const hasTop = top.length > 0;
+  const hasSides = left.length > 0 && right.length > 0;
+  const blockers = [
+    ...(hasTop ? top : []),
+    ...(hasSides ? [...left, ...right] : []),
+  ];
+  const reason = hasTop && hasSides ? 'both' : hasTop ? 'top' : hasSides ? 'sides' : 'none';
+  return { blockers, reason };
+}

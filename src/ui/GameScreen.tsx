@@ -9,7 +9,8 @@ import { gameColumn } from '../domain/board';
 import type { GameState } from '../domain/gameState';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
-import type { GenError, Result } from '../domain/types';
+import { blockersOf } from '../domain/geometry';
+import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
@@ -204,21 +205,40 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
     return [...free].filter((i) => !selSet.has(i) && game.tiles[i].type === selType);
   }, [session.selected, game.tiles, free]);
 
-  // Tessera rifiutata: il feedback 'rejected' dura fino alla prossima azione (seq cambia).
+  // Tessera rifiutata e relative tessere bloccanti (CSS .tile.blocker / .tile.target righe 2061-2078 HTML).
   const [rejected, setRejected] = useState<number | null>(null);
+  const [blockers, setBlockers] = useState<readonly number[]>([]);
   useEffect(() => {
     const fb = round.feedback;
     if (fb?.kind === 'rejected') {
-      // L'indice del tocco rifiutato non è nel feedback; lo ricaviamo dalla selezione che non è cambiata.
-      // Strategia: l'ultimo tocco su una tessera bloccata non cambia session.selected.
-      // GameScreen non ha l'indice direttamente, ma TileBoard riceve onTap che lo conosce.
-      // Soluzione minima: si usa un ref sull'ultimo tapped.
-      setRejected((prev) => (prev === lastTapped.current ? null : lastTapped.current)); // forza re-render
-      setRejected(lastTapped.current);
+      const tapped = lastTapped.current;
+      setRejected(tapped);
+      if (tapped !== null && fb.reason === 'tile-blocked') {
+        const { blockers: blkList, reason } = blockersOf(game.ft, tapped);
+        setBlockers(blkList);
+        if (reason === 'top') setNotice("Tessera coperta dall'alto");
+        else if (reason === 'both') setNotice('Tessera coperta e bloccata ai lati');
+        else if (reason === 'sides') setNotice('Tessera bloccata a destra e a sinistra');
+        else setNotice('Tessera bloccata');
+      } else if (tapped !== null && fb.reason === 'locked') {
+        setBlockers([]);
+        const stars = game.tiles
+          .map((t, idx) => (t.type === STAR_TYPE && game.ft.isFree(idx) ? idx : -1))
+          .filter((idx) => idx >= 0);
+        if (stars.length > 0) setHintGroup(stars);
+        setNotice('Tessera nascosta: abbina prima le stelle ⭐');
+      } else {
+        setBlockers([]);
+      }
+      const id = setTimeout(() => {
+        setBlockers([]);
+      }, 2200);
+      return () => clearTimeout(id);
     } else {
       setRejected(null);
+      setBlockers([]);
     }
-  }, [round.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [round.seq, game]);
 
   const lastTapped = useRef<number | null>(null);
   const onLayout = useCallback((e: LayoutChangeEvent) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }), []);
@@ -275,6 +295,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 hint={hintGroup}
                 match={match}
                 rejected={rejected}
+                blockers={blockers}
                 onTap={onTap}
               />
             </View>
