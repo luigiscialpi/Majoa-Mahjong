@@ -6,6 +6,7 @@ import { levelProgress, type IslandInfo, type Progress } from '../domain/progres
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
 import { PROFILE_NAMES, starsText } from './format';
 import { levelStatus } from './levelStatus';
+import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 
@@ -35,61 +36,63 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
   }, [reason]);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom }]}>
-      <Text style={styles.title} accessibilityRole="header">
-        Majoa Mahjong
-      </Text>
-      {top}
-      <Text style={styles.hint}>Scegli profilo e livello</Text>
-      <View style={styles.chips}>
-        {PROFILES.map((p) => (
-          <Pressable key={p} onPress={() => setProfile(p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={`profile-${p}`}>
-            <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{PROFILE_NAMES[p]}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={styles.prova}>
-        <Text style={styles.provaText}>Modalità prova: tutti i livelli aperti</Text>
-        <Switch value={prova} onValueChange={setProva} accessibilityLabel="Modalità prova: tutti i livelli aperti" testID="prova-switch" />
-      </View>
-      {reason ? (
-        <View style={styles.reason} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="level-reason">
-          <Text style={styles.reasonText}>🔒 {reason.text}</Text>
-        </View>
-      ) : null}
-      <FlatList
-        data={legacyLevels}
-        keyExtractor={(l) => String(l.id)}
-        numColumns={5}
-        initialNumToRender={legacyLevels.length} // sono solo 100 celle semplici: renderle tutte evita buchi per i lettori di schermo
-        extraData={`${prova}|${progress.coins}|${JSON.stringify(progress.levels)}`}
-        contentContainerStyle={styles.grid}
-        columnWrapperStyle={styles.gridRow}
-        renderItem={({ item }) => {
-          const status = levelStatus(progress, islands, item.id, prova);
-          const stars = levelProgress(progress, item.id).stars;
-          const tris = item.groupSize === 3;
-          const label = status.open ? `Livello ${item.id}${tris ? ' (Tris)' : ''}, ${stars} stelle su 3` : `Livello ${item.id}${tris ? ' (Tris)' : ''}, bloccato. ${status.reason}`;
-          return (
-            <Pressable
-              style={({ pressed }) => [styles.level, tris ? styles.levelTris : null, status.open ? null : styles.levelLocked, pressed ? styles.levelPressed : null]}
-              onPress={() => (status.open ? onPlay(item.id, profile) : setReason({ text: status.reason }))}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              testID={`level-${item.id}`}
-            >
-              <Text style={[styles.levelText, status.open ? null : styles.levelTextLocked]}>{status.open ? item.id : `🔒 ${item.id}`}</Text>
-              {status.open ? <Text style={styles.stars}>{starsText(stars)}</Text> : null}
+    <FeltBackground cyRatio={0.2} testID="level-picker-bg">
+      <View style={[styles.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom }]}>
+        <Text style={styles.title} accessibilityRole="header">
+          Majoa Mahjong
+        </Text>
+        {top}
+        <Text style={styles.hint}>Scegli profilo e livello</Text>
+        <View style={styles.chips}>
+          {PROFILES.map((p) => (
+            <Pressable key={p} onPress={() => setProfile(p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={`profile-${p}`}>
+              <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{PROFILE_NAMES[p]}</Text>
             </Pressable>
-          );
-        }}
-      />
-    </View>
+          ))}
+        </View>
+        <View style={styles.prova}>
+          <Text style={styles.provaText}>Modalità prova: tutti i livelli aperti</Text>
+          <Switch value={prova} onValueChange={setProva} accessibilityLabel="Modalità prova: tutti i livelli aperti" testID="prova-switch" />
+        </View>
+        {reason ? (
+          <View style={styles.reason} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="level-reason">
+            <Text style={styles.reasonText}>🔒 {reason.text}</Text>
+          </View>
+        ) : null}
+        <FlatList
+          data={legacyLevels}
+          keyExtractor={(l) => String(l.id)}
+          numColumns={5}
+          initialNumToRender={legacyLevels.length} // sono solo 100 celle semplici: renderle tutte evita buchi per i lettori di schermo
+          extraData={`${prova}|${progress.coins}|${JSON.stringify(progress.levels)}`}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={styles.gridRow}
+          renderItem={({ item }) => {
+            const status = levelStatus(progress, islands, item.id, prova);
+            const stars = levelProgress(progress, item.id).stars;
+            const tris = item.groupSize === 3;
+            const label = status.open ? `Livello ${item.id}${tris ? ' (Tris)' : ''}, ${stars} stelle su 3` : `Livello ${item.id}${tris ? ' (Tris)' : ''}, bloccato. ${status.reason}`;
+            return (
+              <Pressable
+                style={({ pressed }) => [styles.level, tris ? styles.levelTris : null, status.open ? null : styles.levelLocked, pressed ? styles.levelPressed : null]}
+                onPress={() => (status.open ? onPlay(item.id, profile) : setReason({ text: status.reason }))}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                testID={`level-${item.id}`}
+              >
+                <Text style={[styles.levelText, status.open ? null : styles.levelTextLocked]}>{status.open ? item.id : `🔒 ${item.id}`}</Text>
+                {status.open ? <Text style={styles.stars}>{starsText(stars)}</Text> : null}
+              </Pressable>
+            );
+          }}
+        />
+      </View>
+    </FeltBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.feltB },
+  root: { flex: 1, backgroundColor: 'transparent' },
   title: { fontSize: 30, color: colors.accent, textAlign: 'center', fontFamily: fontFamilies.title, letterSpacing: 0.5 },
   hint: { fontSize: 14, color: colors.inkSoft, textAlign: 'center', marginTop: 4, marginBottom: 12, fontFamily: fontFamilies.body },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 8 },

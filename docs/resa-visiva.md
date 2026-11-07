@@ -29,7 +29,7 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Faccia della tessera: 129 disegni SVG (`viewBox 0 0 60 80`) | sezione 10.1 di `docs/gioco-originale.md` | Fatto | — |
 | Corpo 3D della tessera: bordo laterale a due toni, ombra, faccia sfumata | regola CSS riga 43 (`--edge`, `--edge2`) | Fatto | Confronto con le catture a più densità di schermo |
 | Tavolozza del livello (5 colori) | `l.th`, riga 1330 | Parziale | Si usano il secondo colore (sfondo), l'accento, il bordo e il bordo scuro; il feltro chiaro non si usa |
-| Sfondo della schermata | riga 20-21: `radial-gradient(ellipse at 50% 40%, var(--felt-a), var(--felt-b) 75%)` | Da fare | Oggi è un colore piatto: serve il gradiente radiale |
+| Sfondo della schermata | riga 20-21: `radial-gradient(ellipse at 50% 40%, var(--felt-a), var(--felt-b) 75%)` | Fatto | `FeltBackground.tsx`: Canvas Skia con `RadialGradient` centrato a `50 % × 40 %`, raggio `max(w, h) × 0.75`; applicato a `LevelPicker` e `GameScreen` |
 | Tipografia | corpo riga 23: «Trebuchet MS», «Segoe UI», Roboto, system-ui; titoli (righe 95, 103, 120, 162, 166, 173, 238): Georgia, serif | Parziale | Lora (titoli, cifre e timer) e Nunito (interfaccia e testi) incorporati con licenza OFL in `assets/fonts/` e centralizzati in `src/ui/theme/typography.ts`; resta il rendering testo Skia per il «?» dei veli |
 | Colori e pannelli dell'interfaccia | righe 12-14 (`--ink`, `--ink-soft`, `--accent`, `--panel`) e 28 (bordo 2 px, raggio 14) | Fatto | Centralizzati in `src/ui/theme/colors.ts` (`feltA`, `feltB`, `ink`, `inkSoft`, `panel`, `btn`, `accent`, `edge`); applicati a selettore, home, dialoghi di conferma, pulsanti e gioco |
 | Tessera selezionata | stato della tessera, sezione 10.1 | Parziale | Oggi è un anello; manca il rialzo e il bagliore dell'originale |
@@ -91,9 +91,9 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Verifica
 
-- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI (529 test passati, typecheck pulito).
-- **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito) e la tavolozza colori/pannelli a tema (`--felt-b`, `--accent`, `--ink`, `--panel`, `--btn`) sono state verificate visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
-- **Non verificato**: il resto dell'inventario (sfondo con gradiente radiale, stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI (530 test passati su 43 suite, typecheck pulito). La suite `sqliteSaveStore.test.ts` richiede Node ≥ 22.5 (`node:sqlite`) e fallisce su Node 20 indipendentemente dalle modifiche UI.
+- **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito), la tavolozza colori/pannelli a tema e il gradiente radiale di sfondo sono stati verificati visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
+- **Non verificato**: il resto dell'inventario (stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
 
 ## Collegamenti
 

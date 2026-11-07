@@ -20,6 +20,7 @@ import { PROFILE_NAMES, aidText, formatTime, islandName, starsText } from './for
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
+import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 import type { SkSVG } from '@shopify/react-native-skia';
@@ -201,88 +202,90 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const { got, total } = goldCount(session);
 
   return (
-    <View style={[styles.root, { backgroundColor: palette[1], paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.header}>
-        <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel="Torna ai livelli" testID="btn-back">
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Livello {level.id}</Text>
-          <Text style={styles.subtitle}>
-            {PROFILE_NAMES[profile]} · {game.remaining} tessere{total > 0 ? ` · oro ${got}/${total}` : ''}
+    <FeltBackground colorA={palette[0]} colorB={palette[1]} cyRatio={0.4} testID="game-felt-bg">
+      <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.header}>
+          <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel="Torna ai livelli" testID="btn-back">
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={styles.title}>Livello {level.id}</Text>
+            <Text style={styles.subtitle}>
+              {PROFILE_NAMES[profile]} · {game.remaining} tessere{total > 0 ? ` · oro ${got}/${total}` : ''}
+            </Text>
+          </View>
+          <Text style={[styles.time, { color: palette[2] }]} testID="timer">
+            {formatTime(session.seconds)}
           </Text>
         </View>
-        <Text style={[styles.time, { color: palette[2] }]} testID="timer">
-          {formatTime(session.seconds)}
-        </Text>
-      </View>
 
-      {trouble ? (
-        <View style={styles.trouble} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="save-trouble">
-          <Text style={styles.troubleText}>⚠ Non riesco a salvare la partita</Text>
+        {trouble ? (
+          <View style={styles.trouble} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="save-trouble">
+            <Text style={styles.troubleText}>⚠ Non riesco a salvare la partita</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.boardArea} onLayout={onLayout}>
+          {area.width > 0 ? (
+            <View style={{ width: column.w, height: column.h, marginLeft: column.x }}>
+              <TileBoard
+                tiles={game.tiles}
+                designs={designs}
+                svgs={svgs}
+                statuses={statuses}
+                palette={palette}
+                width={column.w}
+                height={column.h}
+                free={free}
+                gone={gone}
+                removing={view.removing}
+                removeKey={view.key}
+                selected={session.selected}
+                hint={hintGroup}
+                onTap={onTap}
+              />
+            </View>
+          ) : null}
+          {notice ? (
+            <View style={styles.noticeBox} pointerEvents="none">
+              <Text style={styles.noticeBoxText}>{notice}</Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
 
-      <View style={styles.boardArea} onLayout={onLayout}>
-        {area.width > 0 ? (
-          <View style={{ width: column.w, height: column.h, marginLeft: column.x }}>
-            <TileBoard
-              tiles={game.tiles}
-              designs={designs}
-              svgs={svgs}
-              statuses={statuses}
-              palette={palette}
-              width={column.w}
-              height={column.h}
-              free={free}
-              gone={gone}
-              removing={view.removing}
-              removeKey={view.key}
-              selected={session.selected}
-              hint={hintGroup}
-              onTap={onTap}
-            />
-          </View>
+        <View style={styles.bar}>
+          <AidButton label="Aiuto" icon="💡" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
+          <AidButton label="Annulla" icon="↶" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
+          <AidButton label="Mischia" icon="🔀" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
+        </View>
+
+        {session.phase === 'won' && session.outcome ? (
+          <Overlay>
+            <Text style={styles.overlayTitle}>Livello completato!</Text>
+            <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
+            <Text style={styles.overlayLine}>Tempo {formatTime(session.outcome.seconds)}</Text>
+            {rewards?.newRecord ? <Text style={styles.overlayRecord}>Nuovo record!</Text> : null}
+            <Text style={styles.overlayLine}>Aiuti usati: {session.outcome.aidsUsed}</Text>
+            {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>Tessere d'oro: {session.outcome.gold}/{session.outcome.goldTotal}</Text> : null}
+            {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
+            {rewards?.gifts.map((island) => (
+              <Text key={island.id} style={styles.overlayReward}>
+                Isola {islandName(island.id)} aperta: +{island.gift} ✨
+              </Text>
+            ))}
+            {progressNotSaved ? <Text style={styles.overlayWarning}>⚠ Non riesco a salvare i progressi</Text> : null}
+            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Rigioca" />
+          </Overlay>
         ) : null}
-        {notice ? (
-          <View style={styles.noticeBox} pointerEvents="none">
-            <Text style={styles.noticeBoxText}>{notice}</Text>
-          </View>
+        {session.phase === 'dead' ? (
+          <Overlay>
+            <Text style={styles.overlayTitle}>Bloccato!</Text>
+            <Text style={styles.overlayLine}>Nessuna mossa possibile e nessun aiuto utile.</Text>
+            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Riprova" />
+          </Overlay>
         ) : null}
       </View>
-
-      <View style={styles.bar}>
-        <AidButton label="Aiuto" icon="💡" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
-        <AidButton label="Annulla" icon="↶" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
-        <AidButton label="Mischia" icon="🔀" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
-      </View>
-
-      {session.phase === 'won' && session.outcome ? (
-        <Overlay>
-          <Text style={styles.overlayTitle}>Livello completato!</Text>
-          <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
-          <Text style={styles.overlayLine}>Tempo {formatTime(session.outcome.seconds)}</Text>
-          {rewards?.newRecord ? <Text style={styles.overlayRecord}>Nuovo record!</Text> : null}
-          <Text style={styles.overlayLine}>Aiuti usati: {session.outcome.aidsUsed}</Text>
-          {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>Tessere d'oro: {session.outcome.gold}/{session.outcome.goldTotal}</Text> : null}
-          {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
-          {rewards?.gifts.map((island) => (
-            <Text key={island.id} style={styles.overlayReward}>
-              Isola {islandName(island.id)} aperta: +{island.gift} ✨
-            </Text>
-          ))}
-          {progressNotSaved ? <Text style={styles.overlayWarning}>⚠ Non riesco a salvare i progressi</Text> : null}
-          <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Rigioca" />
-        </Overlay>
-      ) : null}
-      {session.phase === 'dead' ? (
-        <Overlay>
-          <Text style={styles.overlayTitle}>Bloccato!</Text>
-          <Text style={styles.overlayLine}>Nessuna mossa possibile e nessun aiuto utile.</Text>
-          <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Riprova" />
-        </Overlay>
-      ) : null}
-    </View>
+    </FeltBackground>
   );
 }
 
