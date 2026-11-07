@@ -92,8 +92,12 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 ## Verifica
 
 - **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (540 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); `blockedDimOverlay`, `designBox` e `starPathD` coperti da `src/ui/tile.test.tsx`. Rimossa la dipendenza deprecata `react-test-renderer`.
-- **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito), la tavolozza colori/pannelli a tema e il gradiente radiale di sfondo sono stati verificati visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
-- **Non verificato**: il resto dell'inventario (stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
+- **Verificato su dispositivo**: verificati su dispositivo reale Redmi Note 9 Pro in development build:
+  - tipografia incorporata (Lora e Nunito);
+  - tavolozza colori/pannelli a tema e gradiente radiale di sfondo (`FeltBackground`);
+  - stati tessere: tessera nascosta (viola-indaco, stella, «?», lucchetto vettoriale su livello 11), tessera nebbiosa (azzurro, nuvola e curva su livello 3), tessera d'oro (gradiente dorato, bordo e scintilla a 4 punte), tessera selezionata (sollevata con bagliore), tessere uguali «match» (anello verde con badge ✔ vettoriale), tessere attenuate «fade» (overlay 20% solido anti-trasparenza 3D) e tessere bloccate oscurate per profilo;
+  - rifiuto tocco con scuotimento e avviso.
+- **Non verificato**: animazioni di ingresso (`tin`), sblocco gruppi (`flip`), diradamento nebbia (`fogaway`), audio e vibrazione.
 
 ## Collegamenti
 

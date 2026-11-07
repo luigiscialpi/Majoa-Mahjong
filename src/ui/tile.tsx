@@ -293,30 +293,25 @@ export type StaticTileProps = {
   status: TileStatus;
   font: SkFont | null;
   dimColor?: string | null;
+  fade?: boolean;
 };
 
 /** Tessera ferma: componente senza hook né valori condivisi, adatto a essere disegnato una volta sola in un'immagine. */
-export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor }: StaticTileProps) {
+export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor, fade }: StaticTileProps) {
   const box = designBox(rect.x, rect.y, rect.w, rect.h);
   const covered = status.locked || status.fog;
   return (
     <>
-      {/* Corpo base (o immagine in cache) — sostituito da gradient per locked/fog */}
-      {!covered ? (
-        body ? (
-          <Group transform={[{ translateX: rect.x - BODY_PAD }, { translateY: rect.y - BODY_PAD }]}>
-            <Image image={body} x={0} y={0} width={rect.w + 2 * BODY_PAD} height={rect.h + 2 * BODY_PAD} fit="fill" />
-          </Group>
-        ) : (
-          <TileBody x={rect.x} y={rect.y} w={rect.w} h={rect.h} radius={radius} shadow={shadow} palette={palette} />
-        )
-      ) : null}
-      {/* Disegno SVG (solo quando scoperta) */}
-      {covered ? null : <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} />}
-      {/* Oscuramento per tessere bloccate (non libere) */}
-      {dimColor && !covered ? (
-        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={dimColor} />
-      ) : null}
+      {/* Corpo base 3D (con smusso e ombra) per tutte le tessere */}
+      {body ? (
+        <Group transform={[{ translateX: rect.x - BODY_PAD }, { translateY: rect.y - BODY_PAD }]}>
+          <Image image={body} x={0} y={0} width={rect.w + 2 * BODY_PAD} height={rect.h + 2 * BODY_PAD} fit="fill" />
+        </Group>
+      ) : (
+        <TileBody x={rect.x} y={rect.y} w={rect.w} h={rect.h} radius={radius} shadow={shadow} palette={palette} />
+      )}
+      {/* Disegno SVG (solo quando scoperta e non oro: oro lo disegna sopra il suo gradient) */}
+      {!covered && !status.gold ? <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} /> : null}
       {/* Facce speciali per stato locked/fog */}
       {status.locked ? (
         <LockedFace rect={rect} radius={radius} font={font} />
@@ -341,6 +336,14 @@ export function StaticTile({ rect, radius, svg, shadow, body, palette, status, f
           {/* Scintilla in alto a sinistra (posizione .gem top:-10 left:-10 in CSS = +3 +3 qui) */}
           <Sparkle x={rect.x + 7} y={rect.y + 7} size={14} />
         </>
+      ) : null}
+      {/* Oscuramento per tessere bloccate (non libere) */}
+      {dimColor && !covered ? (
+        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={dimColor} />
+      ) : null}
+      {/* Attenuazione per tessere libere non-match con selezione attiva (CSS .tile.fade brightness .8) */}
+      {fade && !covered ? (
+        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color="rgba(0,0,0,0.20)" />
       ) : null}
     </>
   );

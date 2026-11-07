@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio } from 'react-native';
-import { Canvas, Circle, Group, Image, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
+import { Canvas, Circle, Group, Image, Path, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, useSharedValue, withSequence, withTiming, useDerivedValue } from 'react-native-reanimated';
 import { boardMetrics, drawOrder, hitTest, tileRect } from '../domain/board';
@@ -161,16 +161,19 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
 
   // Set per lookup O(1)
   const matchSet = useMemo(() => new Set(match), [match]);
-  // Tessere libere che non sono la selezionata e non sono una match → attenuate
+  // Tessere libere che non sono la selezionata e non sono una match → attenuate (CSS .tile.fade)
+  // Non si applica a tessere nascoste o nebbiose
   const fadeSet = useMemo(() => {
     if (match.length === 0) return new Set<number>();
     const sel = new Set(selected);
     const result = new Set<number>();
     for (const i of free) {
-      if (!sel.has(i) && !matchSet.has(i) && !gone.has(i)) result.add(i);
+      if (!sel.has(i) && !matchSet.has(i) && !gone.has(i) && !statuses[i]?.locked && !statuses[i]?.fog) {
+        result.add(i);
+      }
     }
     return result;
-  }, [match, selected, free, gone, matchSet]);
+  }, [match, selected, free, gone, matchSet, statuses]);
 
   // shakeKey incrementale per ShakingTile: aumenta a ogni nuovo rifiuto (anche sulla stessa tessera).
   const shakeSeqRef = useRef(0);
@@ -206,6 +209,7 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
           // Tessera selezionata: sollevata di 4px (CSS .tile.sel translateY(-4px) riga 50 HTML)
           const rect = isSelected ? { ...rects[i], y: rects[i].y - 4 } : rects[i];
           const isBlocked = !free.has(i) && !statuses[i].locked;
+          const isFaded = fadeSet.has(i);
           const props = {
             rect,
             radius,
@@ -216,19 +220,12 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
             status: statuses[i],
             font,
             dimColor: isBlocked ? dimColor : null,
+            fade: isFaded,
           };
           if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
           // Tessera rifiutata: shake
           if (i === rejected) {
             return <ShakingTile key={i} shakeKey={shakeSeq} {...props} />;
-          }
-          // Tessere attenuate (fade): le libere non-match quando c'è una selezione con match attivi
-          if (fadeSet.has(i)) {
-            return (
-              <Group key={i} opacity={0.5}>
-                <StaticTile {...props} />
-              </Group>
-            );
           }
           return <StaticTile key={i} {...props} />;
         })}
@@ -260,19 +257,20 @@ export function TileBoard({ tiles, designs, svgs, statuses, palette, profile = '
           .filter((i) => !gone.has(i) && !removing.has(i))
           .map((i) => {
             const r = rects[i];
-            // Anello verde 3px interno + alone 4px bianco + alone 8px verde (semplificato: 2 stroke sovrapposti)
-            const checkR = Math.max(8, radius * 0.9);
-            const checkX = r.x + r.w - checkR + 2;
-            const checkY = r.y - checkR + 2;
+            const checkR = Math.max(9, radius * 0.85);
+            const checkX = Math.min(width - checkR - 3, r.x + r.w - checkR + 1);
+            const checkY = Math.max(checkR + 3, r.y - checkR + 3);
+            const checkD = `M${checkX - 3.5} ${checkY} L${checkX - 1} ${checkY + 3} L${checkX + 4} ${checkY - 3}`;
             return (
               <Group key={`m${i}`}>
                 {/* Alone verde esterno */}
                 <RoundedRect x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} r={radius + 4} style="stroke" strokeWidth={4} color="rgba(31,191,90,0.45)" />
                 {/* Bordo verde interno 3px */}
                 <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color="#1fbf5a" />
-                {/* Pallino ✔ in alto a destra */}
+                {/* Pallino ✔ in alto a destra: cerchio verde, contorno bianco e segno ✔ vettoriale */}
                 <Circle cx={checkX} cy={checkY} r={checkR} color="#1fbf5a" />
-                <Circle cx={checkX} cy={checkY} r={checkR + 2} style="stroke" strokeWidth={2} color="#ffffff" />
+                <Circle cx={checkX} cy={checkY} r={checkR} style="stroke" strokeWidth={2} color="#ffffff" />
+                <Path path={checkD} style="stroke" strokeWidth={2.2} strokeCap="round" strokeJoin="round" color="#ffffff" />
               </Group>
             );
           })}
