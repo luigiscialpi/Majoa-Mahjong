@@ -6,6 +6,7 @@ import { levelProgress, type IslandInfo, type Progress } from '../domain/progres
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
 import { PROFILE_NAMES, starsText } from './format';
 import { levelStatus } from './levelStatus';
+import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 
 /** Quanto resta visibile il motivo di un lucchetto. */
@@ -88,25 +89,25 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#ffffff' },
-  title: { fontSize: 28, color: '#111111', textAlign: 'center', fontFamily: fontFamilies.title },
-  hint: { fontSize: 14, color: '#555555', textAlign: 'center', marginTop: 4, marginBottom: 12, fontFamily: fontFamilies.body },
+  root: { flex: 1, backgroundColor: colors.feltB },
+  title: { fontSize: 30, color: colors.accent, textAlign: 'center', fontFamily: fontFamilies.title, letterSpacing: 0.5 },
+  hint: { fontSize: 14, color: colors.inkSoft, textAlign: 'center', marginTop: 4, marginBottom: 12, fontFamily: fontFamilies.body },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 8 },
-  chip: { minHeight: 48, paddingHorizontal: 16, borderRadius: 24, backgroundColor: '#eeeeee', alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: '#1f6b57' },
-  chipText: { fontSize: 14, color: '#222222', fontFamily: fontFamilies.bodyBold },
-  chipTextOn: { color: '#ffffff' },
+  chip: { minHeight: 48, paddingHorizontal: 16, borderRadius: 24, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center' },
+  chipOn: { backgroundColor: colors.feltA, borderWidth: 1.5, borderColor: colors.accent },
+  chipText: { fontSize: 14, color: colors.inkSoft, fontFamily: fontFamilies.bodyBold },
+  chipTextOn: { color: colors.ink },
   prova: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, marginBottom: 8 },
-  provaText: { flex: 1, fontSize: 14, color: '#222222', fontFamily: fontFamilies.body },
-  reason: { marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#1c1426' },
-  reasonText: { color: '#ffffff', fontSize: 14, textAlign: 'center', fontFamily: fontFamilies.bodyBold },
+  provaText: { flex: 1, fontSize: 14, color: colors.ink, fontFamily: fontFamilies.body },
+  reason: { marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.panelHeavy },
+  reasonText: { color: colors.ink, fontSize: 14, textAlign: 'center', fontFamily: fontFamilies.bodyBold },
   grid: { paddingHorizontal: 12, paddingBottom: 16, gap: 8 },
   gridRow: { gap: 8 },
-  level: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#e8f1ee' },
-  levelTris: { backgroundColor: '#f3e7d7' },
-  levelLocked: { backgroundColor: '#dddddd' },
+  level: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#f6edd2' },
+  levelTris: { backgroundColor: '#ffe9cb' },
+  levelLocked: { backgroundColor: 'rgba(0,0,0,0.35)' },
   levelPressed: { opacity: 0.7 },
-  levelText: { fontSize: 16, color: '#17503b', fontFamily: fontFamilies.title },
-  levelTextLocked: { color: '#444444' },
-  stars: { fontSize: 11, color: '#3f6354', marginTop: 2, fontFamily: fontFamilies.title },
+  levelText: { fontSize: 16, color: colors.edge2, fontFamily: fontFamilies.title },
+  levelTextLocked: { color: 'rgba(255,255,255,0.45)' },
+  stars: { fontSize: 11, color: '#c48900', marginTop: 2, fontFamily: fontFamilies.title },
 });

@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { Button } from './Button';
+import { colors } from './theme/colors';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -47,7 +48,7 @@ describe('Button', () => {
   test('l\'azione consigliata ha lo sfondo chiaro e il testo scuro, le altre il contrario', () => {
     const primary = render({ kind: 'primary' });
     const plain = render({ kind: 'plain' });
-    expect(primary.style().backgroundColor).toBe('#ffffff');
-    expect(plain.style().backgroundColor).not.toBe('#ffffff');
+    expect(primary.style().backgroundColor).toBe(colors.btn);
+    expect(plain.style().backgroundColor).not.toBe(colors.btn);
   });
 });

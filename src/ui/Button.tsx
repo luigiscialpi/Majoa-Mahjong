@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 
 export type ButtonProps = {
@@ -30,10 +31,10 @@ export function Button({ label, onPress, kind = 'plain', disabled = false, acces
 
 const styles = StyleSheet.create({
   button: { minHeight: 48, minWidth: 96, paddingHorizontal: 22, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  plain: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  primary: { backgroundColor: '#ffffff' },
-  pressed: { opacity: 0.7 },
+  plain: { backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+  primary: { backgroundColor: colors.btn, borderWidth: 1, borderColor: colors.btnShadow },
+  pressed: { opacity: 0.75 },
   disabled: { opacity: 0.45 },
-  text: { color: '#ffffff', fontSize: 16, fontFamily: fontFamilies.bodyBold },
-  primaryText: { color: '#1c1426' },
+  text: { color: colors.ink, fontSize: 16, fontFamily: fontFamilies.bodyBold },
+  primaryText: { color: colors.btnInk },
 });

@@ -36,7 +36,7 @@ Ogni funzionalità ha una riga: cosa fa, in che stato è, dove si trova nel codi
 | Stelle, ✨ e record | PARZIALE | 1-3 stelle per tempo e aiuti, ✨ di una vittoria, migliore stella, record di tempo e profilo più alto per livello (`recordWin`); archiviazione dei progressi su disco in SQLite | `src/domain/stars.ts`, `progress.ts` | `docs/dominio-di-gioco.md`, `docs/motore-livelli.md`, `docs/gioco-originale.md` |
 | Rompicapi | TO DO | 10 mini-giochi in 3 difficoltà | TO DO | `docs/gioco-originale.md` |
 | Album e sfide | TO DO | carte da collezionare per isola e generali | TO DO | `docs/gioco-originale.md` |
-| Resa visiva identica o migliore dell'originale | PARZIALE | tessere (129 disegni, corpo 3D), tavolozze e tipografia (Lora e Nunito incorporati con OFL) portate; sfondo, stati, animazioni, combo, fuochi, mascotte e schermate `TO DO` | `src/ui/tile.tsx`, `TileBoard.tsx`, `theme/typography.ts` | `docs/resa-visiva.md` |
+| Resa visiva identica o migliore dell'originale | PARZIALE | tessere (129 disegni, corpo 3D), tavolozze, tipografia (Lora e Nunito con OFL) e colori/pannelli a tema (`--felt`, `--ink`, `--accent`, `--btn`) portati; sfondo radiale, stati, animazioni, combo, fuochi e mascotte `TO DO` | `src/ui/tile.tsx`, `TileBoard.tsx`, `src/ui/theme/` | `docs/resa-visiva.md` |
 | Mascotte | TO DO | 4 mascotte e nessuna; combo e finestre regalo | TO DO | `docs/gioco-originale.md` |
 | Livelli Tris | TO DO | 10 livelli con gruppi da 3, fuori dalle isole; nel selettore restano bloccati («Si sbloccano più avanti») finché non c'è la regola, aperti solo con «Modalità prova» | TO DO | `docs/gioco-originale.md` |
 | Modalità comoda e accessibilità | TO DO | modalità «senior», testi grandi, contrasto, segnali senza colore | TO DO | `docs/gioco-originale.md` |

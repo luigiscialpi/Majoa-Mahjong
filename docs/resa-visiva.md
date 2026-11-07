@@ -31,7 +31,7 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Tavolozza del livello (5 colori) | `l.th`, riga 1330 | Parziale | Si usano il secondo colore (sfondo), l'accento, il bordo e il bordo scuro; il feltro chiaro non si usa |
 | Sfondo della schermata | riga 20-21: `radial-gradient(ellipse at 50% 40%, var(--felt-a), var(--felt-b) 75%)` | Da fare | Oggi è un colore piatto: serve il gradiente radiale |
 | Tipografia | corpo riga 23: «Trebuchet MS», «Segoe UI», Roboto, system-ui; titoli (righe 95, 103, 120, 162, 166, 173, 238): Georgia, serif | Parziale | Lora (titoli, cifre e timer) e Nunito (interfaccia e testi) incorporati con licenza OFL in `assets/fonts/` e centralizzati in `src/ui/theme/typography.ts`; resta il rendering testo Skia per il «?» dei veli |
-| Colori e pannelli dell'interfaccia | righe 12-14 (`--ink`, `--ink-soft`, `--accent`, `--panel`) e 28 (bordo 2 px, raggio 14) | Da fare | Pulsanti, intestazione, schede e schermata di vittoria oggi sono generici |
+| Colori e pannelli dell'interfaccia | righe 12-14 (`--ink`, `--ink-soft`, `--accent`, `--panel`) e 28 (bordo 2 px, raggio 14) | Fatto | Centralizzati in `src/ui/theme/colors.ts` (`feltA`, `feltB`, `ink`, `inkSoft`, `panel`, `btn`, `accent`, `edge`); applicati a selettore, home, dialoghi di conferma, pulsanti e gioco |
 | Tessera selezionata | stato della tessera, sezione 10.1 | Parziale | Oggi è un anello; manca il rialzo e il bagliore dell'originale |
 | Tessera bloccata (scurita, con gradazione per profilo) | sezione 10.1 e 6.2 | Da fare | |
 | Tessera nascosta: sagoma con «?» e lucchetto | sezione 10.1 | Parziale | Velo scuro con «?»; manca il lucchetto |
@@ -92,8 +92,8 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 ## Verifica
 
 - **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI (529 test passati, typecheck pulito).
-- **Verificato su dispositivo**: la tipografia incorporata (Lora per titoli e cifre, Nunito per interfaccia e testi) è stata verificata visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
-- **Non verificato**: il resto dell'inventario (sfondo radiale, colori pannelli, stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
+- **Verificato su dispositivo**: la tipografia incorporata (Lora e Nunito) e la tavolozza colori/pannelli a tema (`--felt-b`, `--accent`, `--ink`, `--panel`, `--btn`) sono state verificate visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
+- **Non verificato**: il resto dell'inventario (sfondo con gradiente radiale, stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
 
 ## Collegamenti
 
