@@ -6,6 +6,7 @@ import { levelProgress, type IslandInfo, type Progress } from '../domain/progres
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
 import { PROFILE_NAMES, starsText } from './format';
 import { levelStatus } from './levelStatus';
+import { fontFamilies } from './theme/typography';
 
 /** Quanto resta visibile il motivo di un lucchetto. */
 export const REASON_MS = 4000;
@@ -88,24 +89,24 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#ffffff' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111111', textAlign: 'center' },
-  hint: { fontSize: 14, color: '#555555', textAlign: 'center', marginTop: 4, marginBottom: 12 },
+  title: { fontSize: 28, color: '#111111', textAlign: 'center', fontFamily: fontFamilies.title },
+  hint: { fontSize: 14, color: '#555555', textAlign: 'center', marginTop: 4, marginBottom: 12, fontFamily: fontFamilies.body },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 8 },
   chip: { minHeight: 48, paddingHorizontal: 16, borderRadius: 24, backgroundColor: '#eeeeee', alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: '#1f6b57' },
-  chipText: { fontSize: 14, color: '#222222', fontWeight: '600' },
+  chipText: { fontSize: 14, color: '#222222', fontFamily: fontFamilies.bodyBold },
   chipTextOn: { color: '#ffffff' },
   prova: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, marginBottom: 8 },
-  provaText: { flex: 1, fontSize: 14, color: '#222222' },
+  provaText: { flex: 1, fontSize: 14, color: '#222222', fontFamily: fontFamilies.body },
   reason: { marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#1c1426' },
-  reasonText: { color: '#ffffff', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  reasonText: { color: '#ffffff', fontSize: 14, textAlign: 'center', fontFamily: fontFamilies.bodyBold },
   grid: { paddingHorizontal: 12, paddingBottom: 16, gap: 8 },
   gridRow: { gap: 8 },
   level: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#e8f1ee' },
   levelTris: { backgroundColor: '#f3e7d7' },
   levelLocked: { backgroundColor: '#dddddd' },
   levelPressed: { opacity: 0.7 },
-  levelText: { fontSize: 16, fontWeight: '700', color: '#17503b' },
+  levelText: { fontSize: 16, color: '#17503b', fontFamily: fontFamilies.title },
   levelTextLocked: { color: '#444444' },
-  stars: { fontSize: 11, color: '#3f6354', marginTop: 2 },
+  stars: { fontSize: 11, color: '#3f6354', marginTop: 2, fontFamily: fontFamilies.title },
 });

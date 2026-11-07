@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { fontFamilies } from './theme/typography';
 
 export type ButtonProps = {
   label: string;
@@ -33,6 +34,6 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: '#ffffff' },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.45 },
-  text: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  text: { color: '#ffffff', fontSize: 16, fontFamily: fontFamilies.bodyBold },
   primaryText: { color: '#1c1426' },
 });

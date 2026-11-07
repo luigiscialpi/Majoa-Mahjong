@@ -30,7 +30,7 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Corpo 3D della tessera: bordo laterale a due toni, ombra, faccia sfumata | regola CSS riga 43 (`--edge`, `--edge2`) | Fatto | Confronto con le catture a più densità di schermo |
 | Tavolozza del livello (5 colori) | `l.th`, riga 1330 | Parziale | Si usano il secondo colore (sfondo), l'accento, il bordo e il bordo scuro; il feltro chiaro non si usa |
 | Sfondo della schermata | riga 20-21: `radial-gradient(ellipse at 50% 40%, var(--felt-a), var(--felt-b) 75%)` | Da fare | Oggi è un colore piatto: serve il gradiente radiale |
-| Tipografia | corpo riga 23: «Trebuchet MS», «Segoe UI», Roboto, system-ui; titoli (righe 95, 103, 120, 162, 166, 173, 238): Georgia, serif | Da fare | Decidere i caratteri su Android (vedi decisioni aperte) |
+| Tipografia | corpo riga 23: «Trebuchet MS», «Segoe UI», Roboto, system-ui; titoli (righe 95, 103, 120, 162, 166, 173, 238): Georgia, serif | Parziale | Lora (titoli, cifre e timer) e Nunito (interfaccia e testi) incorporati con licenza OFL in `assets/fonts/` e centralizzati in `src/ui/theme/typography.ts`; resta il rendering testo Skia per il «?» dei veli |
 | Colori e pannelli dell'interfaccia | righe 12-14 (`--ink`, `--ink-soft`, `--accent`, `--panel`) e 28 (bordo 2 px, raggio 14) | Da fare | Pulsanti, intestazione, schede e schermata di vittoria oggi sono generici |
 | Tessera selezionata | stato della tessera, sezione 10.1 | Parziale | Oggi è un anello; manca il rialzo e il bagliore dell'originale |
 | Tessera bloccata (scurita, con gradazione per profilo) | sezione 10.1 e 6.2 | Da fare | |
@@ -85,15 +85,15 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Decisioni aperte
 
-- **Caratteri.** «Trebuchet MS» e Georgia non sono su Android. Scegliere un equivalente di sistema o incorporare caratteri con licenza adatta (da verificare).
 - **Effetti e strati.** Dove disegnare combo, scintille e fuochi (un canvas separato sopra la tavola, probabilmente) senza rifare lo strato fermo.
 - **Obiettivi di fluidità.** Fissarli con le misure su dispositivo; proposta di partenza: non peggiori dell'originale su un telefono Android di fascia media.
 - **Mascotte predefinita.** L'originale usa Collie: confermare se resta così.
 
 ## Verifica
 
-- **Coperto da test**: solo la parte già portata, dai test di `docs/rendering.md` (geometria, disegni e tavolozze) e dal confronto di fedeltà delle tessere di S1.
-- **Non verificato**: tutto il resto dell'inventario; il confronto con le catture dell'originale; l'aspetto sul dispositivo, che non è mai stato provato.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI (529 test passati, typecheck pulito).
+- **Verificato su dispositivo**: la tipografia incorporata (Lora per titoli e cifre, Nunito per interfaccia e testi) è stata verificata visivamente con catture di schermata su dispositivo reale Redmi Note 9 Pro in development build.
+- **Non verificato**: il resto dell'inventario (sfondo radiale, colori pannelli, stati tessere avanzati, animazioni, audio); il confronto sistematico con le catture dell'originale.
 
 ## Collegamenti
 

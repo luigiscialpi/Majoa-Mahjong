@@ -11,6 +11,7 @@ import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PROFILE_NAMES, formatTime } from './format';
 import { LevelPicker } from './LevelPicker';
+import { fontFamilies } from './theme/typography';
 
 export type HomeScreenProps = {
   home: Home;
@@ -176,14 +177,14 @@ const styles = StyleSheet.create({
   card: { minHeight: 72, flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginTop: 12, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#1f6b57' },
   cardPressed: { opacity: 0.8 },
   cardTexts: { flex: 1 },
-  kicker: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  cardTitle: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
-  cardDetail: { color: '#ffffff', fontSize: 15 },
+  kicker: { color: 'rgba(255,255,255,0.85)', fontSize: 12, textTransform: 'uppercase', fontFamily: fontFamilies.bodyBold },
+  cardTitle: { color: '#ffffff', fontSize: 22, fontFamily: fontFamilies.title },
+  cardDetail: { color: '#ffffff', fontSize: 15, fontFamily: fontFamilies.body },
   chevron: { color: '#ffffff', fontSize: 32, fontWeight: '300', paddingLeft: 12 },
   notice: { marginHorizontal: 12, marginTop: 12, padding: 16, borderRadius: 16, backgroundColor: '#1c1426', gap: 12 },
-  noticeText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  noticeText: { color: '#ffffff', fontSize: 16, fontFamily: fontFamilies.bodyBold },
   errorRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 24, backgroundColor: '#1c1426' },
-  errorTitle: { color: '#ffffff', fontSize: 22, fontWeight: '800', textAlign: 'center' },
-  errorText: { color: 'rgba(255,255,255,0.88)', fontSize: 16, textAlign: 'center' },
+  errorTitle: { color: '#ffffff', fontSize: 22, textAlign: 'center', fontFamily: fontFamilies.title },
+  errorText: { color: 'rgba(255,255,255,0.88)', fontSize: 16, textAlign: 'center', fontFamily: fontFamilies.body },
   errorActions: { alignSelf: 'stretch', gap: 12, marginTop: 8 },
 });

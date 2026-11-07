@@ -1,5 +1,6 @@
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
+import { fontFamilies } from './theme/typography';
 
 export type DialogAction = { label: string; onPress: () => void; /** L'azione sicura e consigliata, in rilievo. */ primary?: boolean; disabled?: boolean; testID?: string };
 
@@ -30,7 +31,7 @@ export function ConfirmDialog({ title, body, actions, onDismiss, testID }: { tit
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 420, borderRadius: 18, backgroundColor: '#1c1426', padding: 20, gap: 12 },
-  title: { color: '#ffffff', fontSize: 20, fontWeight: '800' },
-  body: { color: 'rgba(255,255,255,0.88)', fontSize: 16, lineHeight: 22 },
+  title: { color: '#ffffff', fontSize: 20, fontFamily: fontFamilies.title },
+  body: { color: 'rgba(255,255,255,0.88)', fontSize: 16, lineHeight: 22, fontFamily: fontFamilies.body },
   actions: { gap: 12, marginTop: 8 },
 });
