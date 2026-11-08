@@ -9,9 +9,13 @@ import { levelStatus } from './levelStatus';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
+import { useTranslation, type Language } from '../infrastructure/i18n';
 
 /** Quanto resta visibile il motivo di un lucchetto. */
 export const REASON_MS = 4000;
+
+const LANGS: readonly Language[] = ['it', 'en', 'fr'];
+const LANG_LABELS: Record<Language, string> = { it: '🇮🇹 IT', en: '🇬🇧 EN', fr: '🇫🇷 FR' };
 
 export type LevelPickerProps = {
   progress: Progress;
@@ -27,6 +31,7 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
   const [profile, setProfile] = useState<Profile>('normal');
   const [prova, setProva] = useState(true);
   const [reason, setReason] = useState<{ text: string } | null>(null);
+  const { t, lang, setLang } = useTranslation();
 
   // Il motivo di un lucchetto sparisce da solo; un nuovo tocco lo sostituisce e riparte il conto.
   useEffect(() => {
@@ -37,16 +42,30 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
 
   return (
     <FeltBackground cyRatio={0.2} testID="level-picker-bg">
-      <View style={[styles.root, { paddingTop: insets.top + 12, paddingBottom: insets.bottom }]}>
+      <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom }]}>
+        <View style={styles.langRow}>
+          {LANGS.map((l) => (
+            <Pressable
+              key={l}
+              onPress={() => setLang(l)}
+              style={[styles.langChip, l === lang ? styles.langChipOn : null]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: l === lang }}
+              testID={`lang-${l}`}
+            >
+              <Text style={[styles.langText, l === lang ? styles.langTextOn : null]}>{LANG_LABELS[l]}</Text>
+            </Pressable>
+          ))}
+        </View>
         <Text style={styles.title} accessibilityRole="header">
           Majoa Mahjong
         </Text>
         {top}
-        <Text style={styles.hint}>Scegli profilo e livello</Text>
+        <Text style={styles.hint}>{t('chooseLevel')}</Text>
         <View style={styles.chips}>
           {PROFILES.map((p) => (
             <Pressable key={p} onPress={() => setProfile(p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={`profile-${p}`}>
-              <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{PROFILE_NAMES[p]}</Text>
+              <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{t(('dif_' + p) as Parameters<typeof t>[0])}</Text>
             </Pressable>
           ))}
         </View>
@@ -93,6 +112,11 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
+  langRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 4 },
+  langChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.panel, minHeight: 32, justifyContent: 'center', alignItems: 'center' },
+  langChipOn: { backgroundColor: colors.feltA, borderWidth: 1.5, borderColor: colors.accent },
+  langText: { fontSize: 13, color: colors.inkSoft, fontFamily: fontFamilies.bodyBold },
+  langTextOn: { color: colors.ink },
   title: { fontSize: 30, color: colors.accent, textAlign: 'center', fontFamily: fontFamilies.title, letterSpacing: 0.5 },
   hint: { fontSize: 14, color: colors.inkSoft, textAlign: 'center', marginTop: 4, marginBottom: 12, fontFamily: fontFamilies.body },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 8 },

@@ -1,28 +1,29 @@
+import { t } from '../infrastructure/i18n';
 import type { Feedback } from '../application/session';
 
-const AID_NAMES = { hints: 'Aiuto', shuffles: 'Mischia', undo: 'Annulla' } as const;
-
-/** Avviso da mostrare per un feedback della sessione, o `null` se basta il segnale visivo. Testi provvisori: le lingue sono da fare. */
+/** Avvisi da mostrare per un feedback della sessione, o `null` se basta il segnale visivo. */
 export function messageFor(feedback: Feedback): string | null {
   switch (feedback.kind) {
     case 'rejected':
-      if (feedback.reason === 'locked') return 'Tessera nascosta: abbina prima le stelle';
-      if (feedback.reason === 'tile-blocked') return 'Tessera bloccata';
+      if (feedback.reason === 'locked') return t('tLockedTile');
+      if (feedback.reason === 'tile-blocked') return t('tBlockedTile');
       return null;
     case 'no-aid-left':
-      return `${AID_NAMES[feedback.aid]}: nessun uso rimasto`;
+      if (feedback.aid === 'hints') return t('tNoHints');
+      if (feedback.aid === 'undo') return t('tNoUndo');
+      return t('tNoShuf');
     case 'nothing-to-undo':
-      return feedback.afterShuffle ? 'Dopo un rimescolo non si può annullare' : 'Niente da annullare';
+      return feedback.afterShuffle ? t('tNoUndoShuffle') : t('tNoUndoHist');
     case 'rescued':
-      return 'Nessuna mossa: tessere rimescolate';
+      return t('tRescue');
     case 'advice':
-      return feedback.use === 'shuffle' ? 'Nessuna mossa: usa Mischia' : 'Nessuna mossa: prova Annulla';
+      return feedback.use === 'shuffle' ? t('tUseShuffle') : t('tUseUndo');
     case 'shuffled':
-      return 'Tessere rimescolate';
+      return t('tShuffled');
     case 'shuffle-failed':
-      return 'Impossibile rimescolare';
+      return null;
     case 'dead':
-      return 'Bloccato!';
+      return t('deadTitle');
     default:
       return null;
   }

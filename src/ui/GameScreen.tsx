@@ -17,13 +17,14 @@ import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels
 import { Button } from './Button';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
-import { PROFILE_NAMES, aidText, formatTime, islandName, starsText } from './format';
+import { aidText, formatTime, islandName, starsText } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
+import { useTranslation } from '../infrastructure/i18n';
 import type { SkSVG } from '@shopify/react-native-skia';
 
 const REMOVE_MS = 250;
@@ -107,6 +108,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const { session } = round;
   const game = session.game;
   const insets = useSafeAreaInsets();
+  const { t: tl } = useTranslation();
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [hintGroup, setHintGroup] = useState<readonly number[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -216,17 +218,17 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
       if (tapped !== null && fb.reason === 'tile-blocked') {
         const { blockers: blkList, reason } = blockersOf(game.ft, tapped);
         setBlockers(blkList);
-        if (reason === 'top') setNotice("Tessera coperta dall'alto");
-        else if (reason === 'both') setNotice('Tessera coperta e bloccata ai lati');
-        else if (reason === 'sides') setNotice('Tessera bloccata a destra e a sinistra');
-        else setNotice('Tessera bloccata');
+        if (reason === 'top') setNotice(tl('tBlockTop'));
+        else if (reason === 'both') setNotice(tl('tBlockBoth'));
+        else if (reason === 'sides') setNotice(tl('tBlockSides'));
+        else setNotice(tl('tBlockedTile'));
       } else if (tapped !== null && fb.reason === 'locked') {
         setBlockers([]);
         const stars = game.tiles
           .map((t, idx) => (t.type === STAR_TYPE && game.ft.isFree(idx) ? idx : -1))
           .filter((idx) => idx >= 0);
         if (stars.length > 0) setHintGroup(stars);
-        setNotice('Tessera nascosta: abbina prima le stelle ⭐');
+        setNotice(tl('tLockedTile'));
       } else {
         setBlockers([]);
       }
@@ -326,9 +328,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>Livello {level.id}</Text>
+            <Text style={styles.title}>{tl('level', { n: level.id })}</Text>
             <Text style={styles.subtitle}>
-              {PROFILE_NAMES[profile]} · {game.remaining} tessere{total > 0 ? ` · oro ${got}/${total}` : ''}
+              {tl(`dif_${profile}` as Parameters<typeof tl>[0])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · oro ${got}/${total}` : ''}
             </Text>
           </View>
           <Text style={[styles.time, { color: palette[2] }]} testID="timer">
@@ -379,34 +381,34 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         <View style={styles.bar}>
-          <AidButton label="Aiuto" icon="💡" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
-          <AidButton label="Annulla" icon="↶" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
-          <AidButton label="Mischia" icon="🔀" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
+          <AidButton label={tl('hint')} icon="💡" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
+          <AidButton label={tl('undo')} icon="↶" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
+          <AidButton label={tl('shuffle')} icon="🔀" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
         </View>
 
         {session.phase === 'won' && session.outcome ? (
           <Overlay>
-            <Text style={styles.overlayTitle}>Livello completato!</Text>
+            <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: level.id })}</Text>
             <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
-            <Text style={styles.overlayLine}>Tempo {formatTime(session.outcome.seconds)}</Text>
-            {rewards?.newRecord ? <Text style={styles.overlayRecord}>Nuovo record!</Text> : null}
-            <Text style={styles.overlayLine}>Aiuti usati: {session.outcome.aidsUsed}</Text>
-            {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>Tessere d'oro: {session.outcome.gold}/{session.outcome.goldTotal}</Text> : null}
+            <Text style={styles.overlayLine}>{tl('winTime', { t: formatTime(session.outcome.seconds) })}</Text>
+            {rewards?.newRecord ? <Text style={styles.overlayRecord}>{tl('winNewRecord')}</Text> : null}
+            <Text style={styles.overlayLine}>{tl('winAids', { n: session.outcome.aidsUsed })}</Text>
+            {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>{tl('winGold', { n: session.outcome.goldTotal, got: session.outcome.gold })}</Text> : null}
             {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
             {rewards?.gifts.map((island) => (
               <Text key={island.id} style={styles.overlayReward}>
-                Isola {islandName(island.id)} aperta: +{island.gift} ✨
+                {tl('giftIsland', { name: islandName(island.id), n: island.gift })}
               </Text>
             ))}
             {progressNotSaved ? <Text style={styles.overlayWarning}>⚠ Non riesco a salvare i progressi</Text> : null}
-            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Rigioca" />
+            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel={tl('again')} />
           </Overlay>
         ) : null}
         {session.phase === 'dead' ? (
           <Overlay>
-            <Text style={styles.overlayTitle}>Bloccato!</Text>
-            <Text style={styles.overlayLine}>Nessuna mossa possibile e nessun aiuto utile.</Text>
-            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel="Riprova" />
+            <Text style={styles.overlayTitle}>{tl('deadTitle')}</Text>
+            <Text style={styles.overlayLine}>{tl('deadText')}</Text>
+            <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel={tl('deadRestart')} />
           </Overlay>
         ) : null}
       </View>
@@ -434,10 +436,11 @@ function Overlay({ children }: { children: React.ReactNode }) {
 }
 
 function OverlayButtons({ onRestart, onExit, restartLabel }: { onRestart: () => void; onExit: () => void; restartLabel: string }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.row}>
       <Button label={restartLabel} onPress={onRestart} testID="btn-restart" />
-      <Button label="Livelli" onPress={onExit} testID="btn-levels" />
+      <Button label={t('levels')} onPress={onExit} testID="btn-levels" />
     </View>
   );
 }

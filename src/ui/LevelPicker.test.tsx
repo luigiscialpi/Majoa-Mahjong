@@ -5,11 +5,16 @@ import { newProgress, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LevelPicker, REASON_MS } from './LevelPicker';
 import { TRIS_REASON } from './levelStatus';
+import { LanguageProvider } from '../infrastructure/i18n';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
 async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress()) {
-  return render(<LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />);
+  return render(
+    <LanguageProvider initial="it">
+      <LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />
+    </LanguageProvider>,
+  );
 }
 
 const press = async (testID: string) => {
@@ -195,4 +200,24 @@ test('i controlli del selettore sono alti almeno 48 dp', async () => {
   for (const id of ['profile-easy', 'profile-master']) {
     expect(StyleSheet.flatten(screen.getByTestId(id).props.style).minHeight).toBeGreaterThanOrEqual(48);
   }
+});
+
+describe('cambio lingua al volo', () => {
+  test('toccare una lingua aggiorna i testi del selettore istantaneamente', async () => {
+    await renderPicker(() => {});
+    expect(texts()).toContain('Scegli un livello · 20 sfide');
+    expect(texts()).toContain('Normale');
+
+    await press('lang-en');
+    expect(texts()).toContain('Choose a level · 20 challenges');
+    expect(texts()).toContain('Normal');
+
+    await press('lang-fr');
+    expect(texts()).toContain('Choisis un niveau · 20 défis');
+    expect(texts()).toContain('Normal');
+
+    await press('lang-it');
+    expect(texts()).toContain('Scegli un livello · 20 sfide');
+    expect(texts()).toContain('Normale');
+  });
 });

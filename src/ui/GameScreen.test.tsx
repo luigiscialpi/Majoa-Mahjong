@@ -9,6 +9,7 @@ import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { t } from '../infrastructure/i18n';
 import { GameScreen, type GameScreenProps } from './GameScreen';
 import type { TileBoardProps } from './TileBoard';
 
@@ -121,8 +122,8 @@ describe('GameScreen', () => {
     await mount(1);
     const total = legacyLevels[0].cells.length;
     expect(texts()).toContain('Livello 1');
-    expect(texts()).toContain(`Normale · ${total} tessere`);
-    for (const label of ['Aiuto', 'Annulla', 'Mischia']) expect(texts()).toContain(label);
+    expect(texts()).toContain(`Normale · ${total} coppie`);
+    for (const label of ['Aiuto', 'Annulla', 'Mescola']) expect(texts()).toContain(label);
     const b = board();
     expect([b.tiles.length, b.designs.length, b.statuses.length, b.gone.size, b.removing.size, b.removeKey, b.selected.length]).toEqual([total, total, total, 0, 0, 0, 0]);
     expect(b.free.size).toBeGreaterThan(0);
@@ -147,7 +148,7 @@ describe('GameScreen', () => {
     expect([...board().removing].sort((a, b) => a - b)).toEqual([...pair].sort((a, b) => a - b));
     expect([board().gone.size, board().removeKey, board().selected.length]).toEqual([0, 1, 0]);
     expect(pair.some((i) => board().free.has(i))).toBe(false);
-    expect(texts()).toContain(`${total - 2} tessere`);
+    expect(texts()).toContain(`${total - 2} coppie`);
     advance(300);
     expect([board().removing.size, [...board().gone].sort((a, b) => a - b)]).toEqual([0, [...pair].sort((a, b) => a - b)]);
   });
@@ -163,9 +164,9 @@ describe('GameScreen', () => {
     await mount(1);
     const blocked = board().tiles.findIndex((_, i) => !board().free.has(i));
     act(() => { board().onTap(blocked); });
-    expect(texts()).toContain('Tessera bloccata');
+    expect(texts()).toContain(t('tBlockSides'));
     advance(2100);
-    expect(texts()).not.toContain('Tessera bloccata');
+    expect(texts()).not.toContain(t('tBlockSides'));
   });
 
   test('Aiuto evidenzia una coppia per due secondi', async () => {
@@ -184,29 +185,29 @@ describe('GameScreen', () => {
     playPair(pair);
     advance(300);
     press('btn-undo');
-    expect([board().gone.size, board().removing.size, texts().includes(`${total} tessere`)]).toEqual([0, 0, true]);
+    expect([board().gone.size, board().removing.size, texts().includes(`${total} coppie`)]).toEqual([0, 0, true]);
     const before = board().designs;
     press('btn-shuffle');
     expect(board().designs).not.toEqual(before);
-    expect(texts()).toContain(`${total} tessere`);
+    expect(texts()).toContain(`${total} coppie`);
   });
 
   test('giocando fino in fondo (con il rimescolo automatico quando serve) compare la vittoria; Rigioca ricomincia', async () => {
     await mount(1);
     const total = legacyLevels[0].cells.length;
-    for (let n = 0; n < 600 && !texts().includes('Livello completato!'); n++) {
+    for (let n = 0; n < 600 && !texts().includes('superato!'); n++) {
       const pair = freePair();
       if (pair) playPair(pair);
       else advance(1200); // nessuna mossa: dopo l'avviso parte il rimescolo automatico
       advance(300);
     }
-    expect(texts()).toContain('Livello completato!');
+    expect(texts()).toContain('superato!');
     expect(texts()).toMatch(/[★☆]{3}/);
     expect(texts()).toContain('Tempo');
     press('btn-restart');
     layout(); // la schermata si rimonta: l'area riparte da zero finché non arriva il layout
-    expect(texts()).not.toContain('Livello completato!');
-    expect(texts()).toContain(`${total} tessere`);
+    expect(texts()).not.toContain('superato!');
+    expect(texts()).toContain(`${total} coppie`);
     expect([board().gone.size, board().removing.size]).toEqual([0, 0]);
   });
 
@@ -227,9 +228,9 @@ describe('GameScreen', () => {
     await mount(20);
     const remaining = playUntilStuck();
     expect(remaining).toBeGreaterThan(10);
-    expect(texts()).not.toContain('tessere rimescolate'); // prima dell'avviso non è ancora successo nulla
+    expect(texts()).not.toContain('rimescolo le tessere'); // prima dell'avviso non è ancora successo nulla
     advance(1100);
-    expect(texts()).toContain('Nessuna mossa: tessere rimescolate');
+    expect(texts()).toContain('Nessuna mossa: rimescolo le tessere per te! 🔀');
     expect(freePair()).not.toBeNull();
     expect(board().tiles.length - board().gone.size).toBe(remaining);
   });
@@ -240,8 +241,8 @@ describe('GameScreen', () => {
     await mount(10);
     expect(playUntilStuck()).toBe(4);
     advance(1100);
-    expect(texts()).toContain('Nessuna mossa: prova Annulla');
-    expect(texts()).not.toContain('usa Mischia');
+    expect(texts()).toContain('Nessuna mossa: usa Annulla ↩️');
+    expect(texts()).not.toContain('usa Mescola');
     advance(2100);
     press('btn-undo');
     expect(freePair()).not.toBeNull();
@@ -279,13 +280,13 @@ describe('GameScreen: salvataggi', () => {
     throw new Error('nessuna partita vinta');
   }
   function playToEnd() {
-    for (let n = 0; n < 600 && !texts().includes('Livello completato!'); n++) {
+    for (let n = 0; n < 600 && !texts().includes('superato!'); n++) {
       const pair = freePair();
       if (pair) playPair(pair);
       else advance(1200);
       advance(300);
     }
-    expect(texts()).toContain('Livello completato!');
+    expect(texts()).toContain('superato!');
   }
 
   test('si salva dopo una mossa, con livello, profilo ed evento; non per un tocco di selezione né per il passare del tempo', async () => {
@@ -421,7 +422,7 @@ describe('GameScreen: salvataggi', () => {
     expect(session.events.length).toBeGreaterThan(0);
     const { store } = await mount(1, 'normal', { resume: session });
     expect(texts()).toContain(formatTimeOf(session));
-    expect(texts()).toContain(`${session.game.remaining} tessere`);
+    expect(texts()).toContain(`${session.game.remaining} coppie`);
     expect(board().tiles.length - board().gone.size).toBe(session.game.remaining);
     await flush();
     expect(await savedGame(store)).toBeNull(); // riprendere non cambia nulla: non serve riscrivere
@@ -436,8 +437,8 @@ describe('GameScreen: salvataggi', () => {
     await flush();
     press('btn-restart');
     layout();
-    expect(texts()).not.toContain('Livello completato!');
-    expect(texts()).toContain(`${legacyLevels[0].cells.length} tessere`);
+    expect(texts()).not.toContain('superato!');
+    expect(texts()).toContain(`${legacyLevels[0].cells.length} coppie`);
   });
 
   describe('fine partita', () => {
@@ -487,7 +488,7 @@ describe('GameScreen: salvataggi', () => {
       const { onProgress } = await mount(1, 'normal', { progress: before, islands });
       playToEnd();
       await flush();
-      expect(texts()).toContain('Isola Animali aperta: +3 ✨');
+      expect(texts()).toContain('Animali è aperta! Regalo: +3 ✨');
       expect(onProgress.mock.calls[0][0].giftsOpened).toEqual(['animals']);
     });
 
@@ -510,7 +511,7 @@ describe('GameScreen: salvataggi', () => {
       await store.saveGame(toSavedGame(session, 1));
       const { onProgress } = await mount(1, 'normal', { resume: session, store });
       await flush();
-      expect(texts()).toContain('Livello completato!');
+      expect(texts()).toContain('superato!');
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(await savedGame(store)).toBeNull();
     });
@@ -546,7 +547,7 @@ describe('GameScreen: salvataggi', () => {
       playPair(freePair()!);
       await flush();
       expect(texts()).toContain('⚠ Non riesco a salvare la partita');
-      expect(texts()).toContain(`${legacyLevels[0].cells.length - 4} tessere`);
+      expect(texts()).toContain(`${legacyLevels[0].cells.length - 4} coppie`);
       state.failing = false;
       advance(300);
       playPair(freePair()!);
