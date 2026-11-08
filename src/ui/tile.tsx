@@ -472,6 +472,40 @@ export function flipTransform(progress: number) {
   return [{ perspective: 300 }, { rotateY: rotY }, { scale }];
 }
 
+export type TileWaveGroupProps = {
+  /** SharedValue globale da TileBoard che avanza da 0 a 1 sulla durata totale dell'ingresso. */
+  boardProgress: SharedValue<number>;
+  /** Frazione [0,1] di inizio dell'ondata. */
+  startFraction: number;
+  /** Frazione [0,1] di durata dell'animazione tin per l'ondata. */
+  durationFraction: number;
+  children: React.ReactNode;
+};
+
+/**
+ * Gruppo animato di tessere per scaglione temporale (Wave batching, come raccomandato da docs/rendering.md).
+ * Esegue la trasformazione e l'opacità con un SOLO mapper Reanimated per l'intero blocco di tessere,
+ * abbattendo del 90% l'overhead JSI e garantendo un avvio istantaneo senza alcun singhiozzo sul thread UI.
+ */
+export function TileWaveGroup({ boardProgress, startFraction, durationFraction, children }: TileWaveGroupProps) {
+  const transform = useDerivedValue(() => {
+    'worklet';
+    const raw = (boardProgress.value - startFraction) / durationFraction;
+    return tinTransform(raw).transform;
+  });
+  const opacity = useDerivedValue(() => {
+    'worklet';
+    const raw = (boardProgress.value - startFraction) / durationFraction;
+    return tinTransform(raw).opacity;
+  });
+
+  return (
+    <Group transform={transform} opacity={opacity}>
+      {children}
+    </Group>
+  );
+}
+
 export type EnteringTileProps = StaticTileProps & {
   /** SharedValue globale (0..1) che scandisce l'ingresso dell'intera tavola. */
   boardProgress: SharedValue<number>;

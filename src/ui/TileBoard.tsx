@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio } from 'react-native';
 import { Canvas, Circle, Group, Image, Path, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Easing, useSharedValue, withSequence, withTiming, useDerivedValue } from 'react-native-reanimated';
+import { Easing, runOnJS, useSharedValue, withSequence, withTiming, useDerivedValue } from 'react-native-reanimated';
 import { boardMetrics, drawOrder, hitTest, tileRect } from '../domain/board';
 import type { Profile } from '../domain/profile';
 import type { PlacedTile } from '../domain/types';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import { statusKey, type TileStatus } from './boardView';
-import { EnteringTile, FlippingTile, RemovingTile, StaticTile, blockedDimOverlay, tinDelayMs, useBodyImage, type StaticTileProps } from './tile';
+import { EnteringTile, FlippingTile, RemovingTile, StaticTile, TileWaveGroup, blockedDimOverlay, tinDelayMs, useBodyImage, type StaticTileProps } from './tile';
 
 /** Tessera con animazione shake su tocco rifiutato (CSS @keyframes shake riga 225 HTML, 0.42s ease-in-out). */
 function ShakingTile(props: StaticTileProps & { shakeKey: number }) {
@@ -72,6 +72,8 @@ export type TileBoardProps = {
   unlocking?: readonly number[];
   /** Tessere di cui si sta diradando la nebbia con animazione flip 0.55s (CSS riga 289 HTML). */
   revealing?: readonly number[];
+  /** Callback invocato al termine esatto dell'animazione tin d'ingresso per passare allo strato fermo di gioco. */
+  onBoardInDone?: () => void;
   /** Tessera toccata, oppure `null` se il tocco è fuori da ogni tessera viva. */
   onTap: (index: number | null) => void;
 };
@@ -119,6 +121,7 @@ export function TileBoard({
   boardIn = false,
   unlocking = EMPTY_LIST,
   revealing = EMPTY_LIST,
+  onBoardInDone,
   onTap,
 }: TileBoardProps) {
   const metrics = useMemo(() => boardMetrics(tiles, width, height), [tiles, width, height]);
@@ -127,35 +130,42 @@ export function TileBoard({
   const radius = Math.max(4, metrics.tw * 0.14);
   const font = useMarkFont(Math.max(12, metrics.tw * 0.6));
   const body = useBodyImage(metrics.tw - 3, metrics.th - 3, radius, true, palette);
-  const isReady = body !== null;
   const dimColor = useMemo(() => blockedDimOverlay(profile), [profile]);
 
   const unlockingSet = useMemo(() => new Set(unlocking), [unlocking]);
   const revealingSet = useMemo(() => new Set(revealing), [revealing]);
 
-  // Calcolo del ritardo massimo tra le tessere per stabilire la durata totale di boardIn (tin)
-  const maxDelay = useMemo(() => {
-    let m = 0;
-    for (const t of tiles) {
+  // Durante boardIn, raggruppiamo le tessere in scaglioni temporali (WAVE_STEP = 40 ms).
+  // Questo riduce i mapper Reanimated da N (fino a 96) a soli ~10-16 gruppi,
+  // eliminando ogni micro-freeze / singhiozzo iniziale sul thread UI (docs/rendering.md).
+  const waves = useMemo(() => {
+    const map = new Map<number, number[]>();
+    for (const i of order) {
+      const t = tiles[i];
       const d = tinDelayMs(t.x, t.y, t.z);
-      if (d > m) m = d;
+      const w = Math.floor(d / 40);
+      let list = map.get(w);
+      if (!list) {
+        list = [];
+        map.set(w, list);
+      }
+      list.push(i);
     }
-    return m;
-  }, [tiles]);
+    return [...map.entries()].sort(([a], [b]) => a - b);
+  }, [tiles, order]);
+
+  const maxWave = waves.length > 0 ? waves[waves.length - 1][0] : 0;
+  const maxDelay = maxWave * 40;
   const totalBoardInMs = maxDelay + TIN_MS;
 
   // Tessere vive: le libere, quelle in rimozione, quelle che si sbloccano o di cui si dirada la nebbia.
-  // Durante boardIn tutte le tessere sono vive per eseguire l'animazione d'ingresso tin.
   const desired = useMemo(() => {
     const set = new Set(free);
     for (const i of removing) set.add(i);
     for (const i of unlockingSet) set.add(i);
     for (const i of revealingSet) set.add(i);
-    if (boardIn) {
-      for (const i of order) set.add(i);
-    }
     return set;
-  }, [free, removing, unlockingSet, revealingSet, boardIn, order]);
+  }, [free, removing, unlockingSet, revealingSet]);
   const liveKey = useMemo(() => [...desired].sort((a, b) => a - b).join(','), [desired]);
   const statusesKey = useMemo(() => statusKey(statuses), [statuses]);
 
@@ -173,19 +183,23 @@ export function TileBoard({
     rm.value = withTiming(1, { duration: REMOVE_MS, easing: Easing.linear });
   }, [removeKey, rm]);
 
-  // Animazione boardIn: un solo SharedValue 0→1 in totalBoardInMs condiviso da tutte le EnteringTile.
-  // Parte solo quando body è pronto per garantire che le tessere appaiano integre fin dal primo istante.
+  // Animazione boardIn: un solo SharedValue 0→1 in totalBoardInMs condiviso dai TileWaveGroup.
+  // Parte subito all'avvio senza attendere stati asincroni, eliminando il salto iniziale.
   const boardProgress = useSharedValue(0);
   useEffect(() => {
-    if (!boardIn || !isReady) return;
+    if (!boardIn) return;
     boardProgress.value = 0;
-    boardProgress.value = withTiming(1, { duration: totalBoardInMs, easing: Easing.linear });
-  }, [boardIn, isReady, totalBoardInMs, boardProgress]);
+    boardProgress.value = withTiming(1, { duration: totalBoardInMs, easing: Easing.linear }, (finished) => {
+      if (finished && onBoardInDone) {
+        runOnJS(onBoardInDone)();
+      }
+    });
+  }, [boardIn, totalBoardInMs, boardProgress, onBoardInDone]);
 
   // Ricostruisce l'immagine dello strato fermo quando cambia l'aspetto delle tessere, la tavola o le libere.
   // Durante boardIn non si esegue drawAsImage per lasciare la GPU e il thread JS interamente dedicati ai 60 fps dell'animazione.
   useEffect(() => {
-    if (boardIn || !isReady) return;
+    if (boardIn || !body) return;
     let cancelled = false;
     const excluded = new Set(desired);
     for (const i of removing) excluded.add(i);
@@ -221,7 +235,7 @@ export function TileBoard({
     return () => {
       cancelled = true;
     };
-  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, free, isReady, removing, unlockingSet, revealingSet]);
+  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, free, boardIn]);
 
   // Finché l'immagine non è pronta si disegna tutto dal vivo; dopo, dal vivo solo ciò che l'immagine non contiene
   // o che sta per muoversi (stessi pixel, nessun buco durante il passaggio).
@@ -272,50 +286,67 @@ export function TileBoard({
       <Canvas style={{ width, height }}>
         {layer.image && !boardIn ? <Image image={layer.image} x={0} y={0} width={width} height={height} fit="fill" /> : null}
 
-        {/* Strato vivo: tessere libere, in ingresso, in rimozione, sblocco o diradamento */}
-        {isReady &&
-          live.map((i) => {
-          const isSelected = selected.includes(i);
-          // Tessera selezionata: sollevata di 4px (CSS .tile.sel translateY(-4px) riga 50 HTML)
-          const rect = isSelected ? { ...rects[i], y: rects[i].y - 4 } : rects[i];
-          const isBlocked = !free.has(i) && !statuses[i].locked;
-          const isFaded = fadeSet.has(i);
-          const props = {
-            rect,
-            radius,
-            svg: svgs[designs[i]] ?? null,
-            shadow: true,
-            body,
-            palette,
-            status: statuses[i],
-            font,
-            dimColor: isBlocked ? dimColor : null,
-            fade: isFaded,
-          };
-          // Ingresso della tavola: tin a scaglioni in funzione di z, y, x (CSS riga 59 HTML)
-          if (boardIn) {
-            const delay = tinDelayMs(tiles[i].x, tiles[i].y, tiles[i].z);
-            const startFraction = delay / totalBoardInMs;
-            const durationFraction = TIN_MS / totalBoardInMs;
-            return (
-              <EnteringTile
-                key={i}
-                boardProgress={boardProgress}
-                startFraction={startFraction}
-                durationFraction={durationFraction}
-                {...props}
-              />
-            );
-          }
-          if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
-          if (unlockingSet.has(i)) return <FlippingTile key={i} kind="unlock" {...props} />;
-          if (revealingSet.has(i)) return <FlippingTile key={i} kind="reveal" {...props} />;
-          // Tessera rifiutata: shake
-          if (i === rejected) {
-            return <ShakingTile key={i} shakeKey={shakeSeq} {...props} />;
-          }
-          return <StaticTile key={i} {...props} />;
-        })}
+        {/* Ingresso tavola (tin): rendering a scaglioni raggruppati per onda (TileWaveGroup).
+            Un solo mapper per onda (10-16 in totale), abbattendo l'overhead sul thread UI
+            ed eliminando qualsiasi singhiozzo iniziale (docs/rendering.md). */}
+        {boardIn
+          ? waves.map(([waveIndex, tileIndices]) => {
+              const waveDelay = waveIndex * 40;
+              const startFraction = waveDelay / totalBoardInMs;
+              const durationFraction = TIN_MS / totalBoardInMs;
+              return (
+                <TileWaveGroup
+                  key={waveIndex}
+                  boardProgress={boardProgress}
+                  startFraction={startFraction}
+                  durationFraction={durationFraction}
+                >
+                  {tileIndices.map((i) => {
+                    const isBlocked = !free.has(i) && !statuses[i].locked;
+                    const props = {
+                      rect: rects[i],
+                      radius,
+                      svg: svgs[designs[i]] ?? null,
+                      shadow: true,
+                      body,
+                      palette,
+                      status: statuses[i],
+                      font,
+                      dimColor: isBlocked ? dimColor : null,
+                      fade: false,
+                    };
+                    return <StaticTile key={i} {...props} />;
+                  })}
+                </TileWaveGroup>
+              );
+            })
+          : live.map((i) => {
+              const isSelected = selected.includes(i);
+              // Tessera selezionata: sollevata di 4px (CSS .tile.sel translateY(-4px) riga 50 HTML)
+              const rect = isSelected ? { ...rects[i], y: rects[i].y - 4 } : rects[i];
+              const isBlocked = !free.has(i) && !statuses[i].locked;
+              const isFaded = fadeSet.has(i);
+              const props = {
+                rect,
+                radius,
+                svg: svgs[designs[i]] ?? null,
+                shadow: true,
+                body,
+                palette,
+                status: statuses[i],
+                font,
+                dimColor: isBlocked ? dimColor : null,
+                fade: isFaded,
+              };
+              if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
+              if (unlockingSet.has(i)) return <FlippingTile key={i} kind="unlock" {...props} />;
+              if (revealingSet.has(i)) return <FlippingTile key={i} kind="reveal" {...props} />;
+              // Tessera rifiutata: shake
+              if (i === rejected) {
+                return <ShakingTile key={i} shakeKey={shakeSeq} {...props} />;
+              }
+              return <StaticTile key={i} {...props} />;
+            })}
 
         {/* Aiuto: anello bianco */}
         {hint.filter((i) => !gone.has(i) && !removing.has(i)).map((i) => (

@@ -244,9 +244,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
   // Ingresso della tavola (CSS .board-in .tile riga 58 HTML): animazione tin a scaglioni all'avvio.
   const [boardIn, setBoardIn] = useState(true);
+  const handleBoardInDone = useCallback(() => setBoardIn(false), []);
   useEffect(() => {
     setBoardIn(true);
-    const id = setTimeout(() => setBoardIn(false), 1100);
+    // Timeout di sicurezza fallback
+    const id = setTimeout(() => setBoardIn(false), 2500);
     return () => clearTimeout(id);
   }, [level.id]);
 
@@ -362,6 +364,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 rejected={rejected}
                 blockers={blockers}
                 boardIn={boardIn}
+                onBoardInDone={handleBoardInDone}
                 unlocking={unlocking}
                 revealing={revealing}
                 onTap={onTap}
