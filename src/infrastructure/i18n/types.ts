@@ -256,6 +256,17 @@ export type Locale = {
   mapNeedPrev: string;
   giftIslands: string;
   albNextI: string;
+  // ---- estensioni UI ----
+  testMode: string;
+  starsOfThree: string;
+  saveTrouble: string;
+  progressSaveTrouble: string;
+  loadingSvgs: string;
+  genError: string;
+  trisLocked: string;
+  winLevelToOpen: string;
+  winLevelToOpenIsland: string;
+  starsNeededForIsland: string;
   // ---- strutture speciali ----
   /** Nomi delle 129 tessere (base + isole). */
   tn: string[];

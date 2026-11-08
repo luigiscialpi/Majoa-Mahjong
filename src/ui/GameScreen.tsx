@@ -51,14 +51,15 @@ export type GameScreenProps = {
  */
 export function GameScreen({ level, profile, onExit, store, progress, onProgress, resume, islands = legacyIslands }: GameScreenProps) {
   const [attempt, setAttempt] = useState(0);
+  const { t } = useTranslation();
   // Il seme è casuale a ogni partita (nell'originale non esiste seme); il dominio resta deterministico.
   const seed = useMemo(() => Math.floor(Math.random() * 2147483647), [attempt]);
   const started: Result<Round, GenError> = useMemo(() => (attempt === 0 && resume ? { ok: true, value: resumeRound(resume) } : startRound({ spec: toSpec(level), profile, seed })), [level, profile, seed, attempt, resume]);
   const svgs = useTileSvgs();
   const palette = levelPalette(level.id);
 
-  if (!started.ok) return <Notice palette={palette} text={`Impossibile generare il livello (${started.error.kind})`} onExit={onExit} />;
-  if (!svgs) return <Notice palette={palette} text="Caricamento dei disegni…" onExit={onExit} />;
+  if (!started.ok) return <Notice palette={palette} text={t('genError', { kind: started.error.kind })} onExit={onExit} />;
+  if (!svgs) return <Notice palette={palette} text={t('loadingSvgs')} onExit={onExit} />;
   return (
     <RoundView
       key={attempt}
@@ -79,11 +80,12 @@ export function GameScreen({ level, profile, onExit, store, progress, onProgress
 
 function Notice({ palette, text, onExit }: { palette: Palette; text: string; onExit: () => void }) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   return (
     <View style={[styles.root, { backgroundColor: palette[1], paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.center}>
         <Text style={styles.noticeText}>{text}</Text>
-        <Button label="Livelli" onPress={onExit} />
+        <Button label={t('levels')} onPress={onExit} />
       </View>
     </View>
   );
@@ -340,7 +342,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
         {trouble ? (
           <View style={styles.trouble} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="save-trouble">
-            <Text style={styles.troubleText}>⚠ Non riesco a salvare la partita</Text>
+            <Text style={styles.troubleText}>{tl('saveTrouble')}</Text>
           </View>
         ) : null}
 
@@ -400,7 +402,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 {tl('giftIsland', { name: islandName(island.id), n: island.gift })}
               </Text>
             ))}
-            {progressNotSaved ? <Text style={styles.overlayWarning}>⚠ Non riesco a salvare i progressi</Text> : null}
+            {progressNotSaved ? <Text style={styles.overlayWarning}>{tl('progressSaveTrouble')}</Text> : null}
             <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel={tl('again')} />
           </Overlay>
         ) : null}

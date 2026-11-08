@@ -1,5 +1,6 @@
 import { isIslandUnlocked, isLevelUnlocked, islandStars, levelProgress, unlockThreshold, type IslandInfo, type Progress } from '../domain/progress';
 import { islandName } from './format';
+import { t } from '../infrastructure/i18n';
 
 export type LevelStatus = { open: true } | { open: false; reason: string };
 
@@ -14,15 +15,17 @@ export const TRIS_REASON = 'Si sbloccano più avanti';
 export function levelStatus(progress: Progress, islands: readonly IslandInfo[], levelId: number, prova: boolean): LevelStatus {
   if (prova || isLevelUnlocked(progress, islands, levelId)) return { open: true };
   const index = islands.findIndex((island) => island.levelIds.includes(levelId));
-  if (index < 0) return { open: false, reason: TRIS_REASON };
+  if (index < 0) return { open: false, reason: t('trisLocked') };
   if (isIslandUnlocked(progress, islands, index)) {
     const position = islands[index].levelIds.indexOf(levelId);
-    return { open: false, reason: `Vinci il livello ${islands[index].levelIds[position - 1]} per aprire questo` };
+    return { open: false, reason: t('winLevelToOpen', { n: islands[index].levelIds[position - 1] }) };
   }
   const previous = islands[index - 1];
   const name = islandName(islands[index].id);
-  if (islandStars(progress, previous) < unlockThreshold(previous)) return { open: false, reason: `Servono ${unlockThreshold(previous)} ★ per aprire ${name}` };
+  if (islandStars(progress, previous) < unlockThreshold(previous)) {
+    return { open: false, reason: t('starsNeededForIsland', { n: unlockThreshold(previous), name }) };
+  }
   // Stelle sufficienti ma l'isola precedente non è finita: il primo livello ancora da vincere.
   const next = previous.levelIds.find((id) => levelProgress(progress, id).stars < 1);
-  return { open: false, reason: `Vinci il livello ${next} per aprire ${name}` };
+  return { open: false, reason: t('winLevelToOpenIsland', { n: next ?? '', name }) };
 }

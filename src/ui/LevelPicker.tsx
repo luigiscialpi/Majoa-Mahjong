@@ -70,8 +70,8 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
           ))}
         </View>
         <View style={styles.prova}>
-          <Text style={styles.provaText}>Modalità prova: tutti i livelli aperti</Text>
-          <Switch value={prova} onValueChange={setProva} accessibilityLabel="Modalità prova: tutti i livelli aperti" testID="prova-switch" />
+          <Text style={styles.provaText}>{t('testMode')}</Text>
+          <Switch value={prova} onValueChange={setProva} accessibilityLabel={t('testMode')} testID="prova-switch" />
         </View>
         {reason ? (
           <View style={styles.reason} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="level-reason">
@@ -90,7 +90,9 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
             const status = levelStatus(progress, islands, item.id, prova);
             const stars = levelProgress(progress, item.id).stars;
             const tris = item.groupSize === 3;
-            const label = status.open ? `Livello ${item.id}${tris ? ' (Tris)' : ''}, ${stars} stelle su 3` : `Livello ${item.id}${tris ? ' (Tris)' : ''}, bloccato. ${status.reason}`;
+            const label = status.open
+              ? `${t('level', { n: item.id })}${tris ? ' (Tris)' : ''}, ${t('starsOfThree', { n: stars })}`
+              : `${t('level', { n: item.id })}${tris ? ' (Tris)' : ''}, ${t('lockedLv').toLowerCase()}. ${status.reason}`;
             return (
               <Pressable
                 style={({ pressed }) => [styles.level, tris ? styles.levelTris : null, status.open ? null : styles.levelLocked, pressed ? styles.levelPressed : null]}
