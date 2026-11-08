@@ -241,6 +241,71 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   }, [round.seq, game]);
 
   const lastTapped = useRef<number | null>(null);
+
+  // Ingresso della tavola (CSS .board-in .tile riga 58 HTML): animazione tin per 1800 ms all'avvio.
+  const [boardIn, setBoardIn] = useState(true);
+  useEffect(() => {
+    setBoardIn(true);
+    const id = setTimeout(() => setBoardIn(false), 1800);
+    return () => clearTimeout(id);
+  }, [level.id]);
+
+  // Sblocco del gruppo nascosto (CSS .tile.unlock riga 66 HTML, 1000 ms).
+  const [unlocking, setUnlocking] = useState<readonly number[]>([]);
+  const prevUnlockedRef = useRef(game.unlocked);
+  useEffect(() => {
+    if (game.unlocked > prevUnlockedRef.current) {
+      const newlyUnlocked = game.unlocked;
+      const tilesToUnlock = game.tiles
+        .map((t, idx) => (t.hiddenGroup === newlyUnlocked && !gone.has(idx) ? idx : -1))
+        .filter((idx) => idx >= 0);
+      if (tilesToUnlock.length > 0) {
+        setUnlocking(tilesToUnlock);
+        const id = setTimeout(() => setUnlocking([]), 1000);
+        return () => clearTimeout(id);
+      }
+    }
+    prevUnlockedRef.current = game.unlocked;
+  }, [game.unlocked, game.tiles, gone]);
+
+  // Diradamento della nebbia (CSS .tile.reveal riga 289 HTML, 700 ms quando la tessera diventa libera).
+  const [revealing, setRevealing] = useState<readonly number[]>([]);
+  const revealedFogRef = useRef<Set<number>>(new Set());
+  const initialFogMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!initialFogMountedRef.current) {
+      initialFogMountedRef.current = true;
+      for (let i = 0; i < game.tiles.length; i++) {
+        if (game.tiles[i].fog && game.ft.isFree(i)) {
+          revealedFogRef.current.add(i);
+        }
+      }
+      return;
+    }
+
+    const newlyRevealed: number[] = [];
+    for (let i = 0; i < game.tiles.length; i++) {
+      const t = game.tiles[i];
+      const isLocked = t.hiddenGroup > game.unlocked;
+      const isFree = game.ft.isFree(i);
+      if (t.fog && !isLocked && isFree && !gone.has(i)) {
+        if (!revealedFogRef.current.has(i)) {
+          revealedFogRef.current.add(i);
+          newlyRevealed.push(i);
+        }
+      } else if (t.fog && !isFree) {
+        revealedFogRef.current.delete(i);
+      }
+    }
+
+    if (newlyRevealed.length > 0) {
+      setRevealing(newlyRevealed);
+      const id = setTimeout(() => setRevealing([]), 700);
+      return () => clearTimeout(id);
+    }
+  }, [game, gone]);
+
   const onLayout = useCallback((e: LayoutChangeEvent) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }), []);
   const onTap = useCallback((tile: number | null) => {
     if (tile !== null) {
@@ -296,6 +361,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 match={match}
                 rejected={rejected}
                 blockers={blockers}
+                boardIn={boardIn}
+                unlocking={unlocking}
+                revealing={revealing}
                 onTap={onTap}
               />
             </View>

@@ -377,40 +377,105 @@ export function tinDelayMs(x: number, y: number, z: number): number {
 }
 
 /**
- * Trasformazione e opacità per l'animazione d'ingresso tin (CSS @keyframes tin, riga 59 HTML).
- * `progress` (0..1) con easing cubic-bezier(.2,1.3,.4,1).
- * translateY: da -30px a 0.
- * scale: da 0.7 a 1.0.
- * opacity: da 0 a 1.
+ * Risolve la curva cubic-bezier(.2, 1.3, .4, 1) dell'animazione tin (CSS riga 59 HTML).
+ * L'overshoot (y > 1 intorno a t=0.5) dà il rimbalzo elastico all'atterraggio della tessera.
  */
-export function tinTransform(progress: number) {
+export function tinEase(x: number): number {
   'worklet';
-  const p = Math.max(0, Math.min(1, progress));
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const cx = 0.6;
+  const bx = 0;
+  const ax = 0.4;
+  const cy = 3.9;
+  const by = -4.8;
+  const ay = 1.9;
+
+  let t = x;
+  for (let i = 0; i < 5; i++) {
+    const xt = ((ax * t + bx) * t + cx) * t;
+    const diff = xt - x;
+    if (Math.abs(diff) < 1e-4) break;
+    const dxdt = (3 * ax * t + 2 * bx) * t + cx;
+    if (Math.abs(dxdt) < 1e-4) break;
+    t -= diff / dxdt;
+  }
+  return ((ay * t + by) * t + cy) * t;
+}
+
+/**
+ * Risolve la curva cubic-bezier(.2, 1.2, .4, 1) per l'animazione flip di sblocco/reveal (CSS riga 67 HTML).
+ */
+export function flipEase(x: number): number {
+  'worklet';
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const cx = 0.6;
+  const bx = 0;
+  const ax = 0.4;
+  const cy = 3.6;
+  const by = -4.2;
+  const ay = 1.6;
+
+  let t = x;
+  for (let i = 0; i < 5; i++) {
+    const xt = ((ax * t + bx) * t + cx) * t;
+    const diff = xt - x;
+    if (Math.abs(diff) < 1e-4) break;
+    const dxdt = (3 * ax * t + 2 * bx) * t + cx;
+    if (Math.abs(dxdt) < 1e-4) break;
+    t -= diff / dxdt;
+  }
+  return ((ay * t + by) * t + cy) * t;
+}
+
+/**
+ * Trasformazione e opacità per l'animazione d'ingresso tin (CSS @keyframes tin, riga 59 HTML).
+ * `rawProgress`: frazione (0..1) della durata di questa specifica tessera.
+ * Applica `tinEase` (cubic-bezier(.2,1.3,.4,1)) per traslazione (-30px -> 0) e scala (0.7 -> 1.0).
+ * L'opacità va da 0 a 1 in modo lineare.
+ */
+export function tinTransform(rawProgress: number) {
+  'worklet';
+  if (rawProgress <= 0) {
+    return {
+      transform: [{ translateY: -30 }, { scale: 0.7 }],
+      opacity: 0,
+    };
+  }
+  if (rawProgress >= 1) {
+    return {
+      transform: [{ translateY: 0 }, { scale: 1.0 }],
+      opacity: 1,
+    };
+  }
+  const eased = tinEase(rawProgress);
   return {
-    transform: [{ translateY: -30 * (1 - p) }, { scale: 0.7 + 0.3 * p }],
-    opacity: p,
+    transform: [{ translateY: -30 * (1 - eased) }, { scale: 0.7 + 0.3 * eased }],
+    opacity: rawProgress,
   };
 }
 
 /**
  * Trasformazione 3D per l'animazione flip (CSS @keyframes flip, righe 67 e 289 HTML):
  * perspective 300px rotateY da 90° (PI/2, tessera di taglio invisibile) a 0° (faccia visibile),
- * scale da 0.8 a 1.0.
+ * scale da 0.8 a 1.0 con easing flipEase (cubic-bezier(.2,1.2,.4,1)).
  */
 export function flipTransform(progress: number) {
   'worklet';
   const p = Math.max(0, Math.min(1, progress));
-  const rotY = (1 - p) * (Math.PI / 2);
-  const scale = 0.8 + 0.2 * p;
+  const eased = flipEase(p);
+  const rotY = (1 - eased) * (Math.PI / 2);
+  const scale = 0.8 + 0.2 * eased;
   return [{ perspective: 300 }, { rotateY: rotY }, { scale }];
 }
 
 export type EnteringTileProps = StaticTileProps & {
-  /** SharedValue globale da TileBoard che avanza da 0 a 1 sulla durata totale dell'animazione boardIn. */
+  /** SharedValue globale (0..1) che scandisce l'ingresso dell'intera tavola. */
   boardProgress: SharedValue<number>;
-  /** Frazione [0,1] di boardProgress in cui inizia questa tessera (delay / BOARD_IN_MS). */
+  /** Frazione di inizio [0..1] in cui parte l'animazione di questa tessera (delay / totalBoardInMs). */
   startFraction: number;
-  /** Frazione [0,1] di boardProgress che copre la durata dell'animazione tin (TIN_MS / BOARD_IN_MS). */
+  /** Frazione di durata [0..1] dell'animazione tin della tessera (TIN_MS / totalBoardInMs). */
   durationFraction: number;
 };
 
@@ -418,6 +483,8 @@ export type EnteringTileProps = StaticTileProps & {
  * Tessera all'ingresso della tavola (CSS .board-in .tile riga 58 HTML):
  * animazione tin 0.45s cubic-bezier(.2,1.3,.4,1) sia opacità sia traslazione/scala,
  * con ritardo a scaglioni in funzione di z, y, x (riga 1912 HTML).
+ * Usa il boardProgress condiviso da TileBoard: zero allocazioni di framebuffer offscreen (niente layer=true),
+ * garantendo fluidità a 60 fps sull'intera tavola.
  */
 export function EnteringTile({ boardProgress, startFraction, durationFraction, ...tile }: EnteringTileProps) {
   const { x, y, w, h } = tile.rect;
@@ -425,16 +492,16 @@ export function EnteringTile({ boardProgress, startFraction, durationFraction, .
   const transform = useDerivedValue(() => {
     'worklet';
     const raw = (boardProgress.value - startFraction) / durationFraction;
-    return tinTransform(Math.max(0, Math.min(1, raw))).transform;
+    return tinTransform(raw).transform;
   });
   const opacity = useDerivedValue(() => {
     'worklet';
     const raw = (boardProgress.value - startFraction) / durationFraction;
-    return tinTransform(Math.max(0, Math.min(1, raw))).opacity;
+    return tinTransform(raw).opacity;
   });
 
   return (
-    <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity} layer={true}>
+    <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity}>
       <StaticTile {...tile} />
     </Group>
   );

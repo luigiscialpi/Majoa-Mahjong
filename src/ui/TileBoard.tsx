@@ -77,7 +77,6 @@ export type TileBoardProps = {
 };
 
 const REMOVE_MS = 250;
-const BOARD_IN_MS = 1500;
 const TIN_MS = 450;
 const EMPTY: ReadonlySet<number> = new Set();
 const EMPTY_LIST: readonly number[] = [];
@@ -128,10 +127,22 @@ export function TileBoard({
   const radius = Math.max(4, metrics.tw * 0.14);
   const font = useMarkFont(Math.max(12, metrics.tw * 0.6));
   const body = useBodyImage(metrics.tw - 3, metrics.th - 3, radius, true, palette);
+  const isReady = body !== null;
   const dimColor = useMemo(() => blockedDimOverlay(profile), [profile]);
 
   const unlockingSet = useMemo(() => new Set(unlocking), [unlocking]);
   const revealingSet = useMemo(() => new Set(revealing), [revealing]);
+
+  // Calcolo del ritardo massimo tra le tessere per stabilire la durata totale di boardIn (tin)
+  const maxDelay = useMemo(() => {
+    let m = 0;
+    for (const t of tiles) {
+      const d = tinDelayMs(t.x, t.y, t.z);
+      if (d > m) m = d;
+    }
+    return m;
+  }, [tiles]);
+  const totalBoardInMs = maxDelay + TIN_MS;
 
   // Tessere vive: le libere, quelle in rimozione, quelle che si sbloccano o di cui si dirada la nebbia.
   // Durante boardIn tutte le tessere sono vive per eseguire l'animazione d'ingresso tin.
@@ -162,27 +173,32 @@ export function TileBoard({
     rm.value = withTiming(1, { duration: REMOVE_MS, easing: Easing.linear });
   }, [removeKey, rm]);
 
-  // Animazione boardIn: un solo SharedValue 0→1 in BOARD_IN_MS condiviso da tutte le EnteringTile.
+  // Animazione boardIn: un solo SharedValue 0→1 in totalBoardInMs condiviso da tutte le EnteringTile.
+  // Parte solo quando body è pronto per garantire che le tessere appaiano integre fin dal primo istante.
   const boardProgress = useSharedValue(0);
   useEffect(() => {
-    if (!boardIn) return;
+    if (!boardIn || !isReady) return;
     boardProgress.value = 0;
-    boardProgress.value = withTiming(1, { duration: BOARD_IN_MS, easing: Easing.linear });
-  }, [boardIn, boardProgress]);
+    boardProgress.value = withTiming(1, { duration: totalBoardInMs, easing: Easing.linear });
+  }, [boardIn, isReady, totalBoardInMs, boardProgress]);
 
-  // Ricostruisce l'immagine dello strato fermo quando cambia l'insieme delle tessere vive, la tavola o l'aspetto delle tessere
-  // (non a ogni selezione). Se boardIn è attiva l'immagine non viene disegnata perché tutte le tessere entrano animate.
+  // Ricostruisce l'immagine dello strato fermo quando cambia l'aspetto delle tessere, la tavola o le libere.
+  // Durante boardIn, lo strato fermo della partita (le non libere) viene generato in background
+  // non appena body è pronto, così al termine dell'animazione tin è già disponibile in cache GPU.
   useEffect(() => {
-    if (boardIn) return;
+    if (!isReady) return;
     let cancelled = false;
-    const excluded = new Set(desired);
+    const excluded = new Set(free);
+    for (const i of removing) excluded.add(i);
+    for (const i of unlockingSet) excluded.add(i);
+    for (const i of revealingSet) excluded.add(i);
     const dpr = PixelRatio.get();
     drawAsImage(
       <Group transform={[{ scale: dpr }]}>
         {order
           .filter((i) => !excluded.has(i) && !goneRef.current.has(i))
           .map((i) => {
-            const isBlocked = !free.has(i) && !statusesRef.current[i].locked;
+            const isBlocked = !statusesRef.current[i].locked;
             return (
               <StaticTile
                 key={i}
@@ -206,8 +222,7 @@ export function TileBoard({
     return () => {
       cancelled = true;
     };
-    // `desired` entra tramite `liveKey` e gli aspetti tramite `statusesKey`.
-  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, free]);
+  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, free, isReady, removing, unlockingSet, revealingSet]);
 
   // Finché l'immagine non è pronta si disegna tutto dal vivo; dopo, dal vivo solo ciò che l'immagine non contiene
   // o che sta per muoversi (stessi pixel, nessun buco durante il passaggio).
@@ -259,7 +274,8 @@ export function TileBoard({
         {layer.image && !boardIn ? <Image image={layer.image} x={0} y={0} width={width} height={height} fit="fill" /> : null}
 
         {/* Strato vivo: tessere libere, in ingresso, in rimozione, sblocco o diradamento */}
-        {live.map((i) => {
+        {isReady &&
+          live.map((i) => {
           const isSelected = selected.includes(i);
           // Tessera selezionata: sollevata di 4px (CSS .tile.sel translateY(-4px) riga 50 HTML)
           const rect = isSelected ? { ...rects[i], y: rects[i].y - 4 } : rects[i];
@@ -280,9 +296,17 @@ export function TileBoard({
           // Ingresso della tavola: tin a scaglioni in funzione di z, y, x (CSS riga 59 HTML)
           if (boardIn) {
             const delay = tinDelayMs(tiles[i].x, tiles[i].y, tiles[i].z);
-            const startFraction = delay / BOARD_IN_MS;
-            const durationFraction = TIN_MS / BOARD_IN_MS;
-            return <EnteringTile key={i} boardProgress={boardProgress} startFraction={startFraction} durationFraction={durationFraction} {...props} />;
+            const startFraction = delay / totalBoardInMs;
+            const durationFraction = TIN_MS / totalBoardInMs;
+            return (
+              <EnteringTile
+                key={i}
+                boardProgress={boardProgress}
+                startFraction={startFraction}
+                durationFraction={durationFraction}
+                {...props}
+              />
+            );
           }
           if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
           if (unlockingSet.has(i)) return <FlippingTile key={i} kind="unlock" {...props} />;
