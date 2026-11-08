@@ -377,22 +377,23 @@ export function tinDelayMs(x: number, y: number, z: number): number {
 }
 
 /**
- * Risolve la curva cubic-bezier(.2, 1.3, .4, 1) dell'animazione tin (CSS riga 59 HTML).
- * L'overshoot (y > 1 intorno a t=0.5) dà il rimbalzo elastico all'atterraggio della tessera.
+ * Risolve la curva cubic-bezier(.34, 1.25, .64, 1) per l'animazione tin (easeOutBack).
+ * La discesa è continua e armoniosa, con un overshoot morbido (+2%) all'atterraggio che conferisce
+ * peso e naturalezza al tocco con il tavolo da gioco, evitando arresti a scatto.
  */
 export function tinEase(x: number): number {
   'worklet';
   if (x <= 0) return 0;
   if (x >= 1) return 1;
-  const cx = 0.6;
-  const bx = 0;
-  const ax = 0.4;
-  const cy = 3.9;
-  const by = -4.8;
-  const ay = 1.9;
+  const cx = 1.02;
+  const bx = -0.12;
+  const ax = 0.1;
+  const cy = 3.75;
+  const by = -4.5;
+  const ay = 1.75;
 
   let t = x;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const xt = ((ax * t + bx) * t + cx) * t;
     const diff = xt - x;
     if (Math.abs(diff) < 1e-4) break;
@@ -432,14 +433,15 @@ export function flipEase(x: number): number {
 /**
  * Trasformazione e opacità per l'animazione d'ingresso tin (CSS @keyframes tin, riga 59 HTML).
  * `rawProgress`: frazione (0..1) della durata di questa specifica tessera.
- * Applica `tinEase` (cubic-bezier(.2,1.3,.4,1)) per traslazione (-30px -> 0) e scala (0.7 -> 1.0).
- * L'opacità va da 0 a 1 in modo lineare.
+ * - translateY: da -28px a 0 con curva elastica tinEase.
+ * - scale: da 0.82 a 1.0 (mantiene la volumetria della tessera senza rimpicciolirla eccessivamente).
+ * - opacity: sale prontamente (radice quadrata) per rendere la tessera visibile e solida fin dai primi istanti di caduta.
  */
 export function tinTransform(rawProgress: number) {
   'worklet';
   if (rawProgress <= 0) {
     return {
-      transform: [{ translateY: -30 }, { scale: 0.7 }],
+      transform: [{ translateY: -28 }, { scale: 0.82 }],
       opacity: 0,
     };
   }
@@ -451,8 +453,8 @@ export function tinTransform(rawProgress: number) {
   }
   const eased = tinEase(rawProgress);
   return {
-    transform: [{ translateY: -30 * (1 - eased) }, { scale: 0.7 + 0.3 * eased }],
-    opacity: rawProgress,
+    transform: [{ translateY: -28 * (1 - eased) }, { scale: 0.82 + 0.18 * eased }],
+    opacity: Math.min(1.0, Math.sqrt(rawProgress)),
   };
 }
 

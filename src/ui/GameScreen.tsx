@@ -242,11 +242,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
   const lastTapped = useRef<number | null>(null);
 
-  // Ingresso della tavola (CSS .board-in .tile riga 58 HTML): animazione tin per 1800 ms all'avvio.
+  // Ingresso della tavola (CSS .board-in .tile riga 58 HTML): animazione tin a scaglioni all'avvio.
   const [boardIn, setBoardIn] = useState(true);
   useEffect(() => {
     setBoardIn(true);
-    const id = setTimeout(() => setBoardIn(false), 1800);
+    const id = setTimeout(() => setBoardIn(false), 1100);
     return () => clearTimeout(id);
   }, [level.id]);
 

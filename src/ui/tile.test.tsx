@@ -93,17 +93,17 @@ describe('tinDelayMs, tinEase e tinTransform', () => {
     expect(tinDelayMs(2, 3, 1)).toBe(250);
   });
 
-  it('tinEase replica cubic-bezier(.2, 1.3, .4, 1) con rimbalzo (overshoot)', () => {
+  it('tinEase replica cubic-bezier(.34, 1.25, .64, 1) con rimbalzo armonico (overshoot)', () => {
     expect(tinEase(0)).toBe(0);
     expect(tinEase(1)).toBe(1);
-    // A metà progresso supera 1.0 (overshoot elastico)
-    expect(tinEase(0.5)).toBeGreaterThan(1.0);
+    // Nella seconda metà del progresso supera 1.0 (overshoot elastico morbido)
+    expect(tinEase(0.7)).toBeGreaterThan(1.0);
   });
 
-  it('tinTransform parte da translateY(-30), scale(0.7), opacity(0) a progress=0', () => {
+  it('tinTransform parte da translateY(-28), scale(0.82), opacity(0) a progress=0', () => {
     const t0 = tinTransform(0);
     expect(t0.opacity).toBe(0);
-    expect(t0.transform).toEqual([{ translateY: -30 }, { scale: 0.7 }]);
+    expect(t0.transform).toEqual([{ translateY: -28 }, { scale: 0.82 }]);
   });
 
   it('tinTransform a progress=1 è a riposo: translateY(0), scale(1.0), opacity(1)', () => {
@@ -112,12 +112,12 @@ describe('tinDelayMs, tinEase e tinTransform', () => {
     expect(t1.transform).toEqual([{ translateY: 0 }, { scale: 1 }]);
   });
 
-  it('tinTransform a progress intermedio (0.5) include rimbalzo elastico', () => {
+  it('tinTransform a progress intermedio (0.5) include rimbalzo elastico e opacità pronta', () => {
     const tMid = tinTransform(0.5);
-    expect(tMid.opacity).toBe(0.5);
+    expect(tMid.opacity).toBeCloseTo(Math.sqrt(0.5));
     const eased = tinEase(0.5);
-    expect(tMid.transform[0]).toEqual({ translateY: -30 * (1 - eased) });
-    expect(tMid.transform[1]).toEqual({ scale: 0.7 + 0.3 * eased });
+    expect(tMid.transform[0]).toEqual({ translateY: -28 * (1 - eased) });
+    expect(tMid.transform[1]).toEqual({ scale: 0.82 + 0.18 * eased });
   });
 });
 

@@ -183,12 +183,11 @@ export function TileBoard({
   }, [boardIn, isReady, totalBoardInMs, boardProgress]);
 
   // Ricostruisce l'immagine dello strato fermo quando cambia l'aspetto delle tessere, la tavola o le libere.
-  // Durante boardIn, lo strato fermo della partita (le non libere) viene generato in background
-  // non appena body è pronto, così al termine dell'animazione tin è già disponibile in cache GPU.
+  // Durante boardIn non si esegue drawAsImage per lasciare la GPU e il thread JS interamente dedicati ai 60 fps dell'animazione.
   useEffect(() => {
-    if (!isReady) return;
+    if (boardIn || !isReady) return;
     let cancelled = false;
-    const excluded = new Set(free);
+    const excluded = new Set(desired);
     for (const i of removing) excluded.add(i);
     for (const i of unlockingSet) excluded.add(i);
     for (const i of revealingSet) excluded.add(i);
