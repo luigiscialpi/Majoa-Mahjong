@@ -35,13 +35,14 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Tessera selezionata | stato della tessera, sezione 10.1; righe 50-53 CSS | Fatto | Sollevamento di 4 px (`translateY(-4px)`), bordo d'accento 3 px, bagliore esterno d'accento e filo interno chiaro (`TileBoard.tsx`) |
 | Tessera bloccata (scurita, con gradazione per profilo) | sezione 10.1 e 6.2; righe 48, 49, 285, 286 CSS | Fatto | Velo d'oscuramento graduato nel layer statico in base al profilo: Facile/Normale/Medio 40%, Difficile 28%, Esperto 15%, Maestro 0% (`blockedDimOverlay` in `tile.tsx`) |
 | Tessera nascosta: sagoma con «?» e lucchetto | sezione 10.1 | Fatto | Sfondo viola-indaco (CSS .tile.locked riga 61 HTML), cerchio tratteggiato, stella a 5 punte, «?» e lucchetto vettoriali scalati al tile; bordo interno dorato 1.5px |
-| Tessera nebbiosa: nuvola con «?», deriva e diradamento in 700 ms | `fogdrift` riga 293, `fogaway` riga 296 | Parziale | Sfondo azzurro (CSS .tile.fog riga 287 HTML), cerchio, nuvola e curva inferiori vettoriali, «?»; mancano le animazioni fogdrift e fogaway |
+| Tessera nebbiosa: nuvola con «?», deriva e diradamento in 700 ms | `fogdrift` riga 293, `fogaway` riga 296 | Parziale | Sfondo azzurro (CSS .tile.fog riga 287 HTML), cerchio, nuvola e curva inferiori vettoriali, «?»; manca l'animazione fogdrift |
 | Tessera d'oro: alone dorato e ✨ | `gemtw` riga 263, `glow` riga 68 | Fatto | Gradient dorato sulla faccia (CSS .tile.gold riga 260 HTML), bordo 2.5px #ffd54a, scintilla vettoriale a 4 punte in alto a sinistra (nessun emoji, sicura su tutti i font) |
 | Aiuto, «uguale», attenuata, bloccante | `blk` riga 223, `mglow` riga 230 | Fatto | Anello bianco per l'Aiuto; anello verde + badge ✔ per «uguale» (match); velo d'attenuazione solido 20% sulle libere non-match (fade); outline rosso solido 4px con bagliore sulle tessere che bloccano (top/sides, blocker) e messaggio contestuale |
 | Rifiuto di un tocco | `shake` riga 225 | Fatto | Animazione shake ±5px in 420 ms su tessera bloccata/nascosta toccata (`ShakingTile` con `useDerivedValue`) |
 | Sparizione della coppia (260 ms) | `.tile.gone` | Fatto | Confronto con un video |
-| Ingresso della tavola con ritardo per tessera (piano, riga, colonna) | `tin` riga 59 | Da fare | |
-| Sblocco di un gruppo nascosto | `flip` riga 67 | Da fare | |
+| Ingresso della tavola con ritardo per tessera (piano, riga, colonna) | `tin` riga 59 | Fatto | `EnteringTile` con `boardProgress` SharedValue globale (1 mapper per frame invece di N): tessere entrano a scaglioni (z×120 ms + y×30 ms + x×20 ms, 450 ms cubic-bezier(.2,1.3,.4,1)); `boardIn` per 1800 ms a ogni cambio livello in `GameScreen` |
+| Sblocco di un gruppo nascosto | `flip` riga 67 | Fatto | `FlippingTile kind="unlock"`: flip 3D 700 ms (perspective 300, rotateY 90°→0°, cubic-bezier(.2,1.2,.4,1)) + bagliore d'accento 1 s fade-out; rilevamento in `GameScreen` tramite confronto `game.unlocked` |
+| Diradamento nebbia | `fogaway` riga 289 | Fatto | `FlippingTile kind="reveal"`: flip 3D 550 ms stessa curva; rilevamento in `GameScreen` tramite tessere con fog che diventano libere |
 | Scheda di vittoria: ingresso, trofeo, stelle | `cardIn` 129, `trophy` 130, `starpop` 131 | Da fare | |
 | Combo: scritta a 4 livelli e scintille che crescono | riga 2106 (Web Animations), scintille riga 2090 | Da fare | |
 | Scintille di oro, regali e abbinamenti (⭐ ✨ 💛) | riga 2084 | Da fare | |
@@ -91,13 +92,14 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Verifica
 
-- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (544 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); `blockedDimOverlay`, `designBox` e `starPathD` coperti da `src/ui/tile.test.tsx`; calcolo tessere bloccanti `blockersOf` coperto da `src/domain/geometry.test.ts`. Rimossa la dipendenza deprecata `react-test-renderer`.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (551 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); `blockedDimOverlay`, `designBox`, `starPathD`, `tinDelayMs`, `tinTransform`, `flipTransform` coperti da `src/ui/tile.test.tsx`; calcolo tessere bloccanti `blockersOf` coperto da `src/domain/geometry.test.ts`. Rimossa la dipendenza deprecata `react-test-renderer`.
 - **Verificato su dispositivo**: verificati su dispositivo reale Redmi Note 9 Pro in development build:
   - tipografia incorporata (Lora e Nunito);
   - tavolozza colori/pannelli a tema e gradiente radiale di sfondo (`FeltBackground`);
   - stati tessere: tessera nascosta (viola-indaco, stella, «?», lucchetto vettoriale su livello 11), tessera nebbiosa (azzurro, nuvola e curva su livello 3), tessera d'oro (gradiente dorato, bordo e scintilla a 4 punte), tessera selezionata (sollevata con bagliore), tessere uguali «match» (anello verde con badge ✔ vettoriale), tessere attenuate «fade» (overlay 20% solido anti-trasparenza 3D) e tessere bloccate oscurate per profilo;
-  - rifiuto tocco con scuotimento e avviso; evidenziazione tessere bloccanti (`blockers` con outline rosso solido 4px e bagliore) con avviso contestuale («coperta dall'alto», «bloccata ai lati», ecc.); tocco tessera nascosta con guida luminosa sulle stelle libere.
-- **Non verificato**: animazioni di ingresso (`tin`), sblocco gruppi (`flip`), diradamento nebbia (`fogaway`), audio e vibrazione.
+  - rifiuto tocco con scuotimento e avviso; evidenziazione tessere bloccanti (`blockers` con outline rosso solido 4px e bagliore) con avviso contestuale («coperta dall'alto», «bloccata ai lati», ecc.); tocco tessera nascosta con guida luminosa sulle stelle libere;
+  - animazioni di ingresso (`tin`): tessere a scaglioni su singolo SharedValue globale (1 mapper, budget Skia rispettato); sblocco gruppi nascosti (`flip`/`glow`); diradamento nebbia (`reveal`).
+- **Non verificato**: animazione fogdrift, audio e vibrazione.
 
 ## Collegamenti
 

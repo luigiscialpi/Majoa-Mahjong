@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PixelRatio } from 'react-native';
 import { Circle, Group, Image, ImageSVG, LinearGradient, Path, RoundedRect, Shadow, Text, drawAsImage, rect as clipRect, vec, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
-import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import type { Profile } from '../domain/profile';
 import type { Rect } from '../domain/board';
 import type { Palette } from '../infrastructure/content/legacyThemes';
@@ -362,8 +362,150 @@ export function RemovingTile({ rm, ...tile }: StaticTileProps & { rm: SharedValu
   });
   const opacity = useDerivedValue(() => (1 - rm.value) * (1 - rm.value));
   return (
-    <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity}>
+    <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity} layer={true}>
       <StaticTile {...tile} />
+    </Group>
+  );
+}
+
+/**
+ * Calcola il ritardo in millisecondi per l'animazione d'ingresso tin in base alla posizione (riga 1912 HTML):
+ * delay = (z * 0.12 + y * 0.03 + x * 0.02) s = (z * 120 + y * 30 + x * 20) ms
+ */
+export function tinDelayMs(x: number, y: number, z: number): number {
+  return Math.round(z * 120 + y * 30 + x * 20);
+}
+
+/**
+ * Trasformazione e opacità per l'animazione d'ingresso tin (CSS @keyframes tin, riga 59 HTML).
+ * `progress` (0..1) con easing cubic-bezier(.2,1.3,.4,1).
+ * translateY: da -30px a 0.
+ * scale: da 0.7 a 1.0.
+ * opacity: da 0 a 1.
+ */
+export function tinTransform(progress: number) {
+  'worklet';
+  const p = Math.max(0, Math.min(1, progress));
+  return {
+    transform: [{ translateY: -30 * (1 - p) }, { scale: 0.7 + 0.3 * p }],
+    opacity: p,
+  };
+}
+
+/**
+ * Trasformazione 3D per l'animazione flip (CSS @keyframes flip, righe 67 e 289 HTML):
+ * perspective 300px rotateY da 90° (PI/2, tessera di taglio invisibile) a 0° (faccia visibile),
+ * scale da 0.8 a 1.0.
+ */
+export function flipTransform(progress: number) {
+  'worklet';
+  const p = Math.max(0, Math.min(1, progress));
+  const rotY = (1 - p) * (Math.PI / 2);
+  const scale = 0.8 + 0.2 * p;
+  return [{ perspective: 300 }, { rotateY: rotY }, { scale }];
+}
+
+export type EnteringTileProps = StaticTileProps & {
+  /** SharedValue globale da TileBoard che avanza da 0 a 1 sulla durata totale dell'animazione boardIn. */
+  boardProgress: SharedValue<number>;
+  /** Frazione [0,1] di boardProgress in cui inizia questa tessera (delay / BOARD_IN_MS). */
+  startFraction: number;
+  /** Frazione [0,1] di boardProgress che copre la durata dell'animazione tin (TIN_MS / BOARD_IN_MS). */
+  durationFraction: number;
+};
+
+/**
+ * Tessera all'ingresso della tavola (CSS .board-in .tile riga 58 HTML):
+ * animazione tin 0.45s cubic-bezier(.2,1.3,.4,1) sia opacità sia traslazione/scala,
+ * con ritardo a scaglioni in funzione di z, y, x (riga 1912 HTML).
+ */
+export function EnteringTile({ boardProgress, startFraction, durationFraction, ...tile }: EnteringTileProps) {
+  const { x, y, w, h } = tile.rect;
+
+  const transform = useDerivedValue(() => {
+    'worklet';
+    const raw = (boardProgress.value - startFraction) / durationFraction;
+    return tinTransform(Math.max(0, Math.min(1, raw))).transform;
+  });
+  const opacity = useDerivedValue(() => {
+    'worklet';
+    const raw = (boardProgress.value - startFraction) / durationFraction;
+    return tinTransform(Math.max(0, Math.min(1, raw))).opacity;
+  });
+
+  return (
+    <Group transform={transform} origin={vec(x + w / 2, y + h / 2)} opacity={opacity} layer={true}>
+      <StaticTile {...tile} />
+    </Group>
+  );
+}
+
+export type FlippingTileProps = StaticTileProps & {
+  kind: 'unlock' | 'reveal';
+  flipKey?: number;
+};
+
+/**
+ * Tessera che si sblocca (unlock) o di cui si dirada la nebbia (reveal):
+ * animazione flip in 3D (perspective 300px rotateY da 90° a 0°, scale da 0.8 a 1.0,
+ * cubic-bezier(.2,1.2,.4,1); CSS righe 66-68 e 289 HTML).
+ * Nel caso di 'unlock', include anche il bagliore d'accento (glow 1s ease-out).
+ */
+export function FlippingTile({ kind, flipKey = 0, ...tile }: FlippingTileProps) {
+  const { x, y, w, h } = tile.rect;
+  const isUnlock = kind === 'unlock';
+  const duration = isUnlock ? 700 : 550;
+
+  const progress = useSharedValue(0);
+  const glow = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, {
+      duration,
+      easing: Easing.bezier(0.2, 1.2, 0.4, 1.0),
+    });
+    if (isUnlock) {
+      glow.value = 0;
+      glow.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.ease) });
+    }
+  }, [flipKey, isUnlock, duration, progress, glow]);
+
+  const transform = useDerivedValue(() => flipTransform(progress.value));
+  const glowOpacity = useDerivedValue(() => (1 - glow.value) * (1 - glow.value));
+
+  return (
+    <Group>
+      {/* Bagliore d'accento per lo sblocco (CSS glow riga 68 HTML) */}
+      {isUnlock ? (
+        <Group opacity={glowOpacity}>
+          <RoundedRect
+            x={x - 6}
+            y={y - 6}
+            width={w + 12}
+            height={h + 12}
+            r={tile.radius + 4}
+            style="stroke"
+            strokeWidth={4}
+            color={tile.palette[2] ?? '#ffd54a'}
+          />
+          <RoundedRect
+            x={x - 2}
+            y={y - 2}
+            width={w + 4}
+            height={h + 4}
+            r={tile.radius + 2}
+            style="stroke"
+            strokeWidth={2}
+            color="#ffffff"
+          />
+        </Group>
+      ) : null}
+
+      {/* Tessera in rotazione 3D */}
+      <Group transform={transform} origin={vec(x + w / 2, y + h / 2)}>
+        <StaticTile {...tile} />
+      </Group>
     </Group>
   );
 }
