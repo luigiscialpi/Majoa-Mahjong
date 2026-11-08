@@ -225,16 +225,18 @@ Nota: i 14 ms e i 30 ms di vibrazione dell'originale non hanno equivalente esatt
 
 ## 8. Lingue
 
-**Decisione.**
-- Rilevamento con **`expo-localization`**: si sceglie la prima lingua preferita del dispositivo che sia supportata; se nessuna lo è, **inglese**. La scelta manuale in Impostazioni prevale e viene salvata.
-- Testi con **`i18next` + `react-i18next`**: un file JSON per lingua, chiavi tipizzate a partire dall'inglese, plurali gestiti dalla libreria, spazi dei nomi separati per testi dell'interfaccia (`ui`) e nomi di tessere e livelli (`tiles`).
-- **Test di parità**: ogni lingua ha esattamente le chiavi della lingua di riferimento (l'originale già verifica 254 chiavi coerenti tra FR, EN e IT): il test fallisce se manca o avanza una chiave.
-- Parole del «Cerca parole»: file `wordlists/<lingua>.json`, con regole di validità per lingua (alfabeto, lunghezza massima rispetto alla griglia). Una lingua senza lista usa l'inglese **[Da decidere]**.
-- Aggiungere una lingua = aggiungere un file di testi, un file di parole e, se necessario, il nome mostrato nel selettore: nessun cambiamento di codice.
+**Decisione vigente.**
+- La lingua iniziale è l'italiano; il cambio è manuale e `LanguageProvider` lo applica al volo. Se manca una chiave, la traduzione ripiega sul francese. Non si usa `expo-localization`.
+- I cataloghi statici e type-safe per IT, EN e FR si trovano in `src/infrastructure/i18n/locales/`; `src/infrastructure/i18n/types.ts` definisce `Language`, `Locale` e le chiavi ammesse. I cataloghi contengono i testi dell'interfaccia e i dati localizzati (`tn`, `names`, `intro`).
+- I nuovi testi dell'interfaccia, comprese etichette accessibili, errori e conferme, vanno aggiunti a tutti i cataloghi e richiamati con `useTranslation()` nei componenti React o con `t(key, params)` fuori da React. La regola operativa è in `docs/linee-guida-codice.md`.
+- `src/infrastructure/i18n/i18n.test.ts` verifica la parità delle chiavi e l'interpolazione. I cataloghi si aggiornano direttamente: `gen_locales.js`, citato nelle intestazioni, non è presente nel repository.
+- Aggiungere una lingua richiede di estendere `Language`, creare un catalogo completo conforme a `Locale`, registrarlo in `LOCALES`, aggiungerlo alle scelte disponibili e verificare la parità dei cataloghi.
 
-**Fuori ambito per ora.** Alfabeti non latini e lingue da destra a sinistra: la struttura li permette (stringhe e parole trattate per grafemi, nessun testo nel codice) ma non vengono verificati ora **[Da approfondire]**.
+**Contenuti specifici per lingua.** Il rompicapo «Cerca parole» (TO DO) richiede una lista di parole distinta per lingua, separata dai testi dell'interfaccia, con regole di validità per alfabeto e dimensione della griglia. Il formato del file e il comportamento quando manca una lista restano **[Da decidere]**.
 
-**Alternative scartate.** *i18n-js* (più leggera, ma meno funzioni sui plurali); *Lingui* (estrazione e compilazione a build, complessità aggiuntiva per un progetto con poche lingue); *FormatJS* (più pesante); *soluzione propria* (riscrive plurali e interpolazione).
+**Fuori ambito per ora.** Le lingue non latine e la scrittura da destra a sinistra non sono verificate; la struttura attuale non va considerata compatibile finché non viene provata **[Da approfondire]**.
+
+**Alternative scartate.** `expo-localization` (la scelta della lingua resta manuale); `i18next` e motori più generali (non necessari per i cataloghi statici e l'interpolazione semplice attuali). Rivalutarli solo se emergono requisiti non coperti.
 
 ## 9. Monetizzazione
 

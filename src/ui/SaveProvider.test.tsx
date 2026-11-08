@@ -6,6 +6,7 @@ import { createMemorySaveStore, type SaveStore } from '../application/saveStore'
 import { startSession } from '../application/session';
 import { newProgress, recordWin } from '../domain/progress';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { LanguageProvider } from '../infrastructure/i18n';
 import { SaveProvider, useSaves, type Saves } from './SaveProvider';
 
 let current: Saves | null = null;
@@ -76,6 +77,29 @@ describe('SaveProvider', () => {
     await fireEvent.press(screen.getByTestId('btn-retry-open'));
     expect(screen.getByTestId('probe')).toBeOnTheScreen();
     expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  test('caricamento e errori di apertura seguono la lingua selezionata', async () => {
+    let rejectOpen!: (error: Error) => void;
+    const open = () => new Promise<SaveStore>((_, reject) => (rejectOpen = reject));
+
+    await render(
+      <LanguageProvider initial="en">
+        <SaveProvider open={open}>
+          <Probe />
+        </SaveProvider>
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByText('Loading your progress...')).toBeOnTheScreen();
+
+    await act(async () => {
+      rejectOpen(new Error('disk unavailable'));
+    });
+
+    expect(screen.getByText('Unable to open saved games')).toBeOnTheScreen();
+    expect(screen.getByText('Your game and progress have not been changed.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeOnTheScreen();
   });
 
   test("«Riprova» mostra subito l'attesa mentre riapre", async () => {

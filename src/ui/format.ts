@@ -1,7 +1,14 @@
 import type { Profile } from '../domain/profile';
+import { t, type TranslationKey } from '../infrastructure/i18n';
 
-/** Nomi dei profili di difficoltà. Testi provvisori: le lingue sono da fare. */
-export const PROFILE_NAMES: Readonly<Record<Profile, string>> = { easy: 'Facile', normal: 'Normale', medium: 'Medio', hard: 'Difficile', expert: 'Esperto', master: 'Maestro' };
+export const PROFILE_KEYS = {
+  easy: 'dif_easy',
+  normal: 'dif_normal',
+  medium: 'dif_medium',
+  hard: 'dif_hard',
+  expert: 'dif_expert',
+  master: 'dif_master',
+} as const satisfies Readonly<Record<Profile, TranslationKey>>;
 
 /** Secondi come `m:ss` (o `h:mm:ss` oltre l'ora). */
 export function formatTime(seconds: number): string {
@@ -24,9 +31,17 @@ export function aidText(left: number | null): string {
   return left === null ? '∞' : String(left);
 }
 
-/** Nomi brevi delle isole della campagna, per i messaggi («Isola Animali aperta», «Servono 40 ★ per aprire Animali»). */
-export const ISLAND_NAMES: Readonly<Record<string, string>> = { prologue: 'Livelli iniziali', animals: 'Animali', sweets: 'Dolci', art: 'Arte', science: 'Scienza', sea: 'Mare', flowers: 'Fiori' };
+const ISLAND_NAME_KEYS: Readonly<Record<string, TranslationKey | undefined>> = {
+  prologue: 'islandNamePrologue',
+  animals: 'islandNameAnimals',
+  sweets: 'islandNameSweets',
+  art: 'islandNameArt',
+  science: 'islandNameScience',
+  sea: 'islandNameSea',
+  flowers: 'islandNameFlowers',
+};
 
-export function islandName(id: string): string {
-  return ISLAND_NAMES[id] ?? id;
+export function islandName(id: string, translate: typeof t = t): string {
+  const key = ISLAND_NAME_KEYS[id];
+  return key ? translate(key) : id;
 }

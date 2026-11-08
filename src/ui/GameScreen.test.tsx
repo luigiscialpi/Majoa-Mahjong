@@ -9,7 +9,7 @@ import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
-import { t } from '../infrastructure/i18n';
+import { LanguageProvider, t, type Language } from '../infrastructure/i18n';
 import { GameScreen, type GameScreenProps } from './GameScreen';
 import type { TileBoardProps } from './TileBoard';
 
@@ -77,20 +77,22 @@ const layout = () => {
   }
 };
 
-async function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<GameScreenProps> = {}) {
+async function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<GameScreenProps> = {}, lang: Language = 'it') {
   const onExit = jest.fn();
   const onProgress = jest.fn();
   const store = extra.store ?? createMemorySaveStore();
   const res = await render(
-    <GameScreen
-      level={legacyLevels[levelId - 1]}
-      profile={profile}
-      onExit={onExit}
-      store={store}
-      progress={newProgress()}
-      onProgress={onProgress}
-      {...extra}
-    />,
+    <LanguageProvider initial={lang}>
+      <GameScreen
+        level={legacyLevels[levelId - 1]}
+        profile={profile}
+        onExit={onExit}
+        store={store}
+        progress={newProgress()}
+        onProgress={onProgress}
+        {...extra}
+      />
+    </LanguageProvider>,
   );
   layout();
   return { ...res, onExit, onProgress, store };
@@ -118,6 +120,12 @@ const playPair = (pair: [number, number]) => {
 };
 
 describe('GameScreen', () => {
+  test('localizza le etichette di navigazione e quelle per l\'accessibilità', async () => {
+    await mount(1, 'normal', {}, 'en');
+    expect(screen.getByRole('button', { name: 'Back to levels' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /^Hint, (?:\d+|∞) remaining$/ })).toBeOnTheScreen();
+  });
+
   test('mostra intestazione e aiuti e passa le tessere alla tavola', async () => {
     await mount(1);
     const total = legacyLevels[0].cells.length;

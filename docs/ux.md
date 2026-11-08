@@ -23,18 +23,20 @@ Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa tem
 5. **Le ricompense si vedono.** Alla vittoria compaiono le stelle, «+N ✨», «Nuovo record!» e, se si apre un'isola, il regalo.
 6. **Un errore non è un blocco.** Un dato illeggibile dà un messaggio chiaro e una via d'uscita («Ricomincia»), senza far perdere ciò che si può salvare: i progressi restano separati dalla partita.
 7. **Lo stato si vede.** Il selettore mostra le stelle sotto ogni livello e il lucchetto spiega il motivo («Servono 40 ★ per aprire Animali»). L'interruttore «Modalità prova: tutti i livelli aperti» è acceso all'inizio, per continuare a provare livelli e profili.
-8. **Accessibile per costruzione.** Aree toccabili di almeno 48 dp, contrasto sufficiente, etichette per i lettori di schermo su ogni controllo, il colore mai come unica informazione, testi brevi in italiano.
+8. **Accessibile per costruzione.** Aree toccabili di almeno 48 dp, contrasto sufficiente, etichette per i lettori di schermo su ogni controllo, il colore mai come unica informazione, testi brevi nella lingua selezionata (italiano, inglese o francese).
 
 ### Testi
 
-Frasi brevi, in italiano, con il verbo dell'azione sul pulsante. Le conferme dicono il livello e il profilo, non «la partita». I testi stanno in `src/ui/messages.ts` e `src/ui/format.ts` (tempo come `m:ss`, nomi dei profili) finché non esiste il livello delle lingue.
+Frasi brevi nella lingua selezionata, con il verbo dell'azione sul pulsante. Le conferme dicono il livello e il profilo, non «la partita». Le stringhe visibili sono centralizzate nei dizionari type-safe `src/infrastructure/i18n/locales/` (IT, EN, FR); i componenti React usano `LanguageProvider` e `useTranslation()`, mentre il codice fuori da React usa `t(key, params)`. Anche avvisi, etichette di accessibilità e messaggi di errore seguono la lingua selezionata. La regola generale per ogni nuovo testo è in `docs/linee-guida-codice.md`. I dizionari si aggiornano direttamente: `gen_locales.js`, citato nelle intestazioni, non è presente nel repository.
 
 ## Punti d'ingresso nel codice
 
 | Elemento | Percorso | Ruolo |
 |---|---|---|
-| `messageFor()` | `src/ui/messages.ts` | Avvisi della partita |
-| `formatTime()`, `starsText()`, `PROFILE_NAMES` | `src/ui/format.ts` | Tempo, stelle e nomi dei profili |
+| `LanguageProvider`, `useTranslation()`, `t()` | `src/infrastructure/i18n/index.tsx` | Cambio lingua e traduzione dei testi |
+| Dizionari e chiavi | `src/infrastructure/i18n/locales/`, `types.ts` | Testi IT/EN/FR e verifica delle chiavi |
+| `messageFor()` | `src/ui/messages.ts` | Avvisi localizzati della partita |
+| `formatTime()`, `starsText()`, `aidText()`, `PROFILE_KEYS` | `src/ui/format.ts` | Tempo, stelle, aiuti e nomi dei profili |
 | `Button` | `src/ui/Button.tsx` | Pulsante da almeno 48 dp, con feedback alla pressione, aspetto spento e stato per i lettori di schermo |
 | `islandName()` | `src/ui/format.ts` | Nomi brevi delle isole nei messaggi |
 | `HomeScreen` | `src/ui/HomeScreen.tsx` | Home: scheda «Continua», conferma di sostituzione, errori di lettura |

@@ -267,6 +267,36 @@ export type Locale = {
   winLevelToOpen: string;
   winLevelToOpenIsland: string;
   starsNeededForIsland: string;
+  saveLoading: string;
+  saveOpenErrorTitle: string;
+  saveOpenErrorBody: string;
+  retry: string;
+  continueShort: string;
+  resumeTiles: string;
+  resumeAria: string;
+  replaceGameTitle: string;
+  replaceGameBody: string;
+  continueSavedGame: string;
+  replaceSavedGame: string;
+  progressReadErrorTitle: string;
+  progressReadErrorBody: string;
+  startOver: string;
+  savedGameReadError: string;
+  resetAllTitle: string;
+  resetAllBody: string;
+  cancel: string;
+  clearAll: string;
+  levelNotFound: string;
+  trisLabel: string;
+  backToLevels: string;
+  aidRemainingAria: string;
+  islandNamePrologue: string;
+  islandNameAnimals: string;
+  islandNameSweets: string;
+  islandNameArt: string;
+  islandNameScience: string;
+  islandNameSea: string;
+  islandNameFlowers: string;
   // ---- strutture speciali ----
   /** Nomi delle 129 tessere (base + isole). */
   tn: string[];
@@ -278,4 +308,3 @@ export type Locale = {
 
 export type TranslationKey = keyof Omit<Locale, 'tn' | 'names' | 'intro'>;
 export type TranslationParams = Record<string, string | number>;
-

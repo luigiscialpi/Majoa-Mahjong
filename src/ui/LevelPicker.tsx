@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PROFILES, type Profile } from '../domain/profile';
 import { levelProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
-import { PROFILE_NAMES, starsText } from './format';
+import { PROFILE_KEYS, starsText } from './format';
 import { levelStatus } from './levelStatus';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
@@ -65,7 +65,7 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
         <View style={styles.chips}>
           {PROFILES.map((p) => (
             <Pressable key={p} onPress={() => setProfile(p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={`profile-${p}`}>
-              <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{t(('dif_' + p) as Parameters<typeof t>[0])}</Text>
+              <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{t(PROFILE_KEYS[p])}</Text>
             </Pressable>
           ))}
         </View>
@@ -87,12 +87,13 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.gridRow}
           renderItem={({ item }) => {
-            const status = levelStatus(progress, islands, item.id, prova);
+            const status = levelStatus(progress, islands, item.id, prova, t);
             const stars = levelProgress(progress, item.id).stars;
             const tris = item.groupSize === 3;
+            const trisLabel = tris ? ` (${t('trisLabel')})` : '';
             const label = status.open
-              ? `${t('level', { n: item.id })}${tris ? ' (Tris)' : ''}, ${t('starsOfThree', { n: stars })}`
-              : `${t('level', { n: item.id })}${tris ? ' (Tris)' : ''}, ${t('lockedLv').toLowerCase()}. ${status.reason}`;
+              ? `${t('level', { n: item.id })}${trisLabel}, ${t('starsOfThree', { n: stars })}`
+              : `${t('level', { n: item.id })}${trisLabel}, ${t('lockedLv').toLowerCase()}. ${status.reason}`;
             return (
               <Pressable
                 style={({ pressed }) => [styles.level, tris ? styles.levelTris : null, status.open ? null : styles.levelLocked, pressed ? styles.levelPressed : null]}

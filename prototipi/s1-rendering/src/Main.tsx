@@ -299,7 +299,7 @@ export default function Main() {
 
   const runEquivalence = useCallback(async () => {
     if (!loaded) return;
-    setEquiv('Confronto in corso…');
+    setEquiv('Confronto in corso...');
     try {
       const r = await layerEquivalence(TILES, loaded.svgs, metrics, col.w, areaH, shadow);
       setEquiv(`Confronto strato fermo / vivo: ${r.diffPct}% dei pixel diversi (soglia 12/255), differenza massima ${r.maxDiff}/255, ${r.ms} ms`);
@@ -339,7 +339,7 @@ export default function Main() {
             <Button label="Confronto" onPress={runEquivalence} testID="btn-confronto" />
           </View>
           <Text style={styles.info} testID="svg-info">
-            {loaded ? `SVG: ${loaded.loaded}/${loaded.svgs.length} in ${loaded.ms} ms${loaded.failed ? ` · ${loaded.failed} falliti: ${loaded.firstError}` : ''}` : 'SVG: caricamento…'}
+            {loaded ? `SVG: ${loaded.loaded}/${loaded.svgs.length} in ${loaded.ms} ms${loaded.failed ? ` · ${loaded.failed} falliti: ${loaded.firstError}` : ''}` : 'SVG: caricamento...'}
           </Text>
           <Text style={styles.info} testID="board-info">
             {`Tessere ${TILES.length} · libere ${touch.free} (tocco ≥ ${touch.minVisiblePct}% dell'area) · piani ${metrics.maxZ + 1} · tessera ${Math.round(metrics.tw)}×${Math.round(metrics.th)} dp`}
@@ -374,7 +374,7 @@ export default function Main() {
         {loaded && mode === 'galleria' ? <Gallery svgs={loaded.svgs} width={col.w} height={areaH} /> : null}
         {bench.rows.length > 0 || bench.running ? (
           <View style={styles.benchPanel} pointerEvents="none">
-            <Text style={styles.benchTitle}>{bench.running ? `${bench.title} in corso (${bench.rows.length}/${bench.total})…` : `${bench.title}: completata`}</Text>
+            <Text style={styles.benchTitle}>{bench.running ? `${bench.title} in corso (${bench.rows.length}/${bench.total})...` : `${bench.title}: completata`}</Text>
             <Text style={styles.benchText}>
               m = memo, c = cache del corpo · pegg = peggior frame · JS = ritardo max thread JS · tocco = gesto→commit JS medio/max · eco = andata e ritorno col thread UI medio/max · img = tempo medio/max (e numero) per costruire l'immagine dello strato fermo · fantasmi = tessere rimosse ancora visibili nell'immagine · tutto in ms
             </Text>

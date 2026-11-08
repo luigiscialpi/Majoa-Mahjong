@@ -26,7 +26,7 @@ export type LevelSpec = {
 export const STAR_TYPE = -1;
 
 export type PlacedTile = Cell & {
-  /** Indice del disegno (0 … poolSize − 1) oppure `STAR_TYPE`. */
+  /** Indice del disegno (0 ... poolSize − 1) oppure `STAR_TYPE`. */
   type: number;
   /** 0 = visibile; g > 0 = nascosta nel gruppo g. */
   hiddenGroup: number;

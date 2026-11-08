@@ -7,9 +7,10 @@ import type { Profile } from '../domain/profile';
 import type { IslandInfo } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
+import { useTranslation } from '../infrastructure/i18n';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
-import { PROFILE_NAMES, formatTime } from './format';
+import { formatTime, PROFILE_KEYS } from './format';
 import { LevelPicker } from './LevelPicker';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -26,15 +27,13 @@ export type HomeScreenProps = {
   islands?: readonly IslandInfo[];
 };
 
-// Le tessere si tolgono a coppie o a terne: ne resta sempre più di una.
-const tiles = (n: number) => `${n} tessere`;
-
 /**
  * Home: la scheda «Continua» con la partita salvata, il selettore dei livelli con i progressi, la conferma prima di
  * sostituire la partita salvata e gli errori di lettura (`docs/salvataggi.md`, «Scelte per la UI»).
  */
 export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = legacyIslands }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [pending, setPending] = useState<{ levelId: number; profile: Profile } | null>(null);
   const [resetting, setResetting] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,14 +64,14 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
 
   const resetDialog = resetting ? (
     <ConfirmDialog
-      title="Cancellare tutto?"
-      body="Perderai stelle, record e ✨."
+      title={t('resetAllTitle')}
+      body={t('resetAllBody')}
       onDismiss={() => setResetting(false)}
       testID="reset-dialog"
       actions={[
-        { label: 'Annulla', primary: true, disabled: busy, onPress: () => setResetting(false), testID: 'btn-reset-cancel' },
+        { label: t('cancel'), primary: true, disabled: busy, onPress: () => setResetting(false), testID: 'btn-reset-cancel' },
         {
-          label: 'Cancella tutto',
+          label: t('clearAll'),
           disabled: busy,
           testID: 'btn-reset-confirm',
           onPress: () =>
@@ -90,12 +89,12 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
     return (
       <View style={[styles.errorRoot, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]} testID="progress-error">
         <Text style={styles.errorTitle} accessibilityRole="header">
-          Non riesco a leggere i tuoi progressi
+          {t('progressReadErrorTitle')}
         </Text>
-        <Text style={styles.errorText}>Puoi riprovare oppure ripartire da zero.</Text>
+        <Text style={styles.errorText}>{t('progressReadErrorBody')}</Text>
         <View style={styles.errorActions}>
-          <Button label="Riprova" kind="primary" disabled={busy} onPress={() => run(onReload)} testID="btn-progress-retry" />
-          <Button label="Riparti da zero" disabled={busy} onPress={() => setResetting(true)} testID="btn-progress-reset" />
+          <Button label={t('retry')} kind="primary" disabled={busy} onPress={() => run(onReload)} testID="btn-progress-retry" />
+          <Button label={t('startOver')} disabled={busy} onPress={() => setResetting(true)} testID="btn-progress-reset" />
         </View>
         {resetDialog}
       </View>
@@ -108,9 +107,9 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
     ) : resume.kind === 'broken' ? (
       <View style={styles.notice} testID="broken-notice">
         <Text style={styles.noticeText} accessibilityRole="alert">
-          Non riesco a riprendere la partita salvata
+          {t('savedGameReadError')}
         </Text>
-        <Button label="Ricomincia" kind="primary" disabled={busy} onPress={restart} testID="btn-restart-saved" />
+        <Button label={t('deadRestart')} kind="primary" disabled={busy} onPress={restart} testID="btn-restart-saved" />
       </View>
     ) : null;
 
@@ -119,13 +118,17 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
       <LevelPicker progress={home.progress.value} islands={islands} onPlay={pick} top={top} />
       {pending && plan.kind === 'confirm' ? (
         <ConfirmDialog
-          title="Hai una partita in corso"
-          body={`La partita del livello ${plan.info.levelId} (${PROFILE_NAMES[plan.info.profile]}, ${formatTime(plan.info.seconds)}) andrà persa.`}
+          title={t('replaceGameTitle')}
+          body={t('replaceGameBody', {
+            level: plan.info.levelId,
+            profile: t(PROFILE_KEYS[plan.info.profile]),
+            time: formatTime(plan.info.seconds),
+          })}
           onDismiss={() => setPending(null)}
           testID="replace-dialog"
           actions={[
             {
-              label: 'Continua quella',
+              label: t('continueSavedGame'),
               primary: true,
               disabled: busy,
               testID: 'btn-keep',
@@ -135,7 +138,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
               },
             },
             {
-              label: 'Sostituisci',
+              label: t('replaceSavedGame'),
               disabled: busy,
               testID: 'btn-replace',
               onPress: () =>
@@ -154,18 +157,22 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
 }
 
 function ContinueCard({ info, onPress }: { info: ResumeInfo; onPress: () => void }) {
-  const detail = `${PROFILE_NAMES[info.profile]} · ${formatTime(info.seconds)} · ${tiles(info.remaining)}`;
+  const { t } = useTranslation();
+  const profile = t(PROFILE_KEYS[info.profile]);
+  const time = formatTime(info.seconds);
+  const remaining = t('resumeTiles', { n: info.remaining });
+  const detail = `${profile} · ${time} · ${remaining}`;
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
       accessibilityRole="button"
-      accessibilityLabel={`Continua: livello ${info.levelId}, ${PROFILE_NAMES[info.profile]}, ${formatTime(info.seconds)}, ${tiles(info.remaining)}`}
+      accessibilityLabel={t('resumeAria', { level: info.levelId, profile, time, tiles: remaining })}
       testID="continue-card"
     >
       <View style={styles.cardTexts}>
-        <Text style={styles.kicker}>Continua</Text>
-        <Text style={styles.cardTitle}>Livello {info.levelId}</Text>
+        <Text style={styles.kicker}>{t('continueShort')}</Text>
+        <Text style={styles.cardTitle}>{t('level', { n: info.levelId })}</Text>
         <Text style={styles.cardDetail}>{detail}</Text>
       </View>
       <Text style={styles.chevron}>›</Text>

@@ -8,6 +8,7 @@ import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { serializeProgress } from '../application/progressCodec';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { LanguageProvider, type Language } from '../infrastructure/i18n';
 import { HomeScreen } from './HomeScreen';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -21,10 +22,14 @@ function savedGame(over: Partial<SavedGame> = {}): SavedGame {
 }
 const storeWith = (game?: SavedGame, progress?: string) => createMemorySaveStore({ game: game ? serializeSavedGame(game) : undefined, progress });
 
-async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScreen>[0]> = {}) {
+async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScreen>[0]> = {}, lang: Language = 'it') {
   const home = await loadHome(store);
   const calls = { onPlay: jest.fn(), onResume: jest.fn(), onReload: jest.fn(async () => {}) };
-  const res = await render(<HomeScreen home={home} store={store} {...calls} {...extra} />);
+  const res = await render(
+    <LanguageProvider initial={lang}>
+      <HomeScreen home={home} store={store} {...calls} {...extra} />
+    </LanguageProvider>,
+  );
   return { ...res, ...calls, home };
 }
 
@@ -120,6 +125,26 @@ describe('scheda «Continua»', () => {
     await press('continue-card');
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onPlay).not.toHaveBeenCalled();
+  });
+});
+
+describe('localizzazione della home', () => {
+  test('la scheda «Continua» e la conferma di sostituzione seguono la lingua selezionata', async () => {
+    const { home } = await mount(storeWith(savedGame()), {}, 'en');
+    if (home.resume.kind !== 'ready') throw new Error('atteso ready');
+
+    expect(screen.getByText('Continue')).toBeOnTheScreen();
+    expect(screen.getByText('Level 20')).toBeOnTheScreen();
+    expect(screen.getByText(`Hard · 4:12 · ${home.resume.info.remaining} tiles`)).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: `Continue: level 20, Hard, 4:12, ${home.resume.info.remaining} tiles` }),
+    ).toBeOnTheScreen();
+
+    await press('level-5');
+    expect(screen.getByText('A game is in progress')).toBeOnTheScreen();
+    expect(screen.getByText('Your saved game at level 20 (Hard, 4:12) will be lost.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Continue saved game' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeOnTheScreen();
   });
 });
 

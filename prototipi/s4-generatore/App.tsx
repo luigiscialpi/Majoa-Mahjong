@@ -16,7 +16,7 @@ export default function App() {
   const run = async () => {
     if (running) return;
     setRunning(true);
-    setLines(['In corso…']);
+    setLines(['In corso...']);
     const report = await runBench(LEVELS, SEEDS, SIM_RUNS, () => new Promise((r) => setTimeout(r, 0)));
     const out = formatReport(report);
     console.log('S4-BENCH\n' + out.join('\n'));
@@ -30,7 +30,7 @@ export default function App() {
       <Text style={styles.title}>S4 · motore dei livelli</Text>
       <Text style={styles.info}>{`${LEVELS.length} livelli dell'originale · ${SEEDS} semi per livello · ${SIM_RUNS} partite simulate`}</Text>
       <Pressable onPress={run} style={[styles.btn, running && styles.btnOn]} testID="btn-prova">
-        <Text style={styles.btnText}>{running ? 'Prova…' : 'Prova'}</Text>
+        <Text style={styles.btnText}>{running ? 'Prova...' : 'Prova'}</Text>
       </Pressable>
       <ScrollView style={styles.out}>
         <Text style={styles.text} testID="risultato">

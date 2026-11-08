@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { loadHome, type Home } from '../application/saveFlow';
 import type { SaveStore } from '../application/saveStore';
 import type { Progress } from '../domain/progress';
+import { useTranslation } from '../infrastructure/i18n';
 import { Button } from './Button';
 
 /** Archivio e stato letto all'avvio (progressi e partita in corso), per le schermate. */
@@ -30,6 +31,7 @@ type State = { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; store: 
  * schermata d'attesa, se l'archivio non si apre un messaggio con «Riprova».
  */
 export function SaveProvider({ open, children }: { open: () => Promise<SaveStore>; children: ReactNode }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const storeRef = useRef<SaveStore | null>(null);
@@ -64,17 +66,17 @@ export function SaveProvider({ open, children }: { open: () => Promise<SaveStore
     return (
       <View style={styles.center} testID="saves-loading">
         <ActivityIndicator size="large" color="#1f6b57" />
-        <Text style={styles.text}>Carico i tuoi progressi…</Text>
+        <Text style={styles.text}>{t('saveLoading')}</Text>
       </View>
     );
   }
   if (state.kind === 'failed') {
     return (
       <View style={styles.center} testID="saves-failed">
-        <Text style={styles.title}>Non riesco ad aprire i salvataggi</Text>
-        <Text style={styles.text}>La partita e i progressi non sono stati toccati.</Text>
+        <Text style={styles.title}>{t('saveOpenErrorTitle')}</Text>
+        <Text style={styles.text}>{t('saveOpenErrorBody')}</Text>
         <Button
-          label="Riprova"
+          label={t('retry')}
           kind="primary"
           onPress={() => {
             setState({ kind: 'loading' });

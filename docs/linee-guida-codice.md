@@ -43,6 +43,12 @@ Prima di aggiungere una dipendenza si verifica che libreria standard, piattaform
 
 Regola: il colore non è mai l'unica informazione (affiancarlo a forma, testo o icona), i bersagli touch hanno dimensioni adeguate e il contrasto è sufficiente.
 
+## Localizzazione
+
+I testi mostrati o annunciati al giocatore dipendono dalla lingua selezionata; lasciarli nei componenti rende incompleta ogni nuova traduzione. Regola: aggiungere ogni nuovo testo dell'interfaccia, inclusi caricamenti, errori, conferme ed etichette di accessibilità, ai dizionari in `src/infrastructure/i18n/locales/` per tutte le lingue supportate e dichiararne la chiave in `src/infrastructure/i18n/types.ts`. Nei componenti React usare `useTranslation()`; fuori da React usare `t(key, params)`. La logica di dominio non deve contenere frasi legate a una lingua.
+
+Esempio: `src/ui/SaveProvider.tsx` richiama `t('saveLoading')`; il testo corrispondente è presente in ogni catalogo. I test in `src/infrastructure/i18n/i18n.test.ts` verificano la parità delle chiavi e l'interpolazione.
+
 ## Test
 
 I test del dominio coprono ogni regola. La loro sensibilità si controlla introducendo di proposito un difetto nel codice e verificando che almeno un test fallisca: un test che non fallisce mai non protegge nulla.

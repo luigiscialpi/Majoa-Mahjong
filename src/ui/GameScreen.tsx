@@ -17,7 +17,7 @@ import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels
 import { Button } from './Button';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
-import { aidText, formatTime, islandName, starsText } from './format';
+import { aidText, formatTime, islandName, PROFILE_KEYS, starsText } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
@@ -326,13 +326,13 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
     <FeltBackground colorA={palette[0]} colorB={palette[1]} cyRatio={0.4} testID="game-felt-bg">
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
-          <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel="Torna ai livelli" testID="btn-back">
+          <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel={tl('backToLevels')} testID="btn-back">
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.title}>{tl('level', { n: level.id })}</Text>
             <Text style={styles.subtitle}>
-              {tl(`dif_${profile}` as Parameters<typeof tl>[0])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · oro ${got}/${total}` : ''}
+              {tl(PROFILE_KEYS[profile])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · ${tl('goldLbl', { a: got, b: total })}` : ''}
             </Text>
           </View>
           <Text style={[styles.time, { color: palette[2] }]} testID="timer">
@@ -399,7 +399,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
             {rewards?.gifts.map((island) => (
               <Text key={island.id} style={styles.overlayReward}>
-                {tl('giftIsland', { name: islandName(island.id), n: island.gift })}
+                {tl('giftIsland', { name: islandName(island.id, tl), n: island.gift })}
               </Text>
             ))}
             {progressNotSaved ? <Text style={styles.overlayWarning}>{tl('progressSaveTrouble')}</Text> : null}
@@ -420,8 +420,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
 function AidButton({ label, icon, left, onPress, testID }: { label: string; icon: string; left: number | null; onPress: () => void; testID: string }) {
   const empty = left !== null && left <= 0;
+  const { t } = useTranslation();
   return (
-    <Pressable onPress={onPress} style={[styles.aid, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={`${label}, ${aidText(left)} rimasti`} testID={testID}>
+    <Pressable onPress={onPress} style={[styles.aid, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
       <Text style={styles.aidIcon}>{icon}</Text>
       <Text style={styles.aidLabel}>{label}</Text>
       <Text style={styles.aidCount}>{aidText(left)}</Text>

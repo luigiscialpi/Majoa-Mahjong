@@ -7,7 +7,7 @@ export default function App() {
   return (
     <WithSkiaWeb
       getComponent={() => import('./src/Main')}
-      fallback={<Text style={{ color: '#fff', padding: 16 }}>Carico CanvasKit…</Text>}
+      fallback={<Text style={{ color: '#fff', padding: 16 }}>Carico CanvasKit...</Text>}
       opts={{ locateFile: (file: string) => `/${file}` }}
     />
   );

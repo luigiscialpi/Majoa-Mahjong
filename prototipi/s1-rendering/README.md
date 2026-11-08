@@ -6,7 +6,7 @@ Il prototipo S1 risponde a due domande del README principale (sezione 8): Skia r
 
 | Percorso | Contenuto |
 |---|---|
-| `assets/tiles/000.svg … 128.svg` | I 129 disegni esportati dall'originale (`viewBox 0 0 60 80`), con i testi già convertiti in tracciati |
+| `assets/tiles/000.svg ... 128.svg` | I 129 disegni esportati dall'originale (`viewBox 0 0 60 80`), con i testi già convertiti in tracciati |
 | `src/data/level20.json` | Geometria del livello 20 dell'originale (96 tessere, 5 piani, 24 disegni). L'assegnazione dei disegni è un campione: l'originale la genera a caso a ogni partita |
 | `src/board.ts` | Geometria della tavola, tessera libera (`isFree`), `hitTest`, colonna di gioco 3:4. Funzioni pure, con test in `src/board.test.ts` |
 | `src/TileBoard.tsx` | Tavola in un unico `<Canvas>` Skia; animazioni con valori condivisi di Reanimated; tocco con `hitTest` |

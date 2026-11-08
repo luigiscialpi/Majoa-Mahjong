@@ -1,6 +1,6 @@
 import { newProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
-import { levelStatus, TRIS_REASON } from './levelStatus';
+import { levelStatus } from './levelStatus';
 
 const ISLANDS: IslandInfo[] = [
   { id: 'prologue', levelIds: [1, 2, 3], gift: 0 },
@@ -69,13 +69,12 @@ describe('levelStatus', () => {
   });
 
   test('un livello fuori dalle isole (Tris) resta chiuso finché non c\'è una regola', () => {
-    expect(status(stars({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 }), 91)).toEqual(locked(TRIS_REASON));
-    expect(TRIS_REASON).toBe('Si sbloccano più avanti');
+    expect(status(stars({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 }), 91)).toEqual(locked('Si sbloccano più avanti'));
   });
 
   test('con le isole della campagna: «Servono 40 ★ per aprire Animali»', () => {
     expect(status(newProgress(), 21, false, legacyIslands)).toEqual(locked('Servono 40 ★ per aprire Animali'));
     expect(status(newProgress(), 1, false, legacyIslands)).toEqual({ open: true });
-    expect(status(newProgress(), 100, false, legacyIslands)).toEqual(locked(TRIS_REASON));
+    expect(status(newProgress(), 100, false, legacyIslands)).toEqual(locked('Si sbloccano più avanti'));
   });
 });

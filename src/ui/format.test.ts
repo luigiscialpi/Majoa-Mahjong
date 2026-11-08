@@ -1,5 +1,6 @@
 import { PROFILES } from '../domain/profile';
-import { PROFILE_NAMES, aidText, formatTime, islandName, starsText } from './format';
+import { setActiveLanguage } from '../infrastructure/i18n';
+import { PROFILE_KEYS, aidText, formatTime, islandName, starsText } from './format';
 
 test('formatTime: minuti e secondi, ore oltre i 60 minuti, mai negativo', () => {
   expect([0, 9, 59, 60, 61, 599, 3599, 3600, 3725, 45296].map(formatTime)).toEqual(['0:00', '0:09', '0:59', '1:00', '1:01', '9:59', '59:59', '1:00:00', '1:02:05', '12:34:56']);
@@ -16,8 +17,8 @@ test('aidText: ∞ se illimitati', () => {
   expect([aidText(null), aidText(0), aidText(7)]).toEqual(['∞', '0', '7']);
 });
 
-test('PROFILE_NAMES: un nome per ogni profilo, in ordine di difficoltà', () => {
-  expect(PROFILES.map((p) => PROFILE_NAMES[p])).toEqual(['Facile', 'Normale', 'Medio', 'Difficile', 'Esperto', 'Maestro']);
+test('PROFILE_KEYS: una chiave tradotta per ogni profilo, in ordine di difficoltà', () => {
+  expect(PROFILES.map((p) => PROFILE_KEYS[p])).toEqual(['dif_easy', 'dif_normal', 'dif_medium', 'dif_hard', 'dif_expert', 'dif_master']);
 });
 
 describe('islandName', () => {
@@ -31,6 +32,15 @@ describe('islandName', () => {
     ['flowers', 'Fiori'],
   ])('%s è «%s»', (id, name) => {
     expect(islandName(id)).toBe(name);
+  });
+
+  test('uses the short name from the active language', () => {
+    setActiveLanguage('en');
+    try {
+      expect(islandName('animals')).toBe('Animals');
+    } finally {
+      setActiveLanguage('it');
+    }
   });
 
   test('un\'isola sconosciuta si mostra con il suo id', () => {

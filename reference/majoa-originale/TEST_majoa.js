@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// --sections=2d,2e : esegue solo le sezioni indicate (i numeri sono nei commenti «// ---------- 2d. …»)
+// --sections=2d,2e : esegue solo le sezioni indicate (i numeri sono nei commenti «// ---------- 2d. ...»)
 const SEC = (process.argv.find(a => a.startsWith('--sections=')) || '').split('=')[1];
 if (SEC && !process.env.MAJOA_CHILD) {
   const src0 = fs.readFileSync(__filename, 'utf8'), want = SEC.split(',');
@@ -369,7 +369,7 @@ async function startServer() {
   check('Normale = il gioco di sempre (aiuti 5/3/∞, 16 tipi)', (await page.evaluate(() => document.getElementById('cHint').textContent + '/' + document.getElementById('cShuf').textContent + '/' + document.getElementById('cUndo').textContent)) === '5/3/∞');
   // impostazioni: sei difficoltà in elenco
   await page.evaluate(() => document.getElementById('bSettings').click()); await page.waitForTimeout(300);
-  check('in Impostazioni ci sono le 6 difficoltà (Facile … Maestro)', (await page.evaluate(() => [...document.querySelectorAll('#setBody .difbtn b')].map(b => b.textContent).join(','))) === diffNames.join(','), await page.evaluate(() => [...document.querySelectorAll('#setBody .difbtn b')].map(b => b.textContent).join(',')));
+  check('in Impostazioni ci sono le 6 difficoltà (Facile ... Maestro)', (await page.evaluate(() => [...document.querySelectorAll('#setBody .difbtn b')].map(b => b.textContent).join(','))) === diffNames.join(','), await page.evaluate(() => [...document.querySelectorAll('#setBody .difbtn b')].map(b => b.textContent).join(',')));
   await page.click('#setBody .difbtn[data-d="3"]'); await page.waitForTimeout(150);
   check('si sceglie con un tocco e resta salvata', (await dbg(page, () => window.__dbg.S.dif)) === 3 && (await page.evaluate(() => JSON.parse(localStorage.getItem('mj_set1')).dif)) === 3);
   await page.screenshot({ path: SHOTS + '/difficolta.png' });

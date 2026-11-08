@@ -30,7 +30,7 @@ export function levelPalette(levelId: number): Palette {
 }
 
 /**
- * Indice del disegno (0-128) di un tipo di tessera. Il generatore assegna posizioni `0…poolSize-1` del gruppo di disegni
+ * Indice del disegno (0-128) di un tipo di tessera. Il generatore assegna posizioni `0...poolSize-1` del gruppo di disegni
  * dell'isola; la stella ha il suo disegno. La corrispondenza è una per una: tipi diversi hanno disegni diversi.
  */
 export function designOf(island: string, type: number): number {

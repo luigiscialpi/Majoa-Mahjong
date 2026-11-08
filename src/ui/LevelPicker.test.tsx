@@ -4,14 +4,13 @@ import type { Profile } from '../domain/profile';
 import { newProgress, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LevelPicker, REASON_MS } from './LevelPicker';
-import { TRIS_REASON } from './levelStatus';
-import { LanguageProvider } from '../infrastructure/i18n';
+import { LanguageProvider, type Language } from '../infrastructure/i18n';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress()) {
+async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress(), lang: Language = 'it') {
   return render(
-    <LanguageProvider initial="it">
+    <LanguageProvider initial={lang}>
       <LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />
     </LanguageProvider>,
   );
@@ -55,6 +54,14 @@ test('con il profilo Normale di partenza, toccare un livello lo avvia', async ()
   expect(calls).toEqual([[1, 'normal']]);
 });
 
+test('etichetta Tris e motivo di sblocco seguono la lingua selezionata', async () => {
+  await renderPicker(() => {}, newProgress(), 'en');
+  expect(label(91)).toBe('Level 91 (Triples), 0 stars out of 3');
+  await toggle(false);
+  await press('level-21');
+  expect(reason()).toBe('🔒 Need 40 ★ to open Animals');
+});
+
 test('il profilo scelto vale per i livelli toccati dopo', async () => {
   const calls: [number, Profile][] = [];
   await renderPicker((level, profile) => calls.push([level, profile]));
@@ -94,7 +101,7 @@ describe('modalità prova', () => {
     await press('level-21');
     expect(reason()).toBe('🔒 Servono 40 ★ per aprire Animali');
     await press('level-91');
-    expect(reason()).toBe(`🔒 ${TRIS_REASON}`);
+    expect(reason()).toBe('🔒 Si sbloccano più avanti');
     expect(calls).toEqual([1]);
   });
 
@@ -143,7 +150,7 @@ describe('lucchetti accessibili e motivo', () => {
     await toggle(false);
     expect(label(1)).toBe('Livello 1, 2 stelle su 3');
     expect(label(3)).toBe('Livello 3, bloccato. Vinci il livello 2 per aprire questo');
-    expect(label(91)).toBe(`Livello 91 (Tris), bloccato. ${TRIS_REASON}`);
+    expect(label(91)).toBe('Livello 91 (Tris), bloccato. Si sbloccano più avanti');
   });
 
   test('i Tris aperti si annunciano come tali', async () => {
