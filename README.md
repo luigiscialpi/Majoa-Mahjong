@@ -36,7 +36,7 @@ Ogni funzionalità ha una riga: cosa fa, in che stato è, dove si trova nel codi
 | Stelle, ✨ e record | PARZIALE | 1-3 stelle per tempo e aiuti, ✨ di una vittoria, migliore stella, record di tempo e profilo più alto per livello (`recordWin`); archiviazione dei progressi su disco in SQLite | `src/domain/stars.ts`, `progress.ts` | `docs/dominio-di-gioco.md`, `docs/motore-livelli.md`, `docs/gioco-originale.md` |
 | Rompicapi | TO DO | 10 mini-giochi in 3 difficoltà | TO DO | `docs/gioco-originale.md` |
 | Album e sfide | TO DO | carte da collezionare per isola e generali | TO DO | `docs/gioco-originale.md` |
-| Resa visiva identica o migliore dell'originale | PARZIALE | tessere (129 disegni, corpo 3D), tavolozze, tipografia (Lora e Nunito con OFL) e colori/pannelli a tema (`--felt`, `--ink`, `--accent`, `--btn`) portati; sfondo radiale, stati, animazioni, combo, fuochi e mascotte `TO DO` | `src/ui/tile.tsx`, `TileBoard.tsx`, `src/ui/theme/` | `docs/resa-visiva.md` |
+| Resa visiva identica o migliore dell'originale | PARZIALE | tessere (129 disegni, corpo 3D), tavolozze, tipografia (Lora e Nunito con OFL) e colori/pannelli a tema (`--felt`, `--ink`, `--accent`, `--btn`) portati; combo e scintille degli abbinamenti portate (da provare su dispositivo); sfondo radiale, stati, animazioni, fuochi e mascotte `TO DO` | `src/ui/tile.tsx`, `TileBoard.tsx`, `SparkLayer.tsx`, `ComboBanner.tsx`, `src/ui/theme/` | `docs/resa-visiva.md` |
 | Mascotte | TO DO | 4 mascotte e nessuna; combo e finestre regalo | TO DO | `docs/gioco-originale.md` |
 | Livelli Tris | TO DO | 10 livelli con gruppi da 3, fuori dalle isole; nel selettore restano bloccati («Si sbloccano più avanti») finché non c'è la regola, aperti solo con «Modalità prova» | TO DO | `docs/gioco-originale.md` |
 | Modalità comoda e accessibilità | TO DO | modalità «senior», testi grandi, contrasto, segnali senza colore | TO DO | `docs/gioco-originale.md` |
@@ -191,7 +191,7 @@ Ordine di lavoro: per vedere presto l'app giocabile si porta prima l'interfaccia
 - `TO DO`: frequenza degli interstitial e limite dei rewarded per aiuti; dichiarazione del pubblico negli store; eventuale acquisto «rimuovi pubblicità».
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
 - `TO DO`: S1 chiuso (`docs/rendering.md`); resta da provare tablet e un telefono di fascia bassa. iOS escluso dal rilascio.
-- `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; scintille di rimozione; fantasmi con un giocatore più veloce; font del «?» nei veli Skia.
+- `TO DO`: animazioni dell'intera tavola (ingresso del livello, rimescolo) come immagine unica o a gruppi; fantasmi con un giocatore più veloce; font del «?» nei veli Skia.
 - Limite del solver: con budget di 200000 nodi, su una griglia piatta sintetica di 90 tessere in tris con 8 tipi 3 tavole su 20 restano `unknown` (sui 100 livelli dell'originale nessuna).
 - `TO DO`: Modalità comoda (meno disegni, niente nebbia, rimescoli illimitati); scelta del profilo per partita (fatta la migliore stella, record di tempo e profilo più alto battuto per livello).
 - `TO DO`: dettagli della schermata rispetto all'originale (tessere che bloccano, suoni e animazioni): l'inventario completo è in `docs/resa-visiva.md`.

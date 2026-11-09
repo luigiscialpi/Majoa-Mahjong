@@ -43,15 +43,23 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 | Ingresso della tavola con ritardo per tessera (piano, riga, colonna) | `tin` riga 59 | Fatto | `TileWaveGroup` (raggruppamento per ondate temporali di 40 ms): soli 9-16 mapper Reanimated anziché fino a 192 (docs/rendering.md); curva elastica naturale `tinEase` (`easeOutBack` cubic-bezier(.34,1.25,.64,1) con rimbalzo armonico all'atterraggio), discesa continua (-28px -> 0), opacità progressiva, avvio sincrono senza attese asincrone (eliminato il singhiozzo iniziale), zero carico GPU asincrono e callback `onBoardInDone` nativo a 60 fps garantiti |
 | Sblocco di un gruppo nascosto | `flip` riga 67 | Fatto | `FlippingTile kind="unlock"`: flip 3D 700 ms con curva `flipEase` (perspective 300, rotateY 90°→0°, scale 0.8→1.0) + bagliore d'accento 1 s fade-out; rilevamento in `GameScreen` tramite confronto `game.unlocked` |
 | Scheda di vittoria: ingresso, trofeo, stelle | `cardIn` 129, `trophy` 130, `starpop` 131 | Da fare | |
-| Combo: scritta a 4 livelli e scintille che crescono | riga 2106 (Web Animations), scintille riga 2090 | Da fare | |
-| Scintille di oro, regali e abbinamenti (⭐ ✨ 💛) | riga 2084 | Da fare | |
+| Combo: scritta a 4 livelli e scintille che crescono | riga 2106 (Web Animations), scintille riga 2090 | Fatto | Da provare su dispositivo. Combo = abbinamenti a meno di 4,5 s l'uno dall'altro (`nextCombo`); scritta «Bene! / Super! / Grande! / Incredibile!» (livelli 1-4, rosa dal 3) per 1300 ms con `ease-out`, e `5 + 2·livello` scintille a `70 + 12·livello` px; il livello si ferma a 4 (scelta in `docs/gioco-originale.md`). Senza mascotte (tappa 7) e senza il bagliore dorato sfocato |
+| Scintille di oro, regali e abbinamenti (⭐ ✨ 💛) | riga 2084 | Parziale | Abbinamenti e tessere d'oro: fatto, da provare su dispositivo (4 scintille per tessera, 12 e con i cuori se è d'oro, 600-950 ms; stelle, scintille e cuori vettoriali al posto delle emoji). Finestra regalo (`showGift`, riga 2487: 24 scintille a 150 px): da fare con la finestra |
 | Fuochi d'artificio: razzi, scintille, coriandoli | `launch`, riga 2214 | Da fare | Razzi `2 + ⌊livello/3⌋` (livello al massimo 12), +3 nei finali; coriandoli 5 s (9 s nei finali); finali: livelli 20 e 90 e fine isola |
-| Riduzione del movimento e «Effetti speciali» | sezione 10.3 | Da fare | Rispettare la preferenza di sistema e l'opzione |
+| Riduzione del movimento e «Effetti speciali» | sezione 10.3 | Parziale | Scintille e scritta della combo rispettano la riduzione del movimento del sistema (`useReduceMotion`); le altre animazioni e l'opzione «Effetti speciali» (con la schermata Impostazioni) restano da fare |
 | Mascotte (4 e nessuna) | sezione 10.2 | Da fare | Esportare gli SVG con uno strumento in `tools/` |
 | Audio: 15 effetti, scala di 8 gradi nelle combo | sezione 10.4 | Da fare | Campioni con `expo-audio` (decisione presa, validata da S2), volume e interruttore |
 | Vibrazione: 14 ms a ogni abbinamento, 30 ms in anteprima | sezione 10.4 | Da fare | `expo-haptics` |
 | Mappa delle isole, selettore dei livelli, guida, impostazioni | `#map`, `#menu`, `#guide`, `#settings` | Da fare | Oggi c'è solo un selettore provvisorio |
 | Colonna di gioco e adattamento alle dimensioni | layout dell'originale | Fatto | Provare su telefoni e tablet |
+
+### Combo e scintille
+
+Ogni abbinamento (`feedback.kind === 'matched'`) fa partire `useMatchEffects` (`src/ui/useMatchEffects.ts`): una esplosione di scintille su ogni tessera tolta, più ricca se è d'oro, e dal secondo abbinamento ravvicinato la scritta della combo con altre scintille. La combo si calcola con `nextCombo` (`src/application/combo.ts`), funzione pura con l'orologio passato come argomento (README, regola 9); lo stato sta in un ref di `GameScreen`, parte da zero a ogni partita e non fa parte della sessione, quindi non si salva e non entra nella ricostruzione da eventi. Il conteggio non ha tetto, perché servirà alla scala di 8 gradi dei suoni; la scritta e le scintille si fermano al livello 4.
+
+Le scintille stanno su un canvas Skia trasparente sopra la tavola (`SparkLayer`, senza tocchi): lo strato fermo e quello vivo non si toccano. Ogni esplosione ha un solo valore condiviso (il tempo trascorso) da cui ogni scintilla ricava posizione, scala e opacità. La scritta è una vista Reanimated (`ComboBanner`) con testo Lora, animata solo su trasformazione e opacità. Tutti i valori (numeri, distanze, durate, curva `ease-out`, fotogrammi della scritta, colori) li legge un test dall'HTML dell'originale (`effects.test.ts`, `ComboBanner.test.tsx`).
+
+Costo: ogni scintilla ha due valori derivati; nel caso peggiore (due tessere d'oro e combo al livello 4) sono 37 scintille, circa 74 valori derivati vivi per 950 ms. È un tetto non misurato: va provato su dispositivo (ordine di lavoro, punto 1). `SparkLayer` resta montato anche a riposo (canvas vuoto) per non pagare il montaggio al momento dell'abbinamento; se la prova mostra un costo a riposo, si monta solo durante le esplosioni.
 
 ### Ordine di lavoro
 
@@ -59,7 +67,7 @@ Stato: **Fatto**, **Parziale**, **Da fare**. I numeri di riga sono quelli di `Ma
 2. Sfondo, tipografia e colori dell'interfaccia: poco costo e molto effetto.
 3. Stati delle tessere (bloccata, nascosta, nebbiosa, d'oro, «uguale», bloccante) e scuotimento.
 4. Animazioni della tavola: ingresso, selezione, sblocco, diradamento della nebbia.
-5. Combo e scintille.
+5. Combo e scintille (portate; mancano la prova su dispositivo, la mascotte e le scintille della finestra regalo).
 6. Vittoria: scheda, stelle e fuochi d'artificio.
 7. Mascotte.
 8. Schermate: mappa delle isole, impostazioni, guida (insieme alla funzione che mostrano).
@@ -74,6 +82,11 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 | `StaticTile`, `RemovingTile`, `useBodyImage()` | `src/ui/tile.tsx` | Tessera in Skia: corpo, disegno, stati, rimozione |
 | `TileBoard` | `src/ui/TileBoard.tsx` | Tavola a due strati |
 | `GameScreen` | `src/ui/GameScreen.tsx` | Intestazione, pulsanti, avvisi, schede di fine partita |
+| `nextCombo`, `COMBO_WINDOW_MS` | `src/application/combo.ts` | Logica della combo, pura, con orologio passato come argomento |
+| `useMatchEffects` | `src/ui/useMatchEffects.ts` | Dal feedback di un abbinamento a scintille e scritta; stato della combo |
+| `effects.ts` | `src/ui/effects.ts` | Costanti, curva `ease-out` e fotogrammi di scintille e scritta (funzioni pure) |
+| `SparkLayer`, `ComboBanner` | `src/ui/SparkLayer.tsx`, `src/ui/ComboBanner.tsx` | Canvas delle scintille sopra la tavola; scritta della combo |
+| `useReduceMotion` | `src/ui/useReduceMotion.ts` | Riduzione del movimento del sistema |
 | `levelPalette()`, `designOf()` | `src/infrastructure/content/legacyThemes.ts` | Tavolozza e disegno di ogni tessera |
 
 ## Vincoli e scartato
@@ -85,20 +98,20 @@ Per ogni tappa: portare, confrontare con le catture, registrare l'esito nell'inv
 
 ## Decisioni aperte
 
-- **Effetti e strati.** Dove disegnare combo, scintille e fuochi (un canvas separato sopra la tavola, probabilmente) senza rifare lo strato fermo.
+- **Effetti e strati.** Combo e scintille usano un canvas separato sopra la tavola (deciso, sopra); resta da decidere se i fuochi d'artificio lo riusano.
 - **Obiettivi di fluidità.** Fissarli con le misure su dispositivo; proposta di partenza: non peggiori dell'originale su un telefono Android di fascia media.
 - **Mascotte predefinita.** L'originale usa Collie: confermare se resta così.
 
 ## Verifica
 
-- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (553 test passati su 44 suite con `npm run test:all` su Node 22, typecheck pulito); `blockedDimOverlay`, `designBox`, `starPathD`, `tinDelayMs`, `tinEase`, `tinTransform`, `flipEase`, `flipTransform` coperti da `src/ui/tile.test.tsx`; calcolo tessere bloccanti `blockersOf` coperto da `src/domain/geometry.test.ts`. Rimossa la dipendenza deprecata `react-test-renderer`.
+- **Coperto da test**: disegni, tavolozze e geometria dai test di `docs/rendering.md`; suite di test Jest sui componenti UI migrata a `@testing-library/react-native` v14 (627 test passati su 51 suite con `npm run test:all` su Node 22, typecheck pulito); combo e scintille: `combo.test.ts` (finestra di 4,5 s, confronto stretto, nessun tetto), `effects.test.ts` (costanti, durate, curva `ease-out`, fotogrammi e interpolazione della scritta letti dall'HTML dell'originale), `useMatchEffects.test.tsx`, `SparkLayer.test.tsx`, `ComboBanner.test.tsx`, `useReduceMotion.test.tsx` e la schermata di gioco con scintille e scritta simulate; 21 difetti introdotti di proposito (finestra, contatori, distanze, durate, curva, soglie della scritta, oro, posizione, riduzione del movimento, colori), tutti rilevati; `blockedDimOverlay`, `designBox`, `starPathD`, `tinDelayMs`, `tinEase`, `tinTransform`, `flipEase`, `flipTransform` coperti da `src/ui/tile.test.tsx`; calcolo tessere bloccanti `blockersOf` coperto da `src/domain/geometry.test.ts`. Rimossa la dipendenza deprecata `react-test-renderer`.
 - **Verificato su dispositivo**: verificati su dispositivo reale Redmi Note 9 Pro in development build:
   - tipografia incorporata (Lora e Nunito);
   - tavolozza colori/pannelli a tema e gradiente radiale di sfondo (`FeltBackground`);
   - stati tessere: tessera nascosta (viola-indaco, stella, «?», lucchetto vettoriale su livello 11), tessera nebbiosa (azzurro, nuvola e curva su livello 3), tessera d'oro (gradiente dorato, bordo e scintilla a 4 punte), tessera selezionata (sollevata con bagliore), tessere uguali «match» (anello verde con badge ✔ vettoriale), tessere attenuate «fade» (overlay 20% solido anti-trasparenza 3D) e tessere bloccate oscurate per profilo;
   - rifiuto tocco con scuotimento e avviso; evidenziazione tessere bloccanti (`blockers` con outline rosso solido 4px e bagliore) con avviso contestuale («coperta dall'alto», «bloccata ai lati», ecc.); tocco tessera nascosta con guida luminosa sulle stelle libere;
   - animazioni tavola: ingresso `tin` a scaglioni fluido a 60 fps con curva elastica `tinEase` cubic-bezier(.2,1.3,.4,1) e attesa `body`, sblocco lucchetto e diradamento nebbia `flip` 3D con curva `flipEase`.
-- **Non verificato**: animazione fogdrift, audio e vibrazione.
+- **Non verificato**: animazione fogdrift, audio e vibrazione; scintille e scritta della combo su dispositivo (aspetto, posizione della scritta, costo sul rendering, bagliore e ombra del riquadro).
 
 ## Collegamenti
 

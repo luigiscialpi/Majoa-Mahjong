@@ -14,6 +14,7 @@ Disegna le tessere della tavola (fino a 96 su 5 piani nel livello 20 dell'origin
 
 - **Strato fermo**: tutte le tessere non libere, disegnate una sola volta in un'unica immagine (`drawAsImage`) e mostrate con un solo `<Image>`. Il corpo della tessera (bordo, ombra, faccia) viene da un'immagine in cache, più il disegno SVG.
 - **Strato vivo**: le tessere libere e quelle in rimozione, disegnate con Skia e valori condivisi di Reanimated. Selezione, aiuto e anello di blocco stanno sopra.
+- **Strato degli effetti**: sopra la tavola, un canvas trasparente a parte con le scintille degli abbinamenti (`SparkLayer`, senza tocchi), che non tocca i due strati (`docs/resa-visiva.md`, «Combo e scintille»).
 - **Ricostruzione**: dopo ogni rimozione l'immagine si ricostruisce in background, per escludere le tessere appena diventate libere. Nel frattempo queste sono disegnate due volte con gli stessi pixel. Una tessera che sparisce non è mai nell'immagine, perché era libera, quindi viva.
 
 ### Perché due strati

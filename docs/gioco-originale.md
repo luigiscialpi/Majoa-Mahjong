@@ -477,6 +477,9 @@ La tabella elenca i difetti e le incongruenze trovati e dice come vanno trattati
 - «Cerca parole» mantiene FR, EN e IT; altre lingue verranno aggiunte.
 - Lingua iniziale: quella del dispositivo; se non è supportata, inglese. L'originale parte in francese e non guarda la lingua del dispositivo.
 - Interfaccia sempre in verticale: l'originale non blocca l'orientamento.
+- Scintille: stelle, scintille e cuori sono disegni vettoriali al posto delle emoji ⭐ ✨ 💛 (nitidi e uguali su ogni font, come la scintilla della tessera d'oro).
+- Combo: scritta e scintille si fermano al livello 4 (13 scintille fino a 118 px). L'originale ferma solo la scritta, mentre numero e distanza delle scintille (`5 + 2c`, `70 + 12c`) crescono senza limite: nell'app il tetto limita il costo sul rendering.
+- Combo: le scintille partono dal centro della scritta, che sta 12 px sotto l'intestazione (nell'originale la scritta è a 74 px dal bordo e le scintille a 5% dell'altezza più 110 px). La combo si calcola nell'interfaccia e riparte a ogni partita, come l'originale a ogni livello.
 
 ### Assente nell'originale
 
