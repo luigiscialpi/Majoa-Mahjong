@@ -6,6 +6,16 @@ const el = (name) => (props) => {
 };
 const elC = (name) => ({ children, ...props }) => React.createElement(name, props, children);
 
+// Tela finta: registra le chiamate di disegno, in modo che i test vedano cosa verrebbe disegnato (`createPicture`).
+const recordingCanvas = (calls) => ({
+  save: () => calls.push(['save']),
+  restore: () => calls.push(['restore']),
+  translate: (x, y) => calls.push(['translate', x, y]),
+  scale: (x, y) => calls.push(['scale', x, y]),
+  drawPath: (path, paint) =>
+    calls.push(['drawPath', path.d, { color: paint.color, style: paint.style, strokeWidth: paint.strokeWidth, alpha: paint.alpha }]),
+});
+
 module.exports = {
   Canvas: elC('Canvas'),
   Group: elC('Group'),
@@ -15,6 +25,7 @@ module.exports = {
   RoundedRect: el('RoundedRect'),
   Circle: el('Circle'),
   Path: el('Path'),
+  Picture: el('Picture'),
   Text: el('SkiaText'),
   Shadow: el('Shadow'),
   RadialGradient: el('RadialGradient'),
@@ -27,4 +38,33 @@ module.exports = {
     getSize: () => 14,
   }),
   usePaint: () => ({}),
+  PaintStyle: { Fill: 0, Stroke: 1 },
+  createPicture: (draw, size) => {
+    const calls = [];
+    draw(recordingCanvas(calls));
+    return { calls, size };
+  },
+  Skia: {
+    Color: (color) => color,
+    Paint: () => ({
+      color: undefined,
+      style: 0,
+      strokeWidth: 0,
+      alpha: 1,
+      setAntiAlias() {},
+      setColor(c) {
+        this.color = c;
+      },
+      setStyle(v) {
+        this.style = v;
+      },
+      setStrokeWidth(w) {
+        this.strokeWidth = w;
+      },
+      setAlphaf(a) {
+        this.alpha = a;
+      },
+    }),
+    Path: { MakeFromSVGString: (d) => ({ d }) },
+  },
 };

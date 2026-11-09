@@ -11,11 +11,14 @@ import {
   bannerFrame,
   comboBurst,
   comboLevel,
+  drawSparks,
   easeOut,
   heartPathD,
   makeParticles,
   sparkFrame,
+  sparklePathsD,
   tileBurst,
+  type Burst,
   type SparkKind,
 } from './effects';
 
@@ -208,5 +211,91 @@ describe('heartPathD', () => {
     const ys = nums.filter((_, i) => i % 2 === 1);
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([38, 62]);
     expect([Math.min(...ys), Math.max(...ys)]).toEqual([30, 50]);
+  });
+});
+
+describe('sparklePathsD', () => {
+  // Formula con cui la tessera d'oro disegnava la scintilla prima di condividerla con le scintille degli abbinamenti.
+  const before = (x: number, y: number, size: number): [string, string] => {
+    const r = size / 2;
+    const ri = r * 0.38;
+    const star4 = (rot: number) => {
+      let d = '';
+      for (let i = 0; i < 8; i++) {
+        const a = rot + (i * Math.PI) / 4;
+        const rr = i % 2 === 0 ? r : ri;
+        d += (i ? 'L' : 'M') + (x + rr * Math.cos(a)).toFixed(1) + ' ' + (y + rr * Math.sin(a)).toFixed(1);
+      }
+      return d + 'Z';
+    };
+    return [star4(0), star4(Math.PI / 4)];
+  };
+
+  test('coincide con il disegno che la tessera d\'oro aveva prima', () => {
+    for (const [x, y, size] of [[7, 7, 14], [0, 0, 18], [100.5, 33.3, 20]]) expect(sparklePathsD(x, y, size)).toEqual(before(x, y, size));
+  });
+
+  test('due stelle a 4 punte: 8 vertici a distanza R e 0,38·R dal centro, la seconda ruotata di 45°', () => {
+    const [a, b] = sparklePathsD(50, 40, 20);
+    for (const [d, firstAngle] of [[a, 0], [b, 45]] as const) {
+      const pts = [...d.matchAll(/(-?\d+\.\d) (-?\d+\.\d)/g)].map((m) => [Number(m[1]) - 50, Number(m[2]) - 40]);
+      expect(pts).toHaveLength(8);
+      pts.forEach(([x, y], i) => expect(Math.hypot(x, y)).toBeCloseTo(i % 2 === 0 ? 10 : 3.8, 0));
+      expect((Math.atan2(pts[0][1], pts[0][0]) * 180) / Math.PI).toBeCloseTo(firstAngle, 0);
+    }
+  });
+});
+
+describe('drawSparks', () => {
+  type Paint = { name: string; alpha: number; setAlphaf(a: number): void };
+  const paint = (name: string): Paint => ({ name, alpha: 1, setAlphaf(a) { this.alpha = a; } });
+  /** Forme finte: ogni forma ha due strati con paint propri (come nella realtà), i path sono nomi. */
+  const glyphs = Object.fromEntries((['sparkle', 'star', 'heart'] as const).map((k) => [k, [{ path: `${k}-0`, paint: paint(`${k}-0`) }, { path: `${k}-1`, paint: paint(`${k}-1`) }]])) as Record<SparkKind, { path: string; paint: Paint }[]>;
+  const draw = (burst: Burst, elapsed: number) => {
+    const calls: unknown[][] = [];
+    drawSparks<string, Paint>(
+      {
+        save: () => calls.push(['save']),
+        restore: () => calls.push(['restore']),
+        translate: (x, y) => calls.push(['translate', x, y]),
+        scale: (x, y) => calls.push(['scale', x, y]),
+        drawPath: (path, p) => calls.push(['drawPath', path, p.alpha]),
+      },
+      glyphs,
+      burst,
+      elapsed,
+    );
+    return calls;
+  };
+  const burst = (particles: Burst['particles']): Burst => ({ id: 1, x: 100, y: 200, particles });
+  const star = { kind: 'star' as const, dx: 40, dy: -60, ms: 800 };
+  const heart = { kind: 'heart' as const, dx: -20, dy: -30, ms: 600 };
+
+  test('all\'inizio ogni scintilla è nel centro, in scala 0,6 e piena opacità, strato per strato, nell\'ordine dato', () => {
+    expect(draw(burst([star, heart]), 0)).toEqual([
+      ['save'], ['translate', 100, 200], ['scale', 0.6, 0.6], ['drawPath', 'star-0', 1], ['drawPath', 'star-1', 1], ['restore'],
+      ['save'], ['translate', 100, 200], ['scale', 0.6, 0.6], ['drawPath', 'heart-0', 1], ['drawPath', 'heart-1', 1], ['restore'],
+    ]);
+  });
+
+  test('a metà strada posizione, scala e opacità sono quelle di sparkFrame', () => {
+    const f = sparkFrame(star, 400);
+    expect(draw(burst([star]), 400)).toEqual([
+      ['save'], ['translate', 100 + f.x, 200 + f.y], ['scale', f.scale, f.scale], ['drawPath', 'star-0', f.opacity], ['drawPath', 'star-1', f.opacity], ['restore'],
+    ]);
+  });
+
+  test('le scintille finite non si disegnano, quelle ancora in volo sì', () => {
+    const calls = draw(burst([heart, star]), 700); // il cuore dura 600 ms, la stella 800 ms
+    expect(calls.filter((c) => c[0] === 'drawPath').map((c) => c[1])).toEqual(['star-0', 'star-1']);
+    expect(draw(burst([heart, star]), 800)).toEqual([]);
+    expect(draw(burst([heart, star]), 5000)).toEqual([]);
+  });
+
+  test('save e restore sono sempre in pari numero', () => {
+    for (const t of [0, 100, 450, 599, 600, 700, 800]) {
+      const calls = draw(burst([star, heart, star]), t);
+      expect(calls.filter((c) => c[0] === 'save')).toHaveLength(calls.filter((c) => c[0] === 'restore').length);
+    }
   });
 });

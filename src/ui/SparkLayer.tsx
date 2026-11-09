@@ -1,65 +1,81 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Canvas, Group, Path } from '@shopify/react-native-skia';
-import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import { SPARK_MAX_MS, SPARK_SIZE, heartPathD, sparkFrame, type Burst, type Particle, type SparkKind } from './effects';
-import { Sparkle, starPathD } from './tile';
+import { Canvas, PaintStyle, Picture, Skia, createPicture, type SkPaint, type SkPath } from '@shopify/react-native-skia';
+import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SPARK_MAX_MS, SPARK_SIZE, drawSparks, heartPathD, sparklePathsD, type Burst, type GlyphLayer, type SparkKind } from './effects';
+import { starPathD } from './tile';
 
 // Scintille degli abbinamenti (`sparkBurst`, riga 2082 dell'originale) su un canvas Skia trasparente sopra la tavola: lo
 // strato fermo e quello vivo della tavola non si toccano (`docs/rendering.md`). Le forme sono vettoriali, non emoji.
+//
+// Costo: ogni esplosione è UN solo nodo `Picture` con UN solo valore derivato, qualunque sia il numero di scintille (4-13,
+// 12 per tessera d'oro). Un nodo e due valori derivati per scintilla (come `RemovingTile`) avrebbero fatto fino a 37 gruppi e
+// 74 valori derivati al momento dell'abbinamento, che è già il più carico della partita: è lo schema che ha dato il
+// «singhiozzo» dell'ingresso (`TileWaveGroup`). Così sono al massimo 3 valori derivati per abbinamento.
 
 const HALF = SPARK_SIZE / 2;
-const STAR_D = starPathD(0, 0, HALF, HALF * 0.47);
-const HEART_D = heartPathD(0, 0, HALF * 0.85);
 const GOLD = '#ffc83d';
 const GOLD_EDGE = '#d98e04';
+const [SPARKLE_A, SPARKLE_B] = sparklePathsD(0, 0, SPARK_SIZE);
+const STAR_D = starPathD(0, 0, HALF, HALF * 0.47);
+const HEART_D = heartPathD(0, 0, HALF * 0.85);
 
-function Glyph({ kind }: { kind: SparkKind }) {
-  if (kind === 'sparkle') return <Sparkle x={0} y={0} size={SPARK_SIZE} />;
-  const d = kind === 'star' ? STAR_D : HEART_D;
-  return (
-    <>
-      <Path path={d} color={GOLD} />
-      <Path path={d} style="stroke" strokeWidth={1} color={GOLD_EDGE} />
-    </>
-  );
+/** Strati di ogni forma, solo dati: la scintilla ha due stelle piene; stella e cuore un riempimento e un contorno. */
+const GLYPHS: Record<SparkKind, readonly GlyphLayer[]> = {
+  sparkle: [
+    { d: SPARKLE_A, color: '#ffe040' },
+    { d: SPARKLE_B, color: '#fff9c4' },
+  ],
+  star: [
+    { d: STAR_D, color: GOLD },
+    { d: STAR_D, color: GOLD_EDGE, stroke: 1 },
+  ],
+  heart: [
+    { d: HEART_D, color: GOLD },
+    { d: HEART_D, color: GOLD_EDGE, stroke: 1 },
+  ],
+};
+
+type Layer = { path: SkPath; paint: SkPaint };
+
+/**
+ * Oggetti di Skia degli strati, creati sul thread UI a ogni fotogramma a partire dai dati: gli oggetti di Skia non passano
+ * tra i thread, e per poche decine di tracciati minuscoli il costo è trascurabile.
+ */
+function buildGlyphs(): Record<SparkKind, Layer[]> {
+  'worklet';
+  const make = (layer: GlyphLayer): Layer => {
+    const paint = Skia.Paint();
+    paint.setAntiAlias(true);
+    paint.setColor(Skia.Color(layer.color));
+    if (layer.stroke) {
+      paint.setStyle(PaintStyle.Stroke);
+      paint.setStrokeWidth(layer.stroke);
+    }
+    return { path: Skia.Path.MakeFromSVGString(layer.d)!, paint };
+  };
+  return { sparkle: GLYPHS.sparkle.map(make), star: GLYPHS.star.map(make), heart: GLYPHS.heart.map(make) };
 }
 
-/** Una scintilla: posizione, scala e opacità vengono dal tempo trascorso, condiviso da tutta l'esplosione. */
-function SparkParticle({ x, y, particle, elapsed }: { x: number; y: number; particle: Particle; elapsed: SharedValue<number> }) {
-  const transform = useDerivedValue(() => {
-    const f = sparkFrame(particle, elapsed.value);
-    return [{ translateX: x + f.x }, { translateY: y + f.y }, { scale: f.scale }];
-  });
-  const opacity = useDerivedValue(() => sparkFrame(particle, elapsed.value).opacity);
-  return (
-    <Group transform={transform} opacity={opacity}>
-      <Glyph kind={particle.kind} />
-    </Group>
-  );
-}
-
-function BurstView({ burst }: { burst: Burst }) {
+/** Un'esplosione: un solo disegno rifatto a ogni fotogramma dal tempo trascorso. */
+function BurstView({ burst, width, height }: { burst: Burst; width: number; height: number }) {
   const elapsed = useSharedValue(0);
   useEffect(() => {
     elapsed.value = withTiming(SPARK_MAX_MS, { duration: SPARK_MAX_MS, easing: Easing.linear });
   }, [elapsed]);
-  return (
-    <>
-      {burst.particles.map((p, i) => (
-        <SparkParticle key={i} x={burst.x} y={burst.y} particle={p} elapsed={elapsed} />
-      ))}
-    </>
+  const picture = useDerivedValue(() =>
+    createPicture((canvas) => drawSparks(canvas, buildGlyphs(), burst, elapsed.value), { width, height }),
   );
+  return <Picture picture={picture} />;
 }
 
 /** Canvas a tutta l'area di gioco, senza tocchi: li lascia alla tavola sotto. Si svuota da solo quando le esplosioni finiscono. */
-export function SparkLayer({ bursts }: { bursts: readonly Burst[] }) {
+export function SparkLayer({ bursts, width, height }: { bursts: readonly Burst[]; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Canvas style={styles.canvas}>
         {bursts.map((b) => (
-          <BurstView key={b.id} burst={b} />
+          <BurstView key={b.id} burst={b} width={width} height={height} />
         ))}
       </Canvas>
     </View>

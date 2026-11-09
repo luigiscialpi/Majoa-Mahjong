@@ -383,7 +383,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
               />
             </View>
           ) : null}
-          {fxOn && area.width > 0 ? <SparkLayer bursts={bursts} /> : null}
+          {fxOn && area.width > 0 ? <SparkLayer bursts={bursts} width={area.width} height={area.height} /> : null}
           {fxOn && banner ? <ComboBanner key={banner.key} text={tl(`cmb${banner.level}`)} hot={banner.level >= 3} onDone={() => clearBanner(banner.key)} /> : null}
           {notice ? (
             <View style={styles.noticeBox} pointerEvents="none">

@@ -24,7 +24,9 @@ jest.mock('react-native-reanimated', () => ({
   default: {},
 }));
 
-import { blockedDimOverlay, designBox, flipEase, flipTransform, starPathD, tinDelayMs, tinEase, tinTransform } from './tile';
+import { render, screen } from '@testing-library/react-native';
+import { sparklePathsD } from './effects';
+import { StaticTile, blockedDimOverlay, designBox, flipEase, flipTransform, starPathD, tinDelayMs, tinEase, tinTransform } from './tile';
 
 describe('designBox', () => {
   it('scala al minimo tra larghezza e altezza', () => {
@@ -152,5 +154,29 @@ describe('flipEase e flipTransform', () => {
     expect(fMid[0]).toEqual({ perspective: 300 });
     expect((fMid[1] as { rotateY: number }).rotateY).toBeCloseTo((1 - eased) * (Math.PI / 2));
     expect((fMid[2] as { scale: number }).scale).toBeCloseTo(0.8 + 0.2 * eased);
+  });
+});
+
+describe('StaticTile d\'oro', () => {
+  type Node = { type: string; props: Record<string, unknown>; children?: Node[] | null };
+  const walk = (node: Node | Node[] | null, out: Node[] = []): Node[] => {
+    if (!node) return out;
+    if (Array.isArray(node)) node.forEach((n) => walk(n, out));
+    else {
+      out.push(node);
+      walk(node.children as Node[] | null, out);
+    }
+    return out;
+  };
+  const rect = { x: 30, y: 40, w: 56, h: 75 };
+  const props = { rect, radius: 6, svg: null, shadow: false, body: null, palette: ['#fff', '#eee', '#ddd', '#ccc', '#bbb'] as const, font: null };
+
+  it('ha in alto a sinistra la scintilla di sparklePathsD (+7 +7 dal bordo, lato 14), una tessera comune no', async () => {
+    await render(<StaticTile {...props} status={{ locked: false, fog: false, gold: true, match: false }} />);
+    const sparkle = walk(screen.toJSON() as unknown as Node).filter((n) => n.type === 'Path' && (n.props.color === '#ffe040' || n.props.color === '#fff9c4'));
+    expect(sparkle.map((n) => [n.props.path, n.props.color])).toEqual([[sparklePathsD(rect.x + 7, rect.y + 7, 14)[0], '#ffe040'], [sparklePathsD(rect.x + 7, rect.y + 7, 14)[1], '#fff9c4']]);
+    await screen.unmount();
+    await render(<StaticTile {...props} status={{ locked: false, fog: false, gold: false, match: false }} />);
+    expect(walk(screen.toJSON() as unknown as Node).filter((n) => n.type === 'Path' && n.props.color === '#ffe040')).toHaveLength(0);
   });
 });

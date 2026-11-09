@@ -6,6 +6,7 @@ import type { Profile } from '../domain/profile';
 import type { Rect } from '../domain/board';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import type { TileStatus } from './boardView';
+import { sparklePathsD } from './effects';
 
 /**
  * Colore dell'oscuramento per tessere bloccate (non libere) in base al profilo di difficoltà.
@@ -261,25 +262,14 @@ function FogFace({ rect, radius, font }: { rect: Rect; radius: number; font: SkF
  * Scintilla vettoriale «✨» (dual 4-point star) a posto dell'emoji, sicura su qualsiasi font.
  * Coordinate dell'originale: top-left della tessera, offset -10 -10 in CSS; qui a +3 +3 dal bordo.
  * Il path è una stella a 4 punte (R=5, r=2) sovrapposta a una ruotata di 45°.
- * Esportata perché la usano anche le scintille degli abbinamenti (`SparkLayer`).
+ * La geometria (`sparklePathsD`) è condivisa con le scintille degli abbinamenti (`SparkLayer`).
  */
-export function Sparkle({ x, y, size }: { x: number; y: number; size: number }) {
-  const r = size / 2;
-  const ri = r * 0.38;
-  // Stelle a 4 punte: due path sfalsati di 45°
-  const star4 = (rot: number) => {
-    let d = '';
-    for (let i = 0; i < 8; i++) {
-      const a = rot + (i * Math.PI) / 4;
-      const rr = i % 2 === 0 ? r : ri;
-      d += (i ? 'L' : 'M') + (x + rr * Math.cos(a)).toFixed(1) + ' ' + (y + rr * Math.sin(a)).toFixed(1);
-    }
-    return d + 'Z';
-  };
+function Sparkle({ x, y, size }: { x: number; y: number; size: number }) {
+  const [a, b] = sparklePathsD(x, y, size);
   return (
     <>
-      <Path path={star4(0)} color="#ffe040" />
-      <Path path={star4(Math.PI / 4)} color="#fff9c4" />
+      <Path path={a} color="#ffe040" />
+      <Path path={b} color="#fff9c4" />
     </>
   );
 }

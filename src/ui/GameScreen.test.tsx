@@ -296,7 +296,7 @@ describe('GameScreen', () => {
 
 // Salvataggi: salvataggio automatico, tempo fermo in secondo piano, ripresa, chiusura della partita (docs/salvataggi.md).
 describe('GameScreen: scintille e combo', () => {
-  const sparks = () => (globalThis as unknown as { __sparks?: { bursts: readonly Burst[] } }).__sparks;
+  const sparks = () => (globalThis as unknown as { __sparks?: { bursts: readonly Burst[]; width: number; height: number } }).__sparks;
   const banners = () => (globalThis as unknown as { __banners: { text: string; hot: boolean }[] }).__banners;
 
   /** Gioca la prima coppia libera e lascia finire la rimozione (300 ms: restiamo ben dentro la finestra della combo). */
@@ -310,6 +310,7 @@ describe('GameScreen: scintille e combo', () => {
   test('un abbinamento fa partire le scintille sulle due tessere tolte, senza scritta', async () => {
     await mount(1);
     expect(sparks()?.bursts).toEqual([]);
+    expect(sparks()).toMatchObject({ width: 360, height: 560 }); // la misura dell'area di gioco, che sono le coordinate delle scintille
     playPair(freePair()!);
     expect(sparks()!.bursts).toHaveLength(2);
     expect(banners()).toEqual([]);

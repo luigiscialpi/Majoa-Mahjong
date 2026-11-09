@@ -110,6 +110,22 @@ export function bannerFrame(elapsedMs: number) {
   return { opacity: 1 - k, translateY: -18 * k, scale: 1 };
 }
 
+/** Path SVG delle due stelle a 4 punte sfalsate di 45° che formano la scintilla ✨, centrate in (`cx`, `cy`), di lato `size`. */
+export function sparklePathsD(cx: number, cy: number, size: number): readonly [string, string] {
+  const r = size / 2;
+  const ri = r * 0.38;
+  const star4 = (rot: number) => {
+    let d = '';
+    for (let i = 0; i < 8; i++) {
+      const a = rot + (i * Math.PI) / 4;
+      const rr = i % 2 === 0 ? r : ri;
+      d += (i ? 'L' : 'M') + (cx + rr * Math.cos(a)).toFixed(1) + ' ' + (cy + rr * Math.sin(a)).toFixed(1);
+    }
+    return d + 'Z';
+  };
+  return [star4(0), star4(Math.PI / 4)];
+}
+
 /** Path SVG di un cuore centrato in (`cx`, `cy`), largo `2,4·s` e alto `2·s`. */
 export function heartPathD(cx: number, cy: number, s: number): string {
   const p = (x: number, y: number) => `${(cx + x * s).toFixed(1)} ${(cy + y * s).toFixed(1)}`;
@@ -118,4 +134,46 @@ export function heartPathD(cx: number, cy: number, s: number): string {
     `C${p(-1.2, 0.2)} ${p(-0.35, 0.6)} ${p(0, 1)}C${p(0.35, 0.6)} ${p(1.2, 0.2)} ${p(1.2, -0.35)}` +
     `C${p(1.2, -0.6)} ${p(1.12, -1)} ${p(0.72, -1)}C${p(0.4, -1)} ${p(0, -0.78)} ${p(0, -0.35)}Z`
   );
+}
+
+/** Uno strato di una forma: tracciato SVG, colore e, se è un contorno, la larghezza. Solo dati, nessun oggetto di Skia. */
+export type GlyphLayer = { readonly d: string; readonly color: string; readonly stroke?: number };
+
+type AlphaPaint = { setAlphaf(alpha: number): void };
+
+/** La parte della tela di Skia che serve a disegnare le scintille: così si prova con una tela finta. */
+export type SparkCanvas<Path, Paint extends AlphaPaint> = {
+  save(): unknown;
+  restore(): void;
+  translate(dx: number, dy: number): void;
+  scale(sx: number, sy: number): void;
+  drawPath(path: Path, paint: Paint): void;
+};
+
+/**
+ * Disegna un'esplosione al tempo `elapsedMs`: ogni scintilla ancora visibile a posto, in scala e con la sua opacità
+ * (`sparkFrame`), strato per strato. Quelle finite non si disegnano. Un'esplosione intera è un solo disegno: non servono un
+ * nodo e un valore derivato per scintilla (`docs/rendering.md`: il costo segue i nodi e i mapper).
+ */
+export function drawSparks<Path, Paint extends AlphaPaint>(
+  canvas: SparkCanvas<Path, Paint>,
+  glyphs: Record<SparkKind, readonly { readonly path: Path; readonly paint: Paint }[]>,
+  burst: Burst,
+  elapsedMs: number,
+): void {
+  'worklet';
+  for (let i = 0; i < burst.particles.length; i++) {
+    const p = burst.particles[i];
+    const f = sparkFrame(p, elapsedMs);
+    if (f.opacity <= 0) continue;
+    canvas.save();
+    canvas.translate(burst.x + f.x, burst.y + f.y);
+    canvas.scale(f.scale, f.scale);
+    const layers = glyphs[p.kind];
+    for (let j = 0; j < layers.length; j++) {
+      layers[j].paint.setAlphaf(f.opacity);
+      canvas.drawPath(layers[j].path, layers[j].paint);
+    }
+    canvas.restore();
+  }
 }
