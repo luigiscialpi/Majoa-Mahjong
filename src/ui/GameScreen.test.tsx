@@ -626,6 +626,14 @@ describe('GameScreen: salvataggi', () => {
       expect(await savedGame(store)).toBeNull();
     });
 
+    test('la scheda di vittoria interpola il conteggio delle tessere d’oro', async () => {
+      const session = wonSession(23, 'easy');
+      expect(session.outcome).toMatchObject({ gold: 1, goldTotal: 1 });
+      await mount(23, 'easy', { resume: session });
+      await flush();
+      expect(texts()).toContain("✨ Tessere d'oro: 1/1");
+    });
+
     test('una partita ricostruita già bloccata cancella la partita salvata', async () => {
       // Una partita bloccata vera è rara con il gioco a caso: come negli altri test la si costruisce dalla fase.
       const session: Session = { ...sessionOf(1, 'normal', 7, 3), phase: 'dead' };

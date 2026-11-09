@@ -405,7 +405,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             <Text style={styles.overlayLine}>{tl('winTime', { t: formatTime(session.outcome.seconds) })}</Text>
             {rewards?.newRecord ? <Text style={styles.overlayRecord}>{tl('winNewRecord')}</Text> : null}
             <Text style={styles.overlayLine}>{tl('winAids', { n: session.outcome.aidsUsed })}</Text>
-            {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>{tl('winGold', { n: session.outcome.goldTotal, got: session.outcome.gold })}</Text> : null}
+            {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>{tl('winGold', { a: session.outcome.gold, b: session.outcome.goldTotal })}</Text> : null}
             {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
             {rewards?.gifts.map((island) => (
               <Text key={island.id} style={styles.overlayReward}>
