@@ -53,10 +53,14 @@ beforeEach(() => {
   jest.spyOn(Math, 'random').mockReturnValue(0.123);
   (globalThis as { __sparks?: unknown }).__sparks = undefined;
   (globalThis as { __banners?: unknown }).__banners = [];
+  jest.spyOn(console, 'error');
 });
 afterEach(() => {
+  // Gli avvisi di React (per esempio «aggiornamento fuori da act») sono errori: la schermata non deve produrne.
+  const errors = (console.error as jest.Mock).mock.calls;
   jest.restoreAllMocks();
   jest.useRealTimers();
+  expect(errors).toEqual([]);
 });
 
 const board = (): TileBoardProps => (globalThis as unknown as { __board: TileBoardProps }).__board;
@@ -347,7 +351,9 @@ describe('GameScreen: scintille e combo', () => {
   });
 
   test('con la riduzione del movimento del sistema non compare nulla: né scintille né scritta', async () => {
-    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    // Una volta sola: `isReduceMotionEnabled` è già un finto del preset di Jest e `restoreAllMocks` non lo ripristina, quindi
+    // un valore fisso resterebbe attivo per tutti i test successivi del file.
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValueOnce(true);
     await mount(1);
     await act(async () => {}); // la risposta del sistema arriva dopo il primo disegno
     (globalThis as { __sparks?: unknown }).__sparks = undefined;
