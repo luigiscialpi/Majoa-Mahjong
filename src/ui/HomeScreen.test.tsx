@@ -93,6 +93,13 @@ const requestCloseModal = async (testID: string) => {
   }
 };
 
+// Con la cache di trasformazione vuota (clone nuovo, CI) il primo disegno della schermata carica a freddo i componenti di
+// React Native e dura 5-6 s, quasi tutto in `render`: non va addebitato al primo test, che ha il limite di 5 s.
+beforeAll(async () => {
+  const { unmount } = await mount(storeWith());
+  await unmount();
+}, 60_000);
+
 describe('senza partita salvata', () => {
   test('mostra il selettore, senza scheda «Continua» né avvisi, e un livello parte subito', async () => {
     const { onPlay } = await mount(storeWith());
