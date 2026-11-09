@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Canvas, PaintStyle, Picture, Skia, createPicture, type SkPaint, type SkPath } from '@shopify/react-native-skia';
-import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { SPARK_MAX_MS, SPARK_SIZE, drawSparks, heartPathD, sparklePathsD, type Burst, type GlyphLayer, type SparkKind } from './effects';
 import { starPathD } from './tile';
 
@@ -39,11 +39,9 @@ const GLYPHS: Record<SparkKind, readonly GlyphLayer[]> = {
 type Layer = { path: SkPath; paint: SkPaint };
 
 /**
- * Oggetti di Skia degli strati, creati sul thread UI a ogni fotogramma a partire dai dati: gli oggetti di Skia non passano
- * tra i thread, e per poche decine di tracciati minuscoli il costo è trascurabile.
+ * Gli oggetti di Skia sono dati condivisi con i worklet UI. `usePathValue` di Skia usa lo stesso schema per i path.
  */
 function buildGlyphs(): Record<SparkKind, Layer[]> {
-  'worklet';
   const make = (layer: GlyphLayer): Layer => {
     const paint = Skia.Paint();
     paint.setAntiAlias(true);
@@ -58,15 +56,29 @@ function buildGlyphs(): Record<SparkKind, Layer[]> {
 }
 
 /** Un'esplosione: un solo disegno rifatto a ogni fotogramma dal tempo trascorso. */
-function BurstView({ burst, width, height }: { burst: Burst; width: number; height: number }) {
+function BurstView({ burst, glyphs, width, height }: { burst: Burst; glyphs: SharedValue<Record<SparkKind, Layer[]>>; width: number; height: number }) {
   const elapsed = useSharedValue(0);
   useEffect(() => {
     elapsed.value = withTiming(SPARK_MAX_MS, { duration: SPARK_MAX_MS, easing: Easing.linear });
   }, [elapsed]);
   const picture = useDerivedValue(() =>
-    createPicture((canvas) => drawSparks(canvas, buildGlyphs(), burst, elapsed.value), { width, height }),
+    createPicture((canvas) => drawSparks(canvas, glyphs.value, burst, elapsed.value), { width, height }),
   );
   return <Picture picture={picture} />;
+}
+
+/** Un solo set di tracciati e pennelli per tutte le esplosioni presenti nel canvas. */
+function SparkCanvas({ bursts, width, height }: { bursts: readonly Burst[]; width: number; height: number }) {
+  // ponytail: il set condiviso elimina sei path SVG e sei paint ricreati a ogni frame e per ogni esplosione.
+  const glyphs = useSharedValue(useMemo(buildGlyphs, []));
+
+  return (
+    <Canvas style={styles.canvas}>
+      {bursts.map((b) => (
+        <BurstView key={b.id} burst={b} glyphs={glyphs} width={width} height={height} />
+      ))}
+    </Canvas>
+  );
 }
 
 /** Canvas a tutta l'area di gioco, senza tocchi: li lascia alla tavola sotto. Si svuota da solo quando le esplosioni finiscono. */
@@ -76,11 +88,7 @@ export function SparkLayer({ bursts, width, height }: { bursts: readonly Burst[]
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Canvas style={styles.canvas}>
-        {bursts.map((b) => (
-          <BurstView key={b.id} burst={b} width={width} height={height} />
-        ))}
-      </Canvas>
+      <SparkCanvas bursts={bursts} width={width} height={height} />
     </View>
   );
 }

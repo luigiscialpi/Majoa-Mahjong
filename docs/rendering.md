@@ -14,7 +14,7 @@ Disegna le tessere della tavola (fino a 96 su 5 piani nel livello 20 dell'origin
 
 - **Strato fermo**: tutte le tessere non libere, disegnate una sola volta in un'unica immagine (`drawAsImage`) e mostrate con un solo `<Image>`. Il corpo della tessera (bordo, ombra, faccia) viene da un'immagine in cache, più il disegno SVG.
 - **Strato vivo**: le tessere libere e quelle in rimozione, disegnate con Skia e valori condivisi di Reanimated. Selezione, aiuto e anello di blocco stanno sopra.
-- **Strato degli effetti**: sopra la tavola, un canvas trasparente separato con le scintille degli abbinamenti (`SparkLayer`, senza tocchi, un solo disegno per esplosione), montato solo mentre c'è almeno un'esplosione; non tocca i due strati (`docs/resa-visiva.md`, «Combo e scintille»).
+- **Strato degli effetti**: sopra la tavola, un canvas trasparente separato con le scintille degli abbinamenti (`SparkLayer`, senza tocchi, un solo disegno per esplosione), montato solo mentre c'è almeno un'esplosione; condivide un set di path e paint Skia tra le esplosioni, creato al montaggio e riusato a ogni frame; non tocca i due strati (`docs/resa-visiva.md`, «Combo e scintille»).
 - **Ricostruzione**: dopo ogni rimozione l'immagine si ricostruisce in background, per escludere le tessere appena diventate libere. Nel frattempo queste sono disegnate due volte con gli stessi pixel. Una tessera che sparisce non è mai nell'immagine, perché era libera, quindi viva.
 
 ### Perché due strati
@@ -101,7 +101,7 @@ Regola della tessera libera, geometria di layout, `hitTest` e colonna di gioco s
 ## Vincoli e scartato
 
 - Non disegnare tutte le tessere dal vivo con valori condivisi: il costo segue le tessere disegnate, non quelle animate.
-- Non dare a ogni scintilla un nodo e valori derivati propri: ogni canvas ha un solo mapper che rigioca l'intera registrazione, e ogni modifica dell'albero lo fa ripercorrere dal thread JS. Un solo `Picture` e un solo valore derivato per esplosione (al massimo 3 per abbinamento, invece di 74 nel caso peggiore).
+- Non dare a ogni scintilla un nodo e valori derivati propri: ogni canvas ha un solo mapper che rigioca l'intera registrazione, e ogni modifica dell'albero lo fa ripercorrere dal thread JS. Un solo `Picture` e un solo valore derivato per esplosione (al massimo 3 per abbinamento, invece di 74 nel caso peggiore); path e paint sono condivisi e non vengono ricreati nel lavoro per frame.
 - Non animare tutta la tavola tessera per tessera: oltre circa 30 tessere vive l'eco col thread UI supera 170 ms (838 ms con 96).
 - Non disegnare il corpo delle tessere dello strato fermo direttamente a ogni ricostruzione: 273 ms contro 132 ms con la cache.
 - Non usare SVG con `<text>` o con `width` e `height` fissi; non usare `ImageSVG` con x o y a zero.
