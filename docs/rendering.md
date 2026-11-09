@@ -14,7 +14,7 @@ Disegna le tessere della tavola (fino a 96 su 5 piani nel livello 20 dell'origin
 
 - **Strato fermo**: tutte le tessere non libere, disegnate una sola volta in un'unica immagine (`drawAsImage`) e mostrate con un solo `<Image>`. Il corpo della tessera (bordo, ombra, faccia) viene da un'immagine in cache, più il disegno SVG.
 - **Strato vivo**: le tessere libere e quelle in rimozione, disegnate con Skia e valori condivisi di Reanimated. Selezione, aiuto e anello di blocco stanno sopra.
-- **Strato degli effetti**: sopra la tavola, un canvas trasparente a parte con le scintille degli abbinamenti (`SparkLayer`, senza tocchi), che non tocca i due strati (`docs/resa-visiva.md`, «Combo e scintille»).
+- **Strato degli effetti**: sopra la tavola, un canvas trasparente a parte con le scintille degli abbinamenti (`SparkLayer`, senza tocchi, un solo disegno per esplosione), che non tocca i due strati (`docs/resa-visiva.md`, «Combo e scintille»).
 - **Ricostruzione**: dopo ogni rimozione l'immagine si ricostruisce in background, per escludere le tessere appena diventate libere. Nel frattempo queste sono disegnate due volte con gli stessi pixel. Una tessera che sparisce non è mai nell'immagine, perché era libera, quindi viva.
 
 ### Perché due strati
@@ -65,7 +65,7 @@ La schermata riceve l'archivio (`store`), i progressi (`progress`, `onProgress`)
 
 ### Tocco e rimozione
 
-Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 96 tessere del livello 20, 26 sono libere all'inizio e ciascuna è raggiungibile al tocco per più dell'80% della propria area (tra l'82% e l'85% su telefoni da 360 a 412 px di larghezza, oltre il 90% a 768 px); una tessera coperta si raggiunge solo dal bordino scoperto (4-5 px tra i piani), ma non è selezionabile. La rimozione riproduce l'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms. Le scintille dell'originale (`burstAt`) non sono ancora riprodotte.
+Il tocco si risolve con `hitTest` del dominio, non con viste per tessera. Delle 96 tessere del livello 20, 26 sono libere all'inizio e ciascuna è raggiungibile al tocco per più dell'80% della propria area (tra l'82% e l'85% su telefoni da 360 a 412 px di larghezza, oltre il 90% a 768 px); una tessera coperta si raggiunge solo dal bordino scoperto (4-5 px tra i piani), ma non è selezionabile. La rimozione riproduce l'originale (`.tile.gone`): scala 0,6 e rotazione di 8° in 120 ms, dissolvenza in 250 ms. Le scintille della rimozione (`burstAt`) e la scritta della combo stanno sopra la tavola, in un canvas a parte (`docs/resa-visiva.md`, «Combo e scintille»).
 
 ## Punti d'ingresso nel codice
 
@@ -101,6 +101,7 @@ Regola della tessera libera, geometria di layout, `hitTest` e colonna di gioco s
 ## Vincoli e scartato
 
 - Non disegnare tutte le tessere dal vivo con valori condivisi: il costo segue le tessere disegnate, non quelle animate.
+- Non dare a ogni scintilla un nodo e valori derivati propri: ogni canvas ha un solo mapper che rigioca l'intera registrazione, e ogni modifica dell'albero lo fa ripercorrere dal thread JS. Un solo `Picture` e un solo valore derivato per esplosione (al massimo 3 per abbinamento, invece di 74 nel caso peggiore).
 - Non animare tutta la tavola tessera per tessera: oltre circa 30 tessere vive l'eco col thread UI supera 170 ms (838 ms con 96).
 - Non disegnare il corpo delle tessere dello strato fermo direttamente a ogni ricostruzione: 273 ms contro 132 ms con la cache.
 - Non usare SVG con `<text>` o con `width` e `height` fissi; non usare `ImageSVG` con x o y a zero.
@@ -110,8 +111,8 @@ Regola della tessera libera, geometria di layout, `hitTest` e colonna di gioco s
 
 - **Coperto da test**: 21 test del dominio (`src/domain/board.test.ts`, `src/infrastructure/content/legacyBoard.test.ts`); 6 test su disegni e tavolozze (`legacyThemes.test.ts`, `originalThemes.test.ts`: coerenza con i 100 livelli, corrispondenza tipo → disegno, confronto con l'originale rieseguito in jsdom; 6 difetti introdotti di proposito, tutti rilevati); confronto di fedeltà (129 disegni letti da SkSVG, 127 identici a Chromium, 2 con differenza media sotto 0,001/255); prova in Chromium (tocco, errori, equivalenza strato fermo / vivo); compilazione dei bundle Android e iOS. In `src/ui/`, 29 test (stato della vista della tavola, testi, formati, selettore, parametri della rotta e schermata di gioco con la tavola Skia sostituita da un finto componente: tocco, rimozione, tempo, avvisi, Aiuto, Annulla, Mischia, rimescolo automatico, caso senza soluzione, vittoria, Rigioca); 12 difetti introdotti di proposito nella schermata e nel round, tutti rilevati (un tredicesimo, che lascia correre l'intervallo del tempo a partita finita, non cambia nulla di visibile).
 - **Misurato su dispositivo**: prototipo S1 in produzione su Android (tabella sopra). Sull'app (Redmi Note 9 Pro, Android con MIUI, 1080×2400): tavola a due strati fluida, tocco e rimozione reattivi senza ritardo percepibile, caricamento dei 129 SVG con Skia riuscito (breve schermata iniziale «Caricamento dei disegni...» al primo avvio di livello); tessere nascoste con velo scuro e «?», tessere nebbiose con velo chiaro e tessere d'oro con bordo dorato provate su tavola reale (livello 33); pulsanti Aiuto, Annulla e Mischia funzionanti. Nel logcat compare ciclicamente `I RNSkia: updateAndRelease() failed... EGLConsumer is not attached to an OpenGL ES context`: non produce artefatti visivi o cali di fluidità ed è indicato da Skia come trascurabile.
-- **Schermata e salvataggio**: `GameScreen.test.tsx` (31 test, con 20 sul salvataggio: autosalvataggio dopo ogni evento e non per il tempo né per un tocco, tempo fermo e partita salvata in secondo piano, ripresa, vittoria con record, ✨ e regali, scrittura fallita, partita già vinta o bloccata, avviso dopo due errori), `SaveProvider.test.tsx` (8), `Button.test.tsx` (6); sensibilità controllata con 39 difetti introdotti di proposito: 38 rilevati, 1 equivalente (una guardia irraggiungibile). Il passaggio in secondo piano con pausa del tempo e salvataggio è provato su dispositivo.
-- **Non verificato**: iOS, tablet, telefoni di fascia bassa; fantasmi con un giocatore più veloce di una coppia al secondo; animazioni dell'intera tavola; scintille di rimozione; Expo SDK 58.
+- **Schermata e salvataggio**: `GameScreen.test.tsx` (38 test, con 6 su scintille e combo e 20 sul salvataggio: autosalvataggio dopo ogni evento e non per il tempo né per un tocco, tempo fermo e partita salvata in secondo piano, ripresa, vittoria con record, ✨ e regali, scrittura fallita, partita già vinta o bloccata, avviso dopo due errori), `SaveProvider.test.tsx` (8), `Button.test.tsx` (6); sensibilità controllata con 39 difetti introdotti di proposito: 38 rilevati, 1 equivalente (una guardia irraggiungibile). Il passaggio in secondo piano con pausa del tempo e salvataggio è provato su dispositivo.
+- **Non verificato**: iOS, tablet, telefoni di fascia bassa; fantasmi con un giocatore più veloce di una coppia al secondo; animazioni dell'intera tavola; scintille e scritta della combo su dispositivo (fluidità durante un abbinamento con tessere d'oro e combo al livello 4, costo del canvas a riposo); Expo SDK 58.
 
 ## Collegamenti
 
