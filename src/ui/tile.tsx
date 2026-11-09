@@ -261,8 +261,9 @@ function FogFace({ rect, radius, font }: { rect: Rect; radius: number; font: SkF
  * Scintilla vettoriale «✨» (dual 4-point star) a posto dell'emoji, sicura su qualsiasi font.
  * Coordinate dell'originale: top-left della tessera, offset -10 -10 in CSS; qui a +3 +3 dal bordo.
  * Il path è una stella a 4 punte (R=5, r=2) sovrapposta a una ruotata di 45°.
+ * Esportata perché la usano anche le scintille degli abbinamenti (`SparkLayer`).
  */
-function Sparkle({ x, y, size }: { x: number; y: number; size: number }) {
+export function Sparkle({ x, y, size }: { x: number; y: number; size: number }) {
   const r = size / 2;
   const ri = r * 0.38;
   // Stelle a 4 punte: due path sfalsati di 45°

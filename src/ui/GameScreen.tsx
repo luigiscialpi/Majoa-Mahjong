@@ -15,12 +15,16 @@ import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
 import { Button } from './Button';
+import { ComboBanner } from './ComboBanner';
+import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
 import { aidText, formatTime, islandName, PROFILE_KEYS, starsText } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
+import { useMatchEffects } from './useMatchEffects';
+import { useReduceMotion } from './useReduceMotion';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -322,6 +326,10 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const column = gameColumn(area.width, area.height);
   const { got, total } = goldCount(session);
 
+  // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema.
+  const fxOn = !useReduceMotion();
+  const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
+
   return (
     <FeltBackground colorA={palette[0]} colorB={palette[1]} cyRatio={0.4} testID="game-felt-bg">
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -375,6 +383,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
               />
             </View>
           ) : null}
+          {fxOn && area.width > 0 ? <SparkLayer bursts={bursts} /> : null}
+          {fxOn && banner ? <ComboBanner key={banner.key} text={tl(`cmb${banner.level}`)} hot={banner.level >= 3} onDone={() => clearBanner(banner.key)} /> : null}
           {notice ? (
             <View style={styles.noticeBox} pointerEvents="none">
               <Text style={styles.noticeBoxText}>{notice}</Text>

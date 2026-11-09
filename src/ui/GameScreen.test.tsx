@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { AppState, StyleSheet } from 'react-native';
+import { AccessibilityInfo, AppState, StyleSheet } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { playRandomSession } from '../application/__fixtures__/play';
 import { createMemorySaveStore, type SaveStore } from '../application/saveStore';
@@ -10,7 +10,9 @@ import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { LanguageProvider, t, type Language } from '../infrastructure/i18n';
+import en from '../infrastructure/i18n/locales/en';
 import { GameScreen, type GameScreenProps } from './GameScreen';
+import type { Burst } from './effects';
 import type { TileBoardProps } from './TileBoard';
 
 // Si prova la logica della schermata (effetti, timer, avvisi, animazione, vittoria) con la tavola Skia sostituita da un
@@ -24,9 +26,33 @@ jest.mock('./TileBoard', () => ({
   },
 }));
 
+// Anche scintille e scritta della combo sono sostituite da finti componenti: registrano ciò che ricevono (il disegno vero
+// usa Skia e Reanimated, che qui non si caricano).
+jest.mock('./SparkLayer', () => ({
+  SparkLayer: (props: unknown) => {
+    (globalThis as { __sparks?: unknown }).__sparks = props;
+    return null;
+  },
+}));
+jest.mock('./ComboBanner', () => {
+  const React = require('react');
+  return {
+    ComboBanner: (props: { text: string; hot: boolean; onDone: () => void }) => {
+      React.useEffect(() => {
+        const g = globalThis as unknown as { __banners: { text: string; hot: boolean }[]; __bannerDone: () => void };
+        g.__banners.push({ text: props.text, hot: props.hot });
+        g.__bannerDone = props.onDone;
+      }, []); // eslint-disable-line react-hooks/exhaustive-deps -- si registra al montaggio: ogni scritta nuova rimonta (key)
+      return React.createElement('View', { testID: 'combo-banner' });
+    },
+  };
+});
+
 beforeEach(() => {
   jest.useFakeTimers();
   jest.spyOn(Math, 'random').mockReturnValue(0.123);
+  (globalThis as { __sparks?: unknown }).__sparks = undefined;
+  (globalThis as { __banners?: unknown }).__banners = [];
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -265,6 +291,75 @@ describe('GameScreen', () => {
 });
 
 // Salvataggi: salvataggio automatico, tempo fermo in secondo piano, ripresa, chiusura della partita (docs/salvataggi.md).
+describe('GameScreen: scintille e combo', () => {
+  const sparks = () => (globalThis as unknown as { __sparks?: { bursts: readonly Burst[] } }).__sparks;
+  const banners = () => (globalThis as unknown as { __banners: { text: string; hot: boolean }[] }).__banners;
+
+  /** Gioca la prima coppia libera e lascia finire la rimozione (300 ms: restiamo ben dentro la finestra della combo). */
+  const playNext = () => {
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    playPair(pair);
+    advance(300);
+  };
+
+  test('un abbinamento fa partire le scintille sulle due tessere tolte, senza scritta', async () => {
+    await mount(1);
+    expect(sparks()?.bursts).toEqual([]);
+    playPair(freePair()!);
+    expect(sparks()!.bursts).toHaveLength(2);
+    expect(banners()).toEqual([]);
+    expect(screen.queryByTestId('combo-banner')).toBeNull();
+  });
+
+  test('dal secondo abbinamento ravvicinato la scritta cresce (Bene, Super, Grande, Incredibile) e al livello 4 si ferma; rosa dal 3', async () => {
+    await mount(1);
+    for (let n = 0; n < 7; n++) playNext();
+    expect(banners()).toEqual(
+      (['cmb1', 'cmb2', 'cmb3', 'cmb4', 'cmb4', 'cmb4'] as const).map((key) => ({ text: t(key), hot: key === 'cmb3' || key === 'cmb4' })),
+    );
+  });
+
+  test('la scritta segue la lingua scelta', async () => {
+    await mount(1, 'normal', {}, 'en');
+    playNext();
+    playNext();
+    expect(banners().map((b) => b.text)).toEqual([en.cmb1]);
+  });
+
+  test('a più di 4,5 secondi dall\'abbinamento precedente la combo riparte da capo', async () => {
+    await mount(1);
+    playNext();
+    advance(5000);
+    playNext();
+    expect(banners()).toEqual([]);
+    playNext();
+    expect(banners()).toHaveLength(1);
+  });
+
+  test('la scritta si toglie da sola quando l\'animazione finisce', async () => {
+    await mount(1);
+    playNext();
+    playNext();
+    expect(screen.getByTestId('combo-banner')).toBeOnTheScreen();
+    act(() => { (globalThis as unknown as { __bannerDone: () => void }).__bannerDone(); });
+    expect(screen.queryByTestId('combo-banner')).toBeNull();
+  });
+
+  test('con la riduzione del movimento del sistema non compare nulla: né scintille né scritta', async () => {
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+    await mount(1);
+    await act(async () => {}); // la risposta del sistema arriva dopo il primo disegno
+    (globalThis as { __sparks?: unknown }).__sparks = undefined;
+    playNext();
+    playNext();
+    playNext();
+    expect(sparks()).toBeUndefined();
+    expect(banners()).toEqual([]);
+    expect(screen.queryByTestId('combo-banner')).toBeNull();
+  });
+});
+
 describe('GameScreen: salvataggi', () => {
   const flush = () => act(async () => {});
   const savedGame = async (store: SaveStore) => {
