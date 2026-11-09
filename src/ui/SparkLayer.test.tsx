@@ -41,10 +41,10 @@ const burstOf = (particles: Particle[], over: Partial<Burst> = {}): Burst => ({ 
 beforeEach(() => mockDerived.mockClear());
 
 describe('SparkLayer', () => {
-  test('senza esplosioni il canvas è vuoto e non prende i tocchi', async () => {
+  test('senza esplosioni il canvas non viene montato', async () => {
     await render(<SparkLayer bursts={[]} width={W} height={H} />);
-    expect(nodes('Picture')).toHaveLength(0);
-    expect((screen.toJSON() as unknown as Node).props.pointerEvents).toBe('none');
+    expect(screen.toJSON()).toBeNull();
+    expect(mockDerived).not.toHaveBeenCalled();
   });
 
   test('un solo nodo e un solo valore derivato per esplosione, qualunque sia il numero di scintille', async () => {

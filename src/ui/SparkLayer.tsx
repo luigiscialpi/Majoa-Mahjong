@@ -71,6 +71,9 @@ function BurstView({ burst, width, height }: { burst: Burst; width: number; heig
 
 /** Canvas a tutta l'area di gioco, senza tocchi: li lascia alla tavola sotto. Si svuota da solo quando le esplosioni finiscono. */
 export function SparkLayer({ bursts, width, height }: { bursts: readonly Burst[]; width: number; height: number }) {
+  // ponytail: senza esplosioni evita un layer GL a tutta tavola che non disegna nulla.
+  if (bursts.length === 0) return null;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Canvas style={styles.canvas}>
