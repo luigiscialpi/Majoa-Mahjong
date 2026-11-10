@@ -50,9 +50,10 @@ export type Autosaver = { save(session: Session): Promise<void> };
 
 /**
  * Salva la partita di `levelId` a ogni chiamata. Un errore di scrittura non interrompe il gioco: `onTrouble(true)` scatta
- * al secondo errore di fila (una sola volta) e `onTrouble(false)` al primo salvataggio riuscito dopo.
+ * al secondo errore di fila (una sola volta) e `onTrouble(false)` al primo salvataggio riuscito dopo. `onError` riceve la
+ * causa di ogni errore di scrittura (per i log): l'avviso a schermo non la dice, e senza questo si perderebbe.
  */
-export function createAutosaver(store: SaveStore, levelId: number, onTrouble: (trouble: boolean) => void): Autosaver {
+export function createAutosaver(store: SaveStore, levelId: number, onTrouble: (trouble: boolean) => void, onError?: (error: SaveError) => void): Autosaver {
   let failures = 0;
   return {
     async save(session) {
@@ -64,6 +65,7 @@ export function createAutosaver(store: SaveStore, levelId: number, onTrouble: (t
         return;
       }
       failures++;
+      onError?.(result.error);
       if (failures === 2) onTrouble(true);
     },
   };

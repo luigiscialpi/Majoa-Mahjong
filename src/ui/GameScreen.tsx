@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
 import { createAutosaver, finishWin, type Rewards } from '../application/saveFlow';
+import type { SaveError } from '../application/saveFormat';
 import type { SaveStore } from '../application/saveStore';
 import { goldCount, isStuck, type Session } from '../application/session';
 import { gameColumn } from '../domain/board';
@@ -109,6 +110,9 @@ type RoundViewProps = {
   onExit: () => void;
 };
 
+/** La causa di un errore di salvataggio va nei log (`adb logcat`, tag ReactNativeJS): l'avviso a schermo non la mostra. */
+const logSaveError = (error: SaveError) => console.warn(`Autosalvataggio non riuscito: ${JSON.stringify(error)}`);
+
 function RoundView({ level, profile, palette, svgs, initial, store, progress, onProgress, islands, onRestart, onExit }: RoundViewProps) {
   const [round, dispatch] = useReducer(reduceRound, initial);
   const { session } = round;
@@ -122,7 +126,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const [rewards, setRewards] = useState<Rewards | null>(null);
   const [progressNotSaved, setProgressNotSaved] = useState(false);
   const appActive = useAppActive();
-  const autosaver = useMemo(() => createAutosaver(store, level.id, setTrouble), [store, level.id]);
+  const autosaver = useMemo(() => createAutosaver(store, level.id, setTrouble, logSaveError), [store, level.id]);
 
   // Tessere che si stanno togliendo (animazione di 250 ms). Si ricava durante il render, non in un effetto, perché le
   // tessere appena tolte non devono sparire per un fotogramma prima di comparire come «in rimozione».

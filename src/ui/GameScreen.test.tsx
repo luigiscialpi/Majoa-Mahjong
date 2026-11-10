@@ -657,6 +657,7 @@ describe('GameScreen: salvataggi', () => {
 
     test("il gioco continua; l'avviso compare al secondo errore di fila e sparisce al primo salvataggio riuscito", async () => {
       const { store, state } = flaky();
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       await mount(1, 'normal', { store });
       playPair(freePair()!);
       await flush();
@@ -666,6 +667,11 @@ describe('GameScreen: salvataggi', () => {
       await flush();
       expect(texts()).toContain('⚠ Non riesco a salvare la partita');
       expect(texts()).toContain(`${legacyLevels[0].cells.length - 4} coppie`);
+      // La causa va nei log, a ogni errore: sullo schermo l'avviso non la dice.
+      expect(warn.mock.calls).toEqual([
+        [expect.stringContaining('"kind":"storage-failed","message":"disco pieno"')],
+        [expect.stringContaining('"kind":"storage-failed","message":"disco pieno"')],
+      ]);
       state.failing = false;
       advance(300);
       playPair(freePair()!);

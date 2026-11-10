@@ -119,6 +119,29 @@ describe('createAutosaver', () => {
     expect(await store.loadGame()).toEqual({ ok: true, value: toSavedGame(played, 20) });
   });
 
+  test('ogni errore di scrittura passa la sua causa a `onError`, un salvataggio riuscito no', async () => {
+    const base = createMemorySaveStore();
+    let failing = true;
+    const store: SaveStore = { ...base, saveGame: async (game) => (failing ? DISK_FULL : base.saveGame(game)) };
+    const errors: SaveError[] = [];
+    const autosaver = createAutosaver(store, 20, () => {}, (error) => errors.push(error));
+    await autosaver.save(midGame());
+    await autosaver.save(midGame());
+    await autosaver.save(midGame());
+    expect(errors).toEqual([DISK_FULL.error, DISK_FULL.error, DISK_FULL.error]);
+    failing = false;
+    await autosaver.save(midGame());
+    expect(errors).toHaveLength(3);
+  });
+
+  test('senza `onError` un errore non cambia nulla', async () => {
+    const { state, calls, autosaver } = flaky();
+    state.failing = true;
+    await autosaver.save(midGame());
+    await autosaver.save(midGame());
+    expect(calls).toEqual([true]);
+  });
+
   test('un errore solo non dà l\'avviso', async () => {
     const { state, calls, autosaver } = flaky();
     state.failing = true;
