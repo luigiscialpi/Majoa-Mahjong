@@ -44,7 +44,7 @@ Il tempo corre solo mentre si gioca: `tick` si chiama solo con l'app in primo pi
 
 - **`loadHome(store)`** legge progressi e partita in corso, indipendenti l'uno dall'altra. La partita è `none`, `ready` (con la sessione ricostruita e `ResumeInfo`: livello, profilo, secondi, tessere rimaste, per la scheda «Continua») o `broken` (con l'errore e, se il documento si leggeva ma non si ricostruiva, il `SavedGame` letto: così «Ricomincia» sa livello e profilo).
 - **`planStart(resume)`** dice se partire subito o chiedere conferma: con una partita `ready` chiede sempre conferma, anche per lo stesso livello e profilo (riprendere è un'altra strada); con `none` o `broken` parte subito.
-- **`createAutosaver(store, levelId, onTrouble)`** salva la partita a ogni chiamata. Un errore non interrompe il gioco: `onTrouble(true)` scatta al secondo errore di fila, una sola volta, e `onTrouble(false)` al primo salvataggio riuscito dopo.
+- **`createAutosaver(store, levelId, onTrouble, onError?)`** salva la partita a ogni chiamata. Un errore non interrompe il gioco: `onTrouble(true)` scatta al secondo errore di fila, una sola volta, e `onTrouble(false)` al primo salvataggio riuscito dopo. `onError` riceve la causa (`SaveError`) di ogni errore di scrittura: `GameScreen` la scrive nei log con `console.warn` (`Autosalvataggio non riuscito: {"kind":"storage-failed","message":...}`, visibile con `adb logcat` sul tag `ReactNativeJS`), perché l'avviso a schermo non la dice.
 - **`finishWin(store, progress, session, levelId, islands)`** registra la vittoria (`recordWin`), dà i regali delle isole appena aperte (`openGifts`) e scrive progressi e cancellazione della partita con `finishGame`. Restituisce i progressi nuovi, le ricompense (stelle, ✨, «nuovo record», regali) e l'esito della scrittura. «Nuovo record» solo se esisteva un record e il tempo lo migliora, e mai con «senza pressione del tempo». Se la scrittura fallisce i progressi e le ricompense si danno comunque, la partita salvata resta com'era e i progressi su disco sono quelli di prima: giocando di nuovo l'ultima mossa si rivince.
 - La partita bloccata (`dead`) non ha una funzione: la UI chiama `clearGame()`.
 
@@ -72,7 +72,7 @@ Una sessione ricostruita già vinta o bloccata (solo se l'app si è chiusa tra l
 | `start-failed` | Il generatore non rigenera la tavola | Come sopra | Come sopra |
 | `event-rejected` (con la posizione) | Un evento non si applica | Come sopra | Come sopra |
 | `board-mismatch` | L'impronta dopo la ricostruzione non coincide | Come sopra | Come sopra |
-| `storage-failed` | Lettura o scrittura su disco non riuscita (disco pieno, file bloccato, migrazione fallita) | Il gioco continua; avviso breve al secondo errore di fila | Nessuna scrittura parziale: le scritture multiple sono transazioni |
+| `storage-failed` | Lettura o scrittura su disco non riuscita (disco pieno, file bloccato, migrazione fallita) | Il gioco continua; avviso breve al secondo errore di fila; la causa va nei log | Nessuna scrittura parziale: le scritture multiple sono transazioni |
 
 I progressi illeggibili (`malformed` o `unsupported-version` nella lettura dei progressi) non si sovrascrivono mai in automatico.
 
