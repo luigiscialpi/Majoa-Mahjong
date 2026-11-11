@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
 import { finaleOf } from '../application/finale';
-import { createAutosaver, finishWin, type Rewards } from '../application/saveFlow';
+import { createAutosaver, finishWin, prepareWin } from '../application/saveFlow';
 import type { SaveError } from '../application/saveFormat';
 import type { SaveStore } from '../application/saveStore';
 import { goldCount, isStuck, type Session } from '../application/session';
@@ -125,10 +126,15 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const [hintGroup, setHintGroup] = useState<readonly number[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [trouble, setTrouble] = useState(false);
-  const [rewards, setRewards] = useState<Rewards | null>(null);
   const [progressNotSaved, setProgressNotSaved] = useState(false);
   const appActive = useAppActive();
   const autosaver = useMemo(() => createAutosaver(store, level.id, setTrouble, logSaveError), [store, level.id]);
+  const progressAtStart = useRef(progress);
+  // ponytail: calcola i premi prima dell'I/O, così la scheda appare già alla sua altezza finale.
+  const victoryRewards = useMemo(() => {
+    if (session.phase !== 'won' || !session.outcome) return null;
+    return prepareWin(progressAtStart.current, session, level.id, islands).rewards;
+  }, [session, level.id, islands]);
 
   // Tessere che si stanno togliendo (animazione di 250 ms). Si ricava durante il render, non in un effetto, perché le
   // tessere appena tolte non devono sparire per un fotogramma prima di comparire come «in rimozione».
@@ -174,7 +180,6 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
       closed.current = true;
       void finishWin(store, progress, session, level.id, islands).then((done) => {
         onProgress(done.progress);
-        setRewards(done.rewards);
         setProgressNotSaved(!done.saved.ok);
       });
     } else if (session.phase === 'dead') {
@@ -407,13 +412,15 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         {session.phase === 'won' && session.outcome ? (
           <Overlay behind={<FireworksLayer level={level.id} finale={finaleOf(level.id, islands, trisLevelIds) !== null} reduced={!fxOn} />}>
             <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: level.id })}</Text>
-            <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
+            <View style={styles.overlayStarsRow}>
+              <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
+              {victoryRewards && victoryRewards.coins > 0 ? <WinCoinReward coins={victoryRewards.coins} animated={fxOn} /> : null}
+            </View>
             <Text style={styles.overlayLine}>{tl('winTime', { t: formatTime(session.outcome.seconds) })}</Text>
-            {rewards?.newRecord ? <Text style={styles.overlayRecord}>{tl('winNewRecord')}</Text> : null}
+            {victoryRewards?.newRecord ? <Text style={styles.overlayRecord}>{tl('winNewRecord')}</Text> : null}
             <Text style={styles.overlayLine}>{tl('winAids', { n: session.outcome.aidsUsed })}</Text>
             {session.outcome.goldTotal > 0 ? <Text style={styles.overlayLine}>{tl('winGold', { a: session.outcome.gold, b: session.outcome.goldTotal })}</Text> : null}
-            {rewards && rewards.coins > 0 ? <Text style={styles.overlayReward}>+{rewards.coins} ✨</Text> : null}
-            {rewards?.gifts.map((island) => (
+            {victoryRewards?.gifts.map((island) => (
               <Text key={island.id} style={styles.overlayReward}>
                 {tl('giftIsland', { name: islandName(island.id, tl), n: island.gift })}
               </Text>
@@ -431,6 +438,62 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         ) : null}
       </View>
     </FeltBackground>
+  );
+}
+
+function WinCoinReward({ coins, animated }: { coins: number; animated: boolean }) {
+  const opacity = useSharedValue(animated ? 0 : 1);
+  const translateY = useSharedValue(animated ? 7 : 0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!animated) {
+      opacity.value = 1;
+      translateY.value = 0;
+      return;
+    }
+
+    opacity.value = withSequence(
+      // Fade in
+      withTiming(1, {
+        duration: 180,
+        easing: Easing.out(Easing.ease),
+      }),
+
+      // Rimane visibile
+      withTiming(1, {
+        duration: 1320,
+      }),
+
+      // Fade out
+      withTiming(
+        0,
+        {
+          duration: 500,
+          easing: Easing.in(Easing.ease),
+        },
+        (finished) => {
+          if (finished) runOnJS(setVisible)(false);
+        },
+      ),
+    );
+
+    translateY.value = withTiming(-8, {
+      duration: 2000,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [animated, opacity, translateY]);
+  
+  const animation = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  if (!visible) return null;
+  return (
+    <Animated.View style={[styles.overlayCoinRewardPosition, animation]} pointerEvents="none" testID="win-coins-reward">
+      <Text numberOfLines={1} style={styles.overlayCoinText} accessibilityLiveRegion="polite">+{coins}</Text>
+    </Animated.View>
   );
 }
 
@@ -489,7 +552,10 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 360, borderRadius: 20, backgroundColor: colors.feltB, borderWidth: 2, borderColor: colors.accent, padding: 24, alignItems: 'center', gap: 8 },
   overlayTitle: { color: colors.accent, fontSize: 22, fontFamily: fontFamilies.title },
-  overlayStars: { fontSize: 40, letterSpacing: 4 },
+  overlayStarsRow: { position: 'relative', width: '100%', height: 48, alignItems: 'center', justifyContent: 'center' },
+  overlayStars: { fontSize: 36, letterSpacing: 4 },
+  overlayCoinRewardPosition: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
+  overlayCoinText: { color: colors.accent, fontSize: 16, lineHeight: 22, fontFamily: fontFamilies.bodyBold, fontVariant: ['tabular-nums'] },
   overlayLine: { color: colors.inkSoft, fontSize: 15, textAlign: 'center', fontFamily: fontFamilies.body },
   overlayRecord: { color: colors.accent, fontSize: 17, textAlign: 'center', fontFamily: fontFamilies.bodyExtraBold },
   overlayReward: { color: colors.ink, fontSize: 16, textAlign: 'center', fontFamily: fontFamilies.bodyBold },

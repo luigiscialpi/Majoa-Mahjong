@@ -82,19 +82,27 @@ export type Finished = {
   saved: Result<void, SaveError>;
 };
 
-/**
- * Chiude una partita vinta: registra la vittoria (`recordWin`), dà i regali delle isole appena aperte (`openGifts`) e
- * scrive progressi e cancellazione della partita salvata in un'unica transazione (`finishGame`). «Nuovo record» solo se
- * esisteva un record e il tempo lo migliora, e mai con «senza pressione del tempo».
- */
-export async function finishWin(store: SaveStore, progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[]): Promise<Finished> {
+export type PreparedWin = { progress: Progress; rewards: Rewards };
+
+/** Calcola l'esito di una vittoria senza I/O, così la scheda può mostrarlo prima della scrittura su disco. */
+export function prepareWin(progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[]): PreparedWin {
   const outcome = session.outcome;
   if (session.phase !== 'won' || !outcome) throw new Error('finishWin: la partita non è vinta');
   const before = levelProgress(progress, levelId);
   const win = recordWin(progress, { levelId, stars: outcome.stars, seconds: outcome.seconds, gold: outcome.gold, profile: session.profile, noTimePressure: session.noTimePressure });
   const gifts = openGifts(win.progress, islands);
   const newRecord = !session.noTimePressure && before.bestSeconds !== null && outcome.seconds < before.bestSeconds;
-  const saved = await store.finishGame(gifts.progress);
   const giftCoins = gifts.opened.reduce((sum, island) => sum + island.gift, 0);
-  return { progress: gifts.progress, rewards: { stars: outcome.stars, coins: win.coins, newRecord, gifts: gifts.opened, giftCoins }, saved };
+  return { progress: gifts.progress, rewards: { stars: outcome.stars, coins: win.coins, newRecord, gifts: gifts.opened, giftCoins } };
+}
+
+/**
+ * Chiude una partita vinta: calcola la ricompensa, poi scrive progressi e cancellazione della partita salvata in un'unica
+ * transazione (`finishGame`). «Nuovo record» solo se esisteva un record e il tempo lo migliora, e mai con «senza pressione
+ * del tempo».
+ */
+export async function finishWin(store: SaveStore, progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[]): Promise<Finished> {
+  const prepared = prepareWin(progress, session, levelId, islands);
+  const saved = await store.finishGame(prepared.progress);
+  return { ...prepared, saved };
 }

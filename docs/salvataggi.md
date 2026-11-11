@@ -19,7 +19,7 @@ Il giocatore non salva mai: l'app conserva da sola due dati distinti. I **progre
 | Uscita dalla partita | Nessuna conferma: la partita resta salvata | La home, con la scheda «Continua» |
 | Home con una partita salvata | In cima, la scheda «Continua» | Livello, profilo, tempo trascorso (`m:ss`) e tessere rimaste; un tocco riprende |
 | Avvio di un'altra partita con una salvata | Conferma che spiega cosa si perde | «La partita del livello 20 (Normale, 4:12) andrà persa». Pulsanti «Continua quella» (predefinito) e «Sostituisci» |
-| Vittoria | Si registrano `recordWin` e `openGifts` e si cancella la partita salvata, in un'unica transazione | Stelle, «+N ✨», «Nuovo record!» se il tempo migliora e, se si apre un'isola, il regalo |
+| Vittoria | Si calcolano subito stelle e ricompense; poi si registrano `recordWin` e `openGifts` e si cancella la partita salvata, in un'unica transazione | Scheda completa con stelle, «+N ✨», «Nuovo record!» se il tempo migliora e, se si apre un'isola, il regalo; se la scrittura fallisce compare un avviso |
 | Partita bloccata (`dead`) | Si cancella la partita salvata | La schermata di blocco |
 | Partita salvata illeggibile | I progressi restano intatti | Messaggio chiaro e «Ricomincia» (sezione «Stati ed errori») |
 | «Cancella tutta la progressione» (quando esisterà la schermata Impostazioni) | Conferma che elenca cosa si perde; poi progressi ai valori predefiniti e partita cancellata, in una transazione | La sessione resta utilizzabile subito dopo |
@@ -45,7 +45,8 @@ Il tempo corre solo mentre si gioca: `tick` si chiama solo con l'app in primo pi
 - **`loadHome(store)`** legge progressi e partita in corso, indipendenti l'uno dall'altra. La partita è `none`, `ready` (con la sessione ricostruita e `ResumeInfo`: livello, profilo, secondi, tessere rimaste, per la scheda «Continua») o `broken` (con l'errore e, se il documento si leggeva ma non si ricostruiva, il `SavedGame` letto: così «Ricomincia» sa livello e profilo).
 - **`planStart(resume)`** dice se partire subito o chiedere conferma: con una partita `ready` chiede sempre conferma, anche per lo stesso livello e profilo (riprendere è un'altra strada); con `none` o `broken` parte subito.
 - **`createAutosaver(store, levelId, onTrouble, onError?)`** salva la partita a ogni chiamata. Un errore non interrompe il gioco: `onTrouble(true)` scatta al secondo errore di fila, una sola volta, e `onTrouble(false)` al primo salvataggio riuscito dopo. `onError` riceve la causa (`SaveError`) di ogni errore di scrittura: `GameScreen` la scrive nei log con `console.warn` (`Autosalvataggio non riuscito: {"kind":"storage-failed","message":...}`, visibile con `adb logcat` sul tag `ReactNativeJS`), perché l'avviso a schermo non la dice.
-- **`finishWin(store, progress, session, levelId, islands)`** registra la vittoria (`recordWin`), dà i regali delle isole appena aperte (`openGifts`) e scrive progressi e cancellazione della partita con `finishGame`. Restituisce i progressi nuovi, le ricompense (stelle, ✨, «nuovo record», regali) e l'esito della scrittura. «Nuovo record» solo se esisteva un record e il tempo lo migliora, e mai con «senza pressione del tempo». Se la scrittura fallisce i progressi e le ricompense si danno comunque, la partita salvata resta com'era e i progressi su disco sono quelli di prima: giocando di nuovo l'ultima mossa si rivince.
+- **`prepareWin(progress, session, levelId, islands)`** calcola i progressi nuovi e le ricompense senza I/O. `GameScreen` usa questo esito per montare la scheda completa insieme alla vittoria, senza aspettare l'archivio.
+- **`finishWin(store, progress, session, levelId, islands)`** richiama `prepareWin` e scrive progressi e cancellazione della partita con `finishGame`. Restituisce i progressi nuovi, le ricompense (stelle, ✨, «nuovo record», regali) e l'esito della scrittura. «Nuovo record» solo se esisteva un record e il tempo lo migliora, e mai con «senza pressione del tempo». Se la scrittura fallisce i progressi e le ricompense si danno comunque, la partita salvata resta com'era e i progressi su disco sono quelli di prima: giocando di nuovo l'ultima mossa si rivince.
 - La partita bloccata (`dead`) non ha una funzione: la UI chiama `clearGame()`.
 
 Una sessione ricostruita già vinta o bloccata (solo se l'app si è chiusa tra l'ultima mossa e la chiusura della partita) non è un caso a parte: la UI avvia la chiusura quando la fase diventa `won` o `dead`, anche al primo disegno.
@@ -89,7 +90,7 @@ Scelte visibili al giocatore, tutte approvate e costruite (la 3, la 6 e la 8 nel
 
 1. **Home**: in cima la scheda «Continua» (titolo «Livello 20», sotto «Normale · 4:12 · 40 tessere»), poi il selettore dei livelli. Senza partita salvata la scheda non c'è.
 2. **Conferma di sostituzione**: titolo «Hai una partita in corso», testo «La partita del livello 20 (Normale, 4:12) andrà persa.», pulsanti «Continua quella» (predefinito, riprende la salvata) e «Sostituisci».
-3. **Vittoria**: stelle e tempo; «Nuovo record!» solo se si migliora un record esistente (alla prima vittoria no); «+N ✨»; per ogni isola aperta «Isola Animali aperta: +G ✨». Pulsanti «Rigioca» e «Livelli» come oggi.
+3. **Vittoria**: stelle e tempo; «Nuovo record!» solo se si migliora un record esistente (alla prima vittoria no); premio «+N» a destra delle stelle, mostrato per due secondi con ingresso, salita leggera e dissolvenza; è calcolato prima della scrittura e non altera l'altezza della scheda. Per ogni isola aperta «Isola Animali aperta: +G ✨». Pulsanti «Rigioca» e «Livelli» come oggi.
 4. **Partita illeggibile** (nella home): «Non riesco a riprendere la partita salvata» e «Ricomincia».
 5. **Progressi illeggibili**: schermata «Non riesco a leggere i tuoi progressi» con «Riprova» e «Riparti da zero»; quest'ultima apre «Perderai stelle, record e ✨» con «Annulla» (predefinito) e «Cancella tutto».
 6. **Avviso di salvataggio**: striscia «Non riesco a salvare la partita» al secondo errore di fila, che sparisce al primo salvataggio riuscito.
@@ -104,7 +105,7 @@ Scelte visibili al giocatore, tutte approvate e costruite (la 3, la 6 e la 8 nel
 | `serializeProgress()`, `parseProgress()` | `src/application/progressCodec.ts` | Serializzazione e validazione dei progressi |
 | `SaveError`, `isInt()`, `keysMismatch()`, `parseJson()` | `src/application/saveFormat.ts` | Errori tipizzati e predicati comuni di lettura |
 | `SaveStore`, `createMemorySaveStore()` | `src/application/saveStore.ts` | Porta di archiviazione e versione in memoria |
-| `loadHome()`, `planStart()`, `createAutosaver()`, `finishWin()` | `src/application/saveFlow.ts` | Logica dei salvataggi senza interfaccia |
+| `loadHome()`, `planStart()`, `createAutosaver()`, `prepareWin()`, `finishWin()` | `src/application/saveFlow.ts` | Logica dei salvataggi senza interfaccia; calcolo e scrittura della vittoria separati |
 | `SaveProvider`, `useSaves()` | `src/ui/SaveProvider.tsx` | Apre l'archivio e legge lo stato all'avvio; attesa ed errore di apertura con «Riprova» |
 | `GameScreen` | `src/ui/GameScreen.tsx` | Salvataggio automatico, tempo fermo in secondo piano, chiusura della partita e ricompense |
 | `HomeScreen`, `ConfirmDialog` | `src/ui/HomeScreen.tsx`, `src/ui/ConfirmDialog.tsx` | Home: «Continua», conferme, errori di lettura |

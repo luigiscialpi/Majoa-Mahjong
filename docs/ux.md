@@ -20,7 +20,7 @@ Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa tem
 2. **Il percorso più frequente è un tocco.** Riprendere la partita è la scheda «Continua» in cima alla home, con livello, profilo, tempo trascorso e tessere rimaste.
 3. **Un'azione distruttiva dice cosa si perde.** La conferma nomina ciò che va perso («La partita del livello 20 (Normale, 4:12) andrà persa»), usa verbi al posto di «OK» («Continua quella», «Sostituisci») e ha come scelta predefinita quella sicura.
 4. **Il tempo del giocatore è suo.** Il tempo di gioco non corre quando l'app è in secondo piano.
-5. **Le ricompense si vedono.** Alla vittoria compaiono le stelle, «+N ✨», «Nuovo record!» e, se si apre un'isola, il regalo.
+5. **La scheda di vittoria nasce completa.** Le ricompense e i record si calcolano prima della scrittura su disco, così la scheda non cambia altezza quando termina il salvataggio. Il premio «+N» compare a destra delle stelle per due secondi: entra, sale leggermente e svanisce senza spostare il contenuto.
 6. **Un errore non è un blocco.** Un dato illeggibile dà un messaggio chiaro e una via d'uscita («Ricomincia»), senza far perdere ciò che si può salvare: i progressi restano separati dalla partita.
 7. **Lo stato si vede.** Il selettore mostra le stelle sotto ogni livello e il lucchetto spiega il motivo («Servono 40 ★ per aprire Animali»). L'interruttore «Modalità prova: tutti i livelli aperti» è acceso all'inizio, per continuare a provare livelli e profili.
 8. **Accessibile per costruzione.** Aree toccabili di almeno 48 dp, contrasto sufficiente, etichette per i lettori di schermo su ogni controllo, il colore mai come unica informazione, testi brevi nella lingua selezionata (italiano, inglese o francese).
@@ -43,6 +43,7 @@ Frasi brevi nella lingua selezionata, con il verbo dell'azione sul pulsante. Le 
 | `ConfirmDialog` | `src/ui/ConfirmDialog.tsx` | Conferma con pulsanti a verbo, uno per riga, scelta sicura in rilievo |
 | `levelStatus()` | `src/ui/levelStatus.ts` | Perché un livello è bloccato |
 | `LevelPicker` | `src/ui/LevelPicker.tsx` | Selettore provvisorio con stelle, lucchetti col motivo e «Modalità prova» |
+| Scheda di vittoria | `src/ui/GameScreen.tsx` | Stelle centrate e premio «+N» temporaneo a destra; l'esito è già calcolato prima della scrittura su disco |
 
 ## Vincoli e scartato
 
@@ -56,7 +57,8 @@ Frasi brevi nella lingua selezionata, con il verbo dell'azione sul pulsante. Le 
 ## Verifica
 
 - **Coperto da test**: nulla di questo capitolo come insieme; i testi delle partite sono provati da `src/ui/messages.test.ts` e `format.test.ts`.
-- **Non verificato**: tutti i principi sulla UI reale; nessuna schermata è stata provata su un dispositivo. Le aree da 48 dp sono controllate negli stili dei controlli (test), non misurate su dispositivo; contrasto e lettori di schermo non sono stati verificati.
+- **Verificato su dispositivo**: scheda di vittoria aggiornata via Metro su Redmi Note 9 Pro, livello 8, osservata senza input né riavvio; stelle centrate e posizione del premio a destra, catturata dopo la dissolvenza.
+- **Non verificato**: le aree da 48 dp non sono misurate su dispositivo, e contrasto e lettori di schermo non sono stati verificati.
 
 ## Collegamenti
 
