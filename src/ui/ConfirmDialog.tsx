@@ -1,4 +1,5 @@
 import { Modal, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './Button';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -10,9 +11,21 @@ export type DialogAction = { label: string; onPress: () => void; /** L'azione si
  * rilievo. Il tasto indietro di Android la chiude senza fare nulla (`onDismiss`).
  */
 export function ConfirmDialog({ title, body, actions, onDismiss, testID }: { title: string; body: string; actions: readonly DialogAction[]; onDismiss: () => void; testID?: string }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
-      <View style={styles.scrim} testID={testID}>
+      <View
+        style={[
+          styles.scrim,
+          {
+            paddingTop: Math.max(24, insets.top + 12),
+            paddingBottom: Math.max(24, insets.bottom + 12),
+            paddingLeft: Math.max(24, insets.left + 12),
+            paddingRight: Math.max(24, insets.right + 12),
+          },
+        ]}
+        testID={testID}
+      >
         <View style={styles.card} accessibilityViewIsModal>
           <Text style={styles.title} accessibilityRole="header">
             {title}

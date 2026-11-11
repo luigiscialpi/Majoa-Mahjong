@@ -154,7 +154,7 @@ Alternative a confronto:
 **Regole del layout.**
 - La tavola si adatta allo spazio della colonna (dimensione della tessera = minimo tra larghezza e altezza disponibili, proporzione 1 : 1,3). Il tetto della tessera è relativo alla larghezza della colonna, non un valore fisso in pixel; si calibra col prototipo.
 - Modali con larghezza massima fissa; griglie (menu livelli, album, sala rompicapi) con numero di colonne calcolato dalla larghezza della colonna.
-- Aree sicure con `react-native-safe-area-context` (già nella SDK); controlli con bersaglio minimo di 48 dp; per le tessere vale la regola di `hitTest` della sezione 4.
+- Expo Router fornisce `SafeAreaProvider`; home, selettore, partita ed errori di rotta rispettano gli inset di `react-native-safe-area-context`; i dialoghi mantengono almeno 24 dp dal bordo e aumentano il margine dove serve per barre di sistema e ritagli; controlli con bersaglio minimo di 48 dp; per le tessere vale la regola di `hitTest` della sezione 4.
 - Il blocco statico si configura in `app.json` (`orientation`, `ios.supportsTablet: true`, voci `infoPlist` per iPad); `expo-screen-orientation` si aggiunge solo se serve un blocco a runtime.
 
 **[Da validare] (prototipo S3).** (a) Su emulatore di tablet Android 16 (ad esempio Pixel Tablet) con `appCategory="game"`, la rotazione non viene imposta e la colonna resta stabile; (b) proporzioni della colonna (3:4) e tetto della tessera. iPad e iOS sono esclusi dal rilascio: il punto (b) del prototipo originale (TestFlight) non è più nel piano.

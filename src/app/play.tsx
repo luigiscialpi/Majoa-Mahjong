@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GameScreen } from '../ui/GameScreen';
 import { parsePlayParams } from '../ui/playParams';
 import { useSaves } from '../ui/SaveProvider';
@@ -10,6 +11,7 @@ import { useTranslation } from '../infrastructure/i18n';
  * `/play?resume=1` per riprendere quella salvata (livello e profilo vengono dal salvataggio).
  */
 export default function Play() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ level?: string; profile?: string; resume?: string }>();
   const router = useRouter();
   const { store, home, setProgress } = useSaves();
@@ -19,7 +21,17 @@ export default function Play() {
   const { level, profile } = resuming ? parsePlayParams(String(resuming.info.levelId), resuming.info.profile) : parsePlayParams(params.level, params.profile);
   if (!level || !home.progress.ok) {
     return (
-      <View style={styles.missing}>
+      <View
+        style={[
+          styles.missing,
+          {
+            paddingTop: insets.top + 24,
+            paddingBottom: insets.bottom + 24,
+            paddingLeft: insets.left + 24,
+            paddingRight: insets.right + 24,
+          },
+        ]}
+      >
         <Text style={styles.missingText}>{t(level ? 'progressReadErrorTitle' : 'levelNotFound')}</Text>
       </View>
     );
