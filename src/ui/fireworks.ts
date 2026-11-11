@@ -5,11 +5,11 @@
 // Costo: l'originale arriva a circa 700 scintille e 500 coriandoli vivi insieme, disegnati uno per uno su un canvas 2D. Qui
 // ogni primitiva costa una chiamata a Skia dal thread UI, e il profilo sul Redmi mostra che bastano poche decine di primitive
 // per aumentare i frame lenti (`docs/rendering.md`). Per questo lo spettacolo ha un budget fisso (costanti `BUDGET` sotto, da
-// tarare con il profilo A/B), è finito, si aggiorna a 30 fotogrammi al secondo e si disegna a lotti: una sola chiamata per
+// tarare con il profilo A/B), è finito, si aggiorna a 60 fotogrammi al secondo e si disegna a lotti: una sola chiamata per
 // colore e livello di dissolvenza, non una per particella.
 
 /** Aggiornamenti al secondo: il disegno si rifà a ogni passo, non a ogni fotogramma dello schermo. */
-export const FPS = 30;
+export const FPS = 60;
 export const FRAME_MS = 1000 / FPS;
 /** Passo del fotogramma dell'originale (60 al secondo): le formule fisiche sono quelle dell'originale a questo passo. */
 const DT = 1 / 60;

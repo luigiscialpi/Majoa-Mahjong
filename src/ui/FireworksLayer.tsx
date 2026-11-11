@@ -6,7 +6,7 @@ import { FIREWORKS_COLORS, advanceClock, drawFireworks, makeShow, type Fireworks
 
 // Fuochi d'artificio della vittoria (`startFx`, riga 2264 dell'originale) su un canvas Skia trasparente a tutta schermata,
 // dietro la scheda. Stessa regola delle scintille (`SparkLayer`): un solo nodo `Picture` e un solo valore derivato, qualunque
-// sia il numero di particelle; qui in più il disegno si rifà a 30 passi al secondo (`FPS`) e a lotti (`drawFireworks`).
+// sia il numero di particelle; qui in più il disegno si rifà a 60 passi al secondo (`FPS`) e a lotti (`drawFireworks`).
 // Lo spettacolo è finito: a fine animazione il canvas si smonta e non costa più nulla.
 
 const ENUMS: FireworksEnums = { lines: PointMode.Lines, round: StrokeCap.Round, butt: StrokeCap.Butt };
@@ -25,7 +25,7 @@ function FireworksCanvas({ show }: { show: Show }) {
   const pen = useSharedValue(useMemo(buildPen, []));
   const clock = useSharedValue(0);
   const acc = useSharedValue(0);
-  // L'orologio avanza a passi di `FRAME_MS`: il valore derivato (e con lui il disegno) cambia 30 volte al secondo.
+  // L'orologio avanza a passi di `FRAME_MS`: il valore derivato (e con lui il disegno) segue `FPS`.
   useFrameCallback((frame) => {
     const next = advanceClock(clock.value, acc.value, frame.timeSincePreviousFrame ?? 0);
     acc.value = next.accMs;

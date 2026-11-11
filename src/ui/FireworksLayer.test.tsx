@@ -101,11 +101,11 @@ describe('FireworksLayer', () => {
   test('l\'orologio avanza a passi interi e il disegno è lo stesso entro un passo', async () => {
     await render(<FireworksLayer level={5} finale={false} reduced={false} />);
     await layout();
-    await advance(1010); // 30 passi e 10 ms avanzati: l'orologio sta a 1000 ms
+    await advance(1010); // 60 passi e 10 ms avanzati: l'orologio sta a 1000 ms
     const a = JSON.stringify(drawn().calls);
-    await advance(10); // 20 ms avanzati: ancora meno di un passo (33,3 ms), non cambia nulla
+    await advance(6); // 16 ms avanzati: ancora meno di un passo (16,7 ms), non cambia nulla
     expect(JSON.stringify(drawn().calls)).toBe(a);
-    await advance(14); // 34 ms avanzati: un passo completo
+    await advance(1); // 17 ms avanzati: un passo completo
     expect(JSON.stringify(drawn().calls)).not.toBe(a);
   });
 

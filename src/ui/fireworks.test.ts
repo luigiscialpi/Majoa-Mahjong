@@ -225,7 +225,7 @@ describe('budget', () => {
   // Sono scelte dell'app, non dell'originale (`docs/gioco-originale.md`): cambiarle è una decisione da riportare nei documenti.
   test('i valori sono quelli documentati', () => {
     expect(BUDGET).toEqual({ sparkBase: 24, sparkPerLevel: 2, sparkReduced: 26, confettiBase: 24, confettiPerLevel: 2, confettiPerSecond: 30, maxLiveSparks: 300, maxLiveConfetti: 200 });
-    expect(FPS).toBe(30);
+    expect(FPS).toBe(60);
   });
 });
 
@@ -415,20 +415,20 @@ describe('drawFireworks: lotti di disegno', () => {
 
 describe('advanceClock', () => {
   test('il tempo reale si accumula e l\'orologio avanza a passi interi di FRAME_MS', () => {
-    expect(FPS).toBe(30);
+    expect(FPS).toBe(60);
     let state = { clockMs: 0, accMs: 0 };
     const seen: number[] = [];
     for (let i = 0; i < 12; i++) {
-      state = advanceClock(state.clockMs, state.accMs, 1000 / 60); // schermo a 60 Hz: un passo ogni due fotogrammi
+      state = advanceClock(state.clockMs, state.accMs, 1000 / 60); // schermo a 60 Hz: un passo per fotogramma
       seen.push(Math.round(state.clockMs * 1000) / 1000);
     }
-    expect(seen).toEqual([0, 33.333, 33.333, 66.667, 66.667, 100, 100, 133.333, 133.333, 166.667, 166.667, 200]);
+    expect(seen).toEqual([16.667, 33.333, 50, 66.667, 83.333, 100, 116.667, 133.333, 150, 166.667, 183.333, 200]);
   });
 
   test('dopo un fotogramma lento recupera il tempo perso, senza rallentare lo spettacolo', () => {
     const state = advanceClock(0, 0, 100);
-    expect(state.clockMs).toBeCloseTo(3 * FRAME_MS, 9);
-    expect(state.accMs).toBeCloseTo(100 - 3 * FRAME_MS, 9);
+    expect(state.clockMs).toBeCloseTo(6 * FRAME_MS, 9);
+    expect(state.accMs).toBeCloseTo(100 - 6 * FRAME_MS, 9);
   });
 
   test('nel lungo periodo l\'orologio non si discosta dal tempo reale più di un passo', () => {
