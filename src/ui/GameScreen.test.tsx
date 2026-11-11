@@ -48,8 +48,19 @@ jest.mock('./ComboBanner', () => {
   };
 });
 
+jest.mock('./FireworksLayer', () => {
+  const React = require('react');
+  return {
+    FireworksLayer: (props: unknown) => {
+      (globalThis as { __fireworks?: unknown }).__fireworks = props;
+      return React.createElement('View', { testID: 'fireworks-layer' });
+    },
+  };
+});
+
 beforeEach(() => {
   jest.useFakeTimers();
+  (globalThis as { __fireworks?: unknown }).__fireworks = undefined;
   jest.spyOn(Math, 'random').mockReturnValue(0.123);
   (globalThis as { __sparks?: unknown }).__sparks = undefined;
   (globalThis as { __banners?: unknown }).__banners = [];
@@ -624,6 +635,39 @@ describe('GameScreen: salvataggi', () => {
       expect(texts()).toContain('superato!');
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(await savedGame(store)).toBeNull();
+    });
+
+    test('la vittoria mostra i fuochi d\'artificio dietro la scheda: comuni, da finale al livello 20', async () => {
+      const fireworks = () => (globalThis as unknown as { __fireworks?: { level: number; finale: boolean; reduced: boolean } }).__fireworks;
+      await mount(1, 'normal');
+      expect(fireworks()).toBeUndefined(); // durante la partita nessun fuoco
+      await mount(1, 'normal', { resume: wonSession(1, 'normal') });
+      await flush();
+      expect(fireworks()).toEqual({ level: 1, finale: false, reduced: false });
+      // Tra lo sfondo scuro e la scheda: nell'albero il canvas dei fuochi precede il titolo della scheda.
+      const flat: { type: string; props: Record<string, unknown> }[] = [];
+      const walk = (n: unknown): void => {
+        if (!n || typeof n !== 'object') return;
+        if (Array.isArray(n)) return n.forEach(walk);
+        const node = n as { type: string; props: Record<string, unknown>; children?: unknown };
+        flat.push(node);
+        walk(node.children);
+      };
+      walk(screen.toJSON());
+      const at = (pred: (n: (typeof flat)[number]) => boolean) => flat.findIndex(pred);
+      expect(at((n) => n.props.testID === 'fireworks-layer')).toBeGreaterThan(-1);
+      expect(at((n) => n.props.testID === 'fireworks-layer')).toBeLessThan(at((n) => n.props.testID === 'btn-restart'));
+      await screen.unmount();
+      await mount(20, 'normal', { resume: wonSession(20, 'normal') });
+      await flush();
+      expect(fireworks()).toEqual({ level: 20, finale: true, reduced: false });
+    });
+
+    test('con la riduzione del movimento del sistema i fuochi sono ridotti (non spenti, come nell\'originale)', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValueOnce(true);
+      await mount(1, 'normal', { resume: wonSession(1, 'normal') });
+      await flush();
+      expect((globalThis as unknown as { __fireworks?: { reduced: boolean } }).__fireworks?.reduced).toBe(true);
     });
 
     test('la scheda di vittoria interpola il conteggio delle tessere d’oro', async () => {

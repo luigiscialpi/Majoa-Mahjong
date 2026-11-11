@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
+import { finaleOf } from '../application/finale';
 import { createAutosaver, finishWin, type Rewards } from '../application/saveFlow';
 import type { SaveError } from '../application/saveFormat';
 import type { SaveStore } from '../application/saveStore';
@@ -12,11 +13,12 @@ import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
 import { blockersOf } from '../domain/geometry';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
-import { legacyIslands } from '../infrastructure/content/legacyIslands';
+import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
 import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
+import { FireworksLayer } from './FireworksLayer';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
@@ -403,7 +405,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         {session.phase === 'won' && session.outcome ? (
-          <Overlay>
+          <Overlay behind={<FireworksLayer level={level.id} finale={finaleOf(level.id, islands, trisLevelIds) !== null} reduced={!fxOn} />}>
             <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: level.id })}</Text>
             <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
             <Text style={styles.overlayLine}>{tl('winTime', { t: formatTime(session.outcome.seconds) })}</Text>
@@ -444,9 +446,11 @@ function AidButton({ label, icon, left, onPress, testID }: { label: string; icon
   );
 }
 
-function Overlay({ children }: { children: React.ReactNode }) {
+/** `behind` sta tra lo sfondo scuro e la scheda (i fuochi d'artificio della vittoria). */
+function Overlay({ children, behind }: { children: React.ReactNode; behind?: React.ReactNode }) {
   return (
     <View style={styles.overlay}>
+      {behind}
       <View style={styles.card}>{children}</View>
     </View>
   );

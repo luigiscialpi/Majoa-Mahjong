@@ -14,6 +14,8 @@ const recordingCanvas = (calls) => ({
   scale: (x, y) => calls.push(['scale', x, y]),
   drawPath: (path, paint) =>
     calls.push(['drawPath', path.d, { color: paint.color, style: paint.style, strokeWidth: paint.strokeWidth, alpha: paint.alpha }]),
+  drawPoints: (mode, points, paint) =>
+    calls.push(['drawPoints', mode, points.length, { color: paint.color, strokeWidth: paint.strokeWidth, alpha: paint.alpha, cap: paint.cap }]),
 });
 
 module.exports = {
@@ -39,6 +41,8 @@ module.exports = {
   }),
   usePaint: () => ({}),
   PaintStyle: { Fill: 0, Stroke: 1 },
+  PointMode: { Points: 0, Lines: 1, Polygon: 2 },
+  StrokeCap: { Butt: 0, Round: 1, Square: 2 },
   createPicture: (draw, size) => {
     const calls = [];
     draw(recordingCanvas(calls));
@@ -51,6 +55,7 @@ module.exports = {
       style: 0,
       strokeWidth: 0,
       alpha: 1,
+      cap: 0,
       setAntiAlias() {},
       setColor(c) {
         this.color = c;
@@ -60,6 +65,9 @@ module.exports = {
       },
       setStrokeWidth(w) {
         this.strokeWidth = w;
+      },
+      setStrokeCap(c) {
+        this.cap = c;
       },
       setAlphaf(a) {
         this.alpha = a;
