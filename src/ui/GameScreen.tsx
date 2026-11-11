@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,7 @@ import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 import { useTranslation } from '../infrastructure/i18n';
 import type { SkSVG } from '@shopify/react-native-skia';
+import { AppIcon, type AppIconName } from './AppIcon';
 
 const REMOVE_MS = 250;
 const RESCUE_DELAY_MS = 1100;
@@ -404,9 +405,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         <View style={styles.bar}>
-          <AidButton label={tl('hint')} icon="💡" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
-          <AidButton label={tl('undo')} icon="↶" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
-          <AidButton label={tl('shuffle')} icon="🔀" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
+          <AidButton label={tl('hint')} icon="help" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
+          <AidButton label={tl('undo')} icon="undo" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
+          <AidButton label={tl('shuffle')} icon="shuffle" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
         </View>
 
         {session.phase === 'won' && session.outcome ? (
@@ -497,12 +498,12 @@ function WinCoinReward({ coins, animated }: { coins: number; animated: boolean }
   );
 }
 
-function AidButton({ label, icon, left, onPress, testID }: { label: string; icon: string; left: number | null; onPress: () => void; testID: string }) {
+function AidButton({ label, icon, left, onPress, testID }: { label: string; icon: AppIconName; left: number | null; onPress: () => void; testID: string }) {
   const empty = left !== null && left <= 0;
   const { t } = useTranslation();
   return (
     <Pressable onPress={onPress} style={[styles.aid, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
-      <Text style={styles.aidIcon}>{icon}</Text>
+      <View style={styles.aidIcon}><AppIcon name={icon} /></View>
       <Text style={styles.aidLabel}>{label}</Text>
       <Text style={styles.aidCount}>{aidText(left)}</Text>
     </Pressable>
@@ -510,7 +511,7 @@ function AidButton({ label, icon, left, onPress, testID }: { label: string; icon
 }
 
 /** `behind` sta tra lo sfondo scuro e la scheda (i fuochi d'artificio della vittoria). */
-function Overlay({ children, behind }: { children: React.ReactNode; behind?: React.ReactNode }) {
+function Overlay({ children, behind }: { children: ReactNode; behind?: ReactNode }) {
   return (
     <View style={styles.overlay}>
       {behind}
@@ -546,9 +547,9 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 12, paddingVertical: 10 },
   aid: { minWidth: 92, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.panel, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   aidEmpty: { opacity: 0.45 },
-  aidIcon: { fontSize: 20, color: colors.ink },
+  aidIcon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   aidLabel: { color: colors.inkSoft, fontSize: 12, marginTop: 2, fontFamily: fontFamilies.body },
-  aidCount: { color: colors.ink, fontSize: 14, fontFamily: fontFamilies.title },
+  aidCount: { color: colors.ink, fontSize: 16, lineHeight: 20, fontFamily: fontFamilies.title },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 360, borderRadius: 20, backgroundColor: colors.feltB, borderWidth: 2, borderColor: colors.accent, padding: 24, alignItems: 'center', gap: 8 },
   overlayTitle: { color: colors.accent, fontSize: 22, fontFamily: fontFamilies.title },

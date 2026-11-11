@@ -10,12 +10,14 @@ import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 import { useTranslation, type Language } from '../infrastructure/i18n';
+import { AppIcon } from './AppIcon';
 
 /** Quanto resta visibile il motivo di un lucchetto. */
 export const REASON_MS = 4000;
 
 const LANGS: readonly Language[] = ['it', 'en', 'fr'];
-const LANG_LABELS: Record<Language, string> = { it: '🇮🇹 IT', en: '🇬🇧 EN', fr: '🇫🇷 FR' };
+const LANG_LABELS: Record<Language, string> = { it: 'IT', en: 'EN', fr: 'FR' };
+const LANG_NAMES: Record<Language, string> = { it: 'Italiano', en: 'English', fr: 'Français' };
 
 export type LevelPickerProps = {
   progress: Progress;
@@ -50,6 +52,7 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
               onPress={() => setLang(l)}
               style={[styles.langChip, l === lang ? styles.langChipOn : null]}
               accessibilityRole="button"
+              accessibilityLabel={LANG_NAMES[l]}
               accessibilityState={{ selected: l === lang }}
               testID={`lang-${l}`}
             >
@@ -75,7 +78,8 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
         </View>
         {reason ? (
           <View style={styles.reason} accessibilityRole="alert" accessibilityLiveRegion="polite" testID="level-reason">
-            <Text style={styles.reasonText}>🔒 {reason.text}</Text>
+            <AppIcon name="lock" size={16} color={colors.accent} />
+            <Text style={styles.reasonText}>{reason.text}</Text>
           </View>
         ) : null}
         <FlatList
@@ -102,7 +106,10 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
                 accessibilityLabel={label}
                 testID={`level-${item.id}`}
               >
-                <Text style={[styles.levelText, status.open ? null : styles.levelTextLocked]}>{status.open ? item.id : `🔒 ${item.id}`}</Text>
+                <View style={styles.levelNumber}>
+                  {status.open ? null : <AppIcon name="lock" size={13} color="rgba(255,255,255,0.55)" />}
+                  <Text style={[styles.levelText, status.open ? null : styles.levelTextLocked]}>{item.id}</Text>
+                </View>
                 {status.open ? <Text style={styles.stars}>{starsText(stars)}</Text> : null}
               </Pressable>
             );
@@ -129,14 +136,15 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.ink },
   prova: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 16, marginBottom: 8 },
   provaText: { flex: 1, fontSize: 14, color: colors.ink, fontFamily: fontFamilies.body },
-  reason: { marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.panelHeavy },
-  reasonText: { color: colors.ink, fontSize: 14, textAlign: 'center', fontFamily: fontFamilies.bodyBold },
+  reason: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.panelHeavy },
+  reasonText: { flex: 1, color: colors.ink, fontSize: 14, textAlign: 'left', fontFamily: fontFamilies.bodyBold },
   grid: { paddingHorizontal: 12, paddingBottom: 16, gap: 8 },
   gridRow: { gap: 8 },
   level: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#f6edd2' },
   levelTris: { backgroundColor: '#ffe9cb' },
   levelLocked: { backgroundColor: 'rgba(0,0,0,0.35)' },
   levelPressed: { opacity: 0.7 },
+  levelNumber: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   levelText: { fontSize: 16, color: colors.edge2, fontFamily: fontFamilies.title },
   levelTextLocked: { color: 'rgba(255,255,255,0.45)' },
   stars: { fontSize: 11, color: '#c48900', marginTop: 2, fontFamily: fontFamilies.title },

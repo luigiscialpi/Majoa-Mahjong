@@ -279,7 +279,7 @@ describe('GameScreen', () => {
     expect(remaining).toBeGreaterThan(10);
     expect(texts()).not.toContain('rimescolo le tessere'); // prima dell'avviso non è ancora successo nulla
     advance(1100);
-    expect(texts()).toContain('Nessuna mossa: rimescolo le tessere per te! 🔀');
+    expect(texts()).toContain('Nessuna mossa: rimescolo le tessere per te.');
     expect(freePair()).not.toBeNull();
     expect(board().tiles.length - board().gone.size).toBe(remaining);
   });
@@ -290,7 +290,7 @@ describe('GameScreen', () => {
     await mount(10);
     expect(playUntilStuck()).toBe(4);
     advance(1100);
-    expect(texts()).toContain('Nessuna mossa: usa Annulla ↩️');
+    expect(texts()).toContain('Nessuna mossa: usa Annulla');
     expect(texts()).not.toContain('usa Mescola');
     advance(2100);
     press('btn-undo');
@@ -577,7 +577,7 @@ describe('GameScreen: salvataggi', () => {
       expect(await store.loadProgress()).toEqual({ ok: true, value: progress });
       expect(texts()).toMatch(/[★☆]{3}/);
       const coins = progress.coins - newProgress().coins;
-      if (coins > 0) expect(texts()).toContain(`+${coins} ✨`);
+      if (coins > 0) expect(texts()).toContain(`+${coins}`);
       expect(texts()).not.toContain('Nuovo record!');
       expect(texts()).not.toContain('Non riesco a salvare');
     });
@@ -609,7 +609,7 @@ describe('GameScreen: salvataggi', () => {
       const { onProgress } = await mount(1, 'normal', { progress: before, islands });
       playToEnd();
       await flush();
-      expect(texts()).toContain('Animali è aperta! Regalo: +3 ✨');
+      expect(texts()).toContain('Animali è aperta! Regalo: +3 monete');
       expect(onProgress.mock.calls[0][0].giftsOpened).toEqual(['animals']);
     });
 
@@ -621,7 +621,7 @@ describe('GameScreen: salvataggi', () => {
       await flush();
       playToEnd();
       await flush();
-      expect(texts()).toContain('⚠ Non riesco a salvare i progressi');
+      expect(texts()).toContain('Non riesco a salvare i progressi');
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(await savedGame(base)).not.toBeNull();
     });
@@ -675,7 +675,7 @@ describe('GameScreen: salvataggi', () => {
       expect(session.outcome).toMatchObject({ gold: 1, goldTotal: 1 });
       await mount(23, 'easy', { resume: session });
       await flush();
-      expect(texts()).toContain("✨ Tessere d'oro: 1/1");
+      expect(texts()).toContain("Tessere d'oro: 1/1");
     });
 
     test('una partita ricostruita già bloccata cancella la partita salvata', async () => {
@@ -709,7 +709,7 @@ describe('GameScreen: salvataggi', () => {
       advance(300);
       playPair(freePair()!);
       await flush();
-      expect(texts()).toContain('⚠ Non riesco a salvare la partita');
+      expect(texts()).toContain('Non riesco a salvare la partita');
       expect(texts()).toContain(`${legacyLevels[0].cells.length - 4} coppie`);
       // La causa va nei log, a ogni errore: sullo schermo l'avviso non la dice.
       expect(warn.mock.calls).toEqual([

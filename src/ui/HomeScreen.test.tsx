@@ -321,7 +321,7 @@ describe('progressi illeggibili', () => {
     await press('btn-progress-reset');
     const t = texts();
     expect(t).toContain('Cancellare tutto?');
-    expect(t).toContain('Perderai stelle, record e ✨.');
+    expect(t).toContain('Perderai stelle, record e monete.');
     await press('btn-reset-cancel');
     expect(has('reset-dialog')).toBe(false);
     expect((await store.loadProgress()).ok).toBe(false);

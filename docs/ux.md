@@ -23,7 +23,7 @@ Ogni scelta visibile al giocatore si ragiona su tre domande: cosa vede, cosa tem
 5. **La scheda di vittoria nasce completa.** Le ricompense e i record si calcolano prima della scrittura su disco, così la scheda non cambia altezza quando termina il salvataggio. Il premio «+N» compare a destra delle stelle per due secondi: entra, sale leggermente e svanisce senza spostare il contenuto.
 6. **Un errore non è un blocco.** Un dato illeggibile dà un messaggio chiaro e una via d'uscita («Ricomincia»), senza far perdere ciò che si può salvare: i progressi restano separati dalla partita.
 7. **Lo stato si vede.** Il selettore mostra le stelle sotto ogni livello e il lucchetto spiega il motivo («Servono 40 ★ per aprire Animali»). L'interruttore «Modalità prova: tutti i livelli aperti» è acceso all'inizio, per continuare a provare livelli e profili.
-8. **Accessibile per costruzione.** Aree toccabili di almeno 48 dp, contrasto sufficiente, etichette per i lettori di schermo su ogni controllo, il colore mai come unica informazione, testi brevi nella lingua selezionata (italiano, inglese o francese).
+8. **Accessibile per costruzione.** Aree toccabili di almeno 48 dp, contrasto sufficiente, etichette per i lettori di schermo su ogni controllo, il colore mai come unica informazione, testi brevi nella lingua selezionata (italiano, inglese o francese). Le icone di controllo hanno uno stile monocromatico coerente; le traduzioni non usano emoji decorative. I glifi `★☆` restano il simbolo testuale del punteggio.
 
 ### Testi
 

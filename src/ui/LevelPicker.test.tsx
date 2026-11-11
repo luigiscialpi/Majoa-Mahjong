@@ -59,7 +59,7 @@ test('etichetta Tris e motivo di sblocco seguono la lingua selezionata', async (
   expect(label(91)).toBe('Level 91 (Triples), 0 stars out of 3');
   await toggle(false);
   await press('level-21');
-  expect(reason()).toBe('🔒 Need 40 ★ to open Animals');
+  expect(reason()).toBe('Need 40 ★ to open Animals');
 });
 
 test('il profilo scelto vale per i livelli toccati dopo', async () => {
@@ -97,11 +97,11 @@ describe('modalità prova', () => {
     await press('level-1');
     expect(calls).toEqual([1]);
     await press('level-2');
-    expect(reason()).toBe('🔒 Vinci il livello 1 per aprire questo');
+    expect(reason()).toBe('Vinci il livello 1 per aprire questo');
     await press('level-21');
-    expect(reason()).toBe('🔒 Servono 40 ★ per aprire Animali');
+    expect(reason()).toBe('Servono 40 ★ per aprire Animali');
     await press('level-91');
-    expect(reason()).toBe('🔒 Si sbloccano più avanti');
+    expect(reason()).toBe('Si sbloccano più avanti');
     expect(calls).toEqual([1]);
   });
 
@@ -123,7 +123,7 @@ describe('progressi nel selettore', () => {
     expect(t).toContain('★★★');
     expect(t).toContain('★☆☆');
     expect(t).toContain('☆☆☆');
-    expect(t).toContain('🔒 21');
+    expect(t).toContain('21');
     const level21Text = extractTexts(screen.getByTestId('level-21')).join('');
     expect(level21Text).not.toMatch(/[★☆]/);
   });
@@ -172,7 +172,7 @@ describe('lucchetti accessibili e motivo', () => {
       await act(async () => {
         jest.advanceTimersByTime(REASON_MS - 1);
       });
-      expect(reason()).toBe('🔒 Servono 40 ★ per aprire Animali');
+      expect(reason()).toBe('Servono 40 ★ per aprire Animali');
       await act(async () => {
         jest.advanceTimersByTime(1);
       });
