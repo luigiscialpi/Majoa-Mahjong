@@ -139,6 +139,13 @@ Scelte visibili al giocatore, tutte approvate e costruite (la 3, la 6 e la 8 nel
 - **Come eseguirli**: `npx jest src/application src/domain/fingerprint src/infrastructure/storage src/infrastructure/content/legacySave` (Node 22.13 o successivo per l'archivio SQLite).
 - **Verificato su dispositivo (Redmi Note 9 Pro, Android)**: persistenza su SQLite reale (`files/SQLite/majoa.db`) verificata riaprendo l'app dopo chiusura forzata; scheda «Continua» (tempo, livello, profilo, tessere) e ripresa fedele della partita; pausa del tempo quando l'app è in secondo piano; finestra di conferma per sostituzione partita («Continua quella» e «Sostituisci»); vittoria del livello 1 con stelle salvate e mostrate nel selettore; vittoria del livello 23 Facile con una stella e `+4 ✨`, stella confermata nel selettore; selettore dei livelli con lucchetti, «Modalità prova» e motivo a scomparsa temporizzata (4 s).
 - **Non verificato**: tablet e pieghevoli; contrasto e TalkBack; `extraData` del selettore, che nel renderer di test non cambia il risultato. Per l'originale, sezione 12 di `docs/gioco-originale.md`, letta dal codice.
+- **Da provare: `NullPointerException` su `NativeDatabase.prepareAsync` (Android)**. Errore intermittente, visto anche all'avvio a freddo dopo chiusura forzata; la causa non è accertata. In `expo-sqlite` 57.0.4 la connessione si apre in modo sincrono (`sqlite3_open` nel costruttore nativo) e `openDatabaseAsync` attende anche `initAsync`: l'ipotesi «connessione non ancora pronta» non regge e un'attesa o un backoff non la risolvono. L'ipotesi da verificare è un `NativeDatabase` già rilasciato (`sharedObjectDidRelease` chiama `HybridData.resetNative`). Prima di toccare `expoSqliteDatabase.ts`:
+  1. catturare lo stack completo con `adb logcat` (tag `AndroidRuntime`, `ReactNativeJS`, `ExpoModulesCore`) e aggiungere un log all'apertura, per essere certi che giri il bundle aggiornato;
+  2. avvio a freddo dopo chiusura forzata con dati già presenti, in build di sviluppo e in build `--no-dev`;
+  3. Fast Refresh con `SaveProvider` e `SettingsProvider` che aprono insieme lo stesso file;
+  4. confronto tra connessione condivisa (`openDatabaseAsync(name)`) e `useNewConnection: true`.
+
+  Un retry automatico si aggiunge solo dopo queste prove: sull'intera transazione (mai sulla singola operazione dentro una transazione), con un solo reset per guasto, chiudendo la connessione scartata e senza lasciare in cache un'apertura fallita. Si prova con un test su `expo-sqlite` simulato.
 
 ## Collegamenti
 

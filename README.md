@@ -198,3 +198,4 @@ Ordine di lavoro: per vedere presto l'app giocabile si porta prima l'interfaccia
 - `TO DO`: scelta del profilo per partita (fatta la migliore stella, record di tempo e profilo più alto battuto per livello).
 - `TO DO`: dettagli della schermata rispetto all'originale (tessere che bloccano, suoni e animazioni): l'inventario completo è in `docs/resa-visiva.md`.
 - `TO DO`: spostare in `tools/` gli script di esportazione dei livelli e dell'audio; capitoli di audio, pubblicità e contenuti OTA.
+- `TO DO`: `NullPointerException` su `NativeDatabase.prepareAsync` (Android, intermittente), causa da accertare con le prove elencate in `docs/salvataggi.md`, sezione «Verifica», «Da provare».
