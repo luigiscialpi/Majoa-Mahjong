@@ -45,6 +45,7 @@ Le 129 tessere sono SVG esportati una volta dall'originale (`prototipi/s1-render
 - **Nessun `<text>`**: SkSVG non lo disegna. Lettere, numeri e simboli (A M 7 3 K Z 5 9 π ∞ √) sono convertiti in tracciati; i font usati, Poppins Bold e DejaVu Serif Bold, sono provvisori e la scelta finale è una decisione di grafica (`TO DO`).
 - **Solo `viewBox`, mai `width` e `height` fissi**: con attributi fissi SkSVG ignora la dimensione richiesta e disegna sempre 60 × 80.
 - **Ritaglio sul riquadro**: il browser ritaglia sul `viewBox`, SkSVG no, e 10 disegni sporgono (per esempio il koala). `SvgAt` ritaglia sul riquadro del disegno.
+- **Archi SVG (`A`) convertiti in curve cubiche (`C`)**: Skia su Android può interpretare in modo ambiguo i flag di sweep/arco maggiore negli archi complessi (come nella luna `028.svg`), causando ribaltamenti della forma; la conversione in curve di Bézier cubiche garantisce resa identica e deterministica.
 - **`ImageSVG` con x o y a zero** ignora la posizione (`if (x && y)` nel player di Skia): si trasla con un `Group` (`SvgAt`).
 
 ### Quale disegno per ogni tessera
