@@ -2,17 +2,21 @@
 // Uso: node tools/export-mascots.js "<percorso di Majoa Mahjong.html>"   (dalla radice del progetto)
 // Scrive assets/mascots/<id>.svg e src/infrastructure/content/mascotSources.ts. Le mascotte nell'originale (`MASCOTS`, riga 821)
 // sono funzioni che compongono stringhe SVG: si estrae il blocco dalle funzioni di disegno (`mp`, `ml`, `mn`, `me`, `almond`)
-// a `mascotSvg` e lo si esegue in un contesto isolato, senza DOM né browser. Il modulo esporta anche `extract`, che usa il test
-// che confronta i file con l'originale.
+// a `mascotSvg` e lo si esegue in un contesto isolato, senza DOM né browser. Ai disegni si applicano i ritocchi di
+// `tools/mascot-refinements.js`. Il modulo esporta anche `extract`, che usa il test che confronta i file con l'originale.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { refine } = require('./mascot-refinements.js');
 
 const START = 'var MK=';
 const END = 'function mascotSvg(';
 
-/** Esegue il blocco delle mascotte dell'originale e restituisce `{ id: { viewBox, svg } }` nell'ordine dell'originale. */
-function extract(htmlPath) {
+/**
+ * Esegue il blocco delle mascotte dell'originale e restituisce `{ id: { viewBox, svg } }` nell'ordine dell'originale, con i
+ * ritocchi di `tools/mascot-refinements.js`; con `{ refined: false }` i disegni dell'originale, tali e quali.
+ */
+function extract(htmlPath, { refined = true } = {}) {
   const html = fs.readFileSync(htmlPath, 'utf8');
   const start = html.indexOf(START);
   const end = html.indexOf(END);
@@ -22,7 +26,8 @@ function extract(htmlPath) {
   for (const [id, m] of Object.entries(mascots)) {
     if (typeof m.vb !== 'string' || typeof m.art !== 'string' || m.art.length === 0) throw new Error(`mascotte «${id}» non valida`);
     // Solo `viewBox`, mai `width` e `height` fissi: con attributi fissi SkSVG ignora la dimensione richiesta (`docs/rendering.md`).
-    out[id] = { viewBox: m.vb, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${m.vb}">${m.art}</svg>` };
+    const art = refined ? refine(id, m.art) : m.art;
+    out[id] = { viewBox: m.vb, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${m.vb}">${art}</svg>` };
   }
   return out;
 }
