@@ -95,6 +95,7 @@ export type Locale = {
   tBlockBoth: string;
   setCf: string;
   setCfHint: string;
+  comfortBadge: string;
   pauseShort: string;
   tNoMatchFree: string;
   mapTitle: string;

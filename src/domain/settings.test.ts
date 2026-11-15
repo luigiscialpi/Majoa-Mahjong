@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
+import { DEFAULT_SETTINGS, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
 
 describe('impostazioni (dominio)', () => {
   test('DEFAULT_SETTINGS ha valori predefiniti fedeli all\'originale', () => {
@@ -79,5 +79,27 @@ describe('impostazioni (dominio)', () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings('')).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings('{ json corrotto')).toEqual(DEFAULT_SETTINGS);
+  });
+
+  describe('effectiveSettings', () => {
+    test('con comfort=false restituisce le impostazioni inalterate', () => {
+      const s: Settings = { ...DEFAULT_SETTINGS, comfort: false, highlightEqual: false };
+      expect(effectiveSettings(s)).toBe(s);
+    });
+
+    test('con comfort=true attiva noTimeLimit, bigUi e autoHint ma NON highlightEqual', () => {
+      const s: Settings = { ...DEFAULT_SETTINGS, comfort: true, highlightEqual: false, noTimeLimit: false };
+      const eff = effectiveSettings(s);
+      expect(eff.noTimeLimit).toBe(true);
+      expect(eff.bigUi).toBe(true);
+      expect(eff.autoHint).toBe(true);
+      expect(eff.highlightEqual).toBe(false); // non forzato
+    });
+
+    test('con comfort=true e highlightEqual=true mantiene highlightEqual=true', () => {
+      const s: Settings = { ...DEFAULT_SETTINGS, comfort: true, highlightEqual: true };
+      const eff = effectiveSettings(s);
+      expect(eff.highlightEqual).toBe(true);
+    });
   });
 });

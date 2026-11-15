@@ -66,4 +66,25 @@ describe('campagna dell\'originale', () => {
     expect(unsolvable).toEqual([]);
     expect(unknown.length <= 5 ? [] : unknown).toEqual([]);
   });
+
+  test('in Modalità comoda i livelli 1-20 usano i layout COMFORT, tipi ridotti e nessun limite di aiuti', () => {
+    const expectedCounts = [
+      16, 20, 20, 30, 38, 42, 48, 54, 60, 62,
+      38, 42, 48, 54, 60, 56, 60, 62, 66, 72,
+    ];
+    for (let i = 0; i < 20; i++) {
+      const l = legacyLevels[i];
+      const spec = toSpec(l, { comfort: true });
+      expect(spec.cells.length).toBe(expectedCounts[i]);
+      expect(spec.types).toBe(Math.max(6, Math.min(l.poolSize, Math.round(l.types * 0.7))));
+      expect(spec.fog).toBe(0);
+      expect(spec.aids).toEqual({ hints: null, shuffles: null, undo: null });
+
+      const gen = generateLevel(spec, 42);
+      expect(gen.ok).toBe(true);
+      if (gen.ok) {
+        checkInvariants(spec, gen.value);
+      }
+    }
+  });
 });

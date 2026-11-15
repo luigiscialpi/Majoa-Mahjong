@@ -116,3 +116,23 @@ export function parseSettings(json: string | null | undefined): Settings {
 export function serializeSettings(settings: Settings): string {
   return JSON.stringify(settings);
 }
+
+/**
+ * Calcola le impostazioni effettive applicate al gameplay.
+ * Quando `comfort` è attivo:
+ * - disabilita il cronometro (`noTimeLimit: true`);
+ * - attiva testi e pulsanti ingranditi (`bigUi: true`);
+ * - attiva l'aiuto automatico dopo inattività (`autoHint: true`);
+ * - NON forza `highlightEqual` (resta opzione indipendente a discrezione dell'utente).
+ */
+export function effectiveSettings(settings: Settings): Settings {
+  if (!settings.comfort) {
+    return settings;
+  }
+  return {
+    ...settings,
+    noTimeLimit: true,
+    bigUi: true,
+    autoHint: true,
+  };
+}

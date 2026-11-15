@@ -10,9 +10,11 @@ import type { SaveStore } from '../application/saveStore';
 import { goldCount, isStuck, type Session } from '../application/session';
 import { gameColumn } from '../domain/board';
 import type { GameState } from '../domain/gameState';
+import { findMove } from '../domain/hint';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
 import { blockersOf } from '../domain/geometry';
+import { effectiveSettings } from '../domain/settings';
 import { useSettings } from './SettingsProvider';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
@@ -67,19 +69,34 @@ export type GameScreenProps = {
 export function GameScreen({ level, profile, onExit, store, progress, onProgress, resume, islands = legacyIslands, onOpenSettings }: GameScreenProps) {
   const [attempt, setAttempt] = useState(0);
   const { t } = useTranslation();
+  const { settings } = useSettings();
+  const effectiveS = effectiveSettings(settings);
   // Il seme è casuale a ogni partita (nell'originale non esiste seme); il dominio resta deterministico.
   const seed = useMemo(() => Math.floor(Math.random() * 2147483647), [attempt]);
-  const started: Result<Round, GenError> = useMemo(() => (attempt === 0 && resume ? { ok: true, value: resumeRound(resume) } : startRound({ spec: toSpec(level), profile, seed })), [level, profile, seed, attempt, resume]);
+  const isComfort = settings.comfort;
+  const started: Result<Round, GenError> = useMemo(
+    () =>
+      attempt === 0 && resume
+        ? { ok: true, value: resumeRound(resume) }
+        : startRound({
+            spec: toSpec(level, { comfort: isComfort }),
+            profile: isComfort ? 'normal' : profile,
+            seed,
+            noTimePressure: effectiveS.noTimeLimit,
+          }),
+    [level, profile, seed, attempt, resume, isComfort, effectiveS.noTimeLimit],
+  );
   const svgs = useTileSvgs();
   const palette = levelPalette(level.id);
 
   if (!started.ok) return <Notice palette={palette} text={t('genError', { kind: started.error.kind })} onExit={onExit} />;
   if (!svgs) return <Notice palette={palette} text={t('loadingSvgs')} onExit={onExit} />;
+  const activeProfile = attempt === 0 && resume ? resume.profile : isComfort ? 'normal' : profile;
   return (
     <RoundView
       key={attempt}
       level={level}
-      profile={profile}
+      profile={activeProfile}
       palette={palette}
       svgs={svgs}
       initial={started.value}
@@ -348,9 +365,30 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema o da impostazioni.
   const { settings } = useSettings();
+  const effective = effectiveSettings(settings);
   const fxOn = !useReduceMotion() && settings.effects;
   const mascotUri = useMascotUri(settings.mascot);
   const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
+
+  // Auto-hint: dopo 120s di inattività se effective.autoHint, evidenzia una coppia possibile (non conta come aiuto).
+  useEffect(() => {
+    if (!effective.autoHint || session.phase !== 'playing') return;
+    let clearTimer: ReturnType<typeof setTimeout> | null = null;
+    const idleTimer = setTimeout(() => {
+      const move = findMove(game);
+      if (move) {
+        setHintGroup(move);
+        const snd = getSoundService();
+        snd.play('hint');
+        snd.haptic('light');
+        clearTimer = setTimeout(() => setHintGroup([]), NOTICE_MS);
+      }
+    }, 120_000);
+    return () => {
+      clearTimeout(idleTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+  }, [round.seq, effective.autoHint, session.phase, game]);
 
   useGameAudio({
     feedback: round.feedback,
@@ -373,9 +411,15 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             </Text>
           </View>
           <View style={styles.headerRight}>
-            <Text style={[styles.time, { color: palette[2] }]} testID="timer">
-              {formatTime(session.seconds)}
-            </Text>
+            {!session.noTimePressure ? (
+              <Text style={[styles.time, { color: palette[2] }]} testID="timer">
+                {formatTime(session.seconds)}
+              </Text>
+            ) : (
+              <View style={styles.comfortChip} testID="comfort-chip">
+                <Text style={styles.comfortChipText}>{tl('comfortBadge')}</Text>
+              </View>
+            )}
             {onOpenSettings ? (
               <Pressable
                 onPress={onOpenSettings}
@@ -435,9 +479,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         <View style={styles.bar}>
-          <AidButton label={tl('hint')} icon="help" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" />
-          <AidButton label={tl('undo')} icon="undo" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" />
-          <AidButton label={tl('shuffle')} icon="shuffle" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" />
+          <AidButton label={tl('hint')} icon="help" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" bigUi={effective.bigUi} />
+          <AidButton label={tl('undo')} icon="undo" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" bigUi={effective.bigUi} />
+          <AidButton label={tl('shuffle')} icon="shuffle" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" bigUi={effective.bigUi} />
         </View>
 
         {session.phase === 'won' && session.outcome ? (
@@ -529,14 +573,14 @@ function WinCoinReward({ coins, animated }: { coins: number; animated: boolean }
   );
 }
 
-function AidButton({ label, icon, left, onPress, testID }: { label: string; icon: AppIconName; left: number | null; onPress: () => void; testID: string }) {
+function AidButton({ label, icon, left, onPress, testID, bigUi }: { label: string; icon: AppIconName; left: number | null; onPress: () => void; testID: string; bigUi?: boolean }) {
   const empty = left !== null && left <= 0;
   const { t } = useTranslation();
   return (
-    <Pressable onPress={onPress} style={[styles.aid, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
-      <View style={styles.aidIcon}><AppIcon name={icon} /></View>
-      <Text style={styles.aidLabel}>{label}</Text>
-      <Text style={styles.aidCount}>{aidText(left)}</Text>
+    <Pressable onPress={onPress} style={[styles.aid, bigUi ? styles.aidBig : null, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
+      <View style={styles.aidIcon}><AppIcon name={icon} size={bigUi ? 24 : 20} /></View>
+      <Text style={[styles.aidLabel, bigUi ? styles.aidLabelBig : null]}>{label}</Text>
+      <Text style={[styles.aidCount, bigUi ? styles.aidCountBig : null]}>{aidText(left)}</Text>
     </Pressable>
   );
 }
@@ -684,15 +728,32 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontSize: 17, fontFamily: fontFamilies.title },
   subtitle: { color: colors.inkSoft, fontSize: 12, marginTop: 2, fontFamily: fontFamilies.body },
   time: { width: 64, textAlign: 'right', fontSize: 17, fontVariant: ['tabular-nums'], paddingRight: 8, color: colors.accent, fontFamily: fontFamilies.title },
+  comfortChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: 'rgba(232, 180, 58, 0.2)',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    marginRight: 6,
+  },
+  comfortChipText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontFamily: fontFamilies.bodyBold,
+  },
   boardArea: { flex: 1 },
   noticeBox: { position: 'absolute', left: 16, right: 16, bottom: 12, alignItems: 'center' },
   noticeBoxText: { color: colors.ink, backgroundColor: colors.panelHeavy, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, overflow: 'hidden', fontSize: 14, textAlign: 'center', fontFamily: fontFamilies.bodyBold },
   bar: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 12, paddingVertical: 10 },
   aid: { minWidth: 92, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.panel, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  aidBig: { minWidth: 104, paddingVertical: 10, paddingHorizontal: 14 },
   aidEmpty: { opacity: 0.45 },
   aidIcon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   aidLabel: { color: colors.inkSoft, fontSize: 12, marginTop: 2, fontFamily: fontFamilies.body },
+  aidLabelBig: { fontSize: 14 },
   aidCount: { color: colors.ink, fontSize: 16, lineHeight: 20, fontFamily: fontFamilies.title },
+  aidCountBig: { fontSize: 18 },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 360, borderRadius: 20, backgroundColor: colors.feltB, borderWidth: 2, borderColor: colors.accent, padding: 24, alignItems: 'center', gap: 8 },
   overlayTitle: { color: colors.accent, fontSize: 22, fontFamily: fontFamilies.title },

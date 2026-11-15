@@ -9,6 +9,8 @@ import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { DEFAULT_SETTINGS, type Settings } from '../domain/settings';
+import { SettingsProvider } from './SettingsProvider';
 import { LanguageProvider, t, type Language } from '../infrastructure/i18n';
 import en from '../infrastructure/i18n/locales/en';
 import { GameScreen, type GameScreenProps } from './GameScreen';
@@ -154,11 +156,12 @@ const layout = () => {
   }
 };
 
-async function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<GameScreenProps> = {}, lang: Language = 'it') {
+async function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<GameScreenProps> & { settings?: Settings } = {}, lang: Language = 'it') {
   const onExit = jest.fn();
   const onProgress = jest.fn();
   const store = extra.store ?? createMemorySaveStore();
-  const res = await render(
+  const { settings, ...gameProps } = extra;
+  const content = (
     <LanguageProvider initial={lang}>
       <GameScreen
         level={legacyLevels[levelId - 1]}
@@ -167,9 +170,12 @@ async function mount(levelId = 1, profile: Profile = 'normal', extra: Partial<Ga
         store={store}
         progress={newProgress()}
         onProgress={onProgress}
-        {...extra}
+        {...gameProps}
       />
-    </LanguageProvider>,
+    </LanguageProvider>
+  );
+  const res = await render(
+    settings ? <SettingsProvider initial={settings}>{content}</SettingsProvider> : content,
   );
   layout();
   return { ...res, onExit, onProgress, store };
@@ -824,6 +830,37 @@ describe('GameScreen: salvataggi', () => {
       playPair(freePair()!);
       await flush();
       expect(texts()).not.toContain('Non riesco a salvare la partita');
+    });
+  });
+
+  describe('GameScreen: modalità comoda (senior)', () => {
+    test("senza modalità comoda il timer è visibile e il badge Comoda non c'è", async () => {
+      await mount(1, 'normal');
+      expect(screen.queryByTestId('timer')).not.toBeNull();
+      expect(screen.queryByTestId('comfort-chip')).toBeNull();
+    });
+
+    test('con modalità comoda attiva, il cronometro è sostituito dal chip Comoda e gli aiuti sono infiniti', async () => {
+      await mount(1, 'normal', { settings: { ...DEFAULT_SETTINGS, comfort: true } });
+      expect(screen.queryByTestId('timer')).toBeNull();
+      expect(screen.queryByTestId('comfort-chip')).not.toBeNull();
+      expect(texts()).toContain('Comoda');
+      expect(texts()).toContain('∞');
+    });
+
+    test('il livello 20 usa il layout comodo a 5 colonne (72 tessere) invece di quello standard (96 tessere)', async () => {
+      await mount(20, 'normal', { settings: { ...DEFAULT_SETTINGS, comfort: true } });
+      expect(board().tiles.length).toBe(72);
+      expect(texts()).toContain('72 coppie');
+    });
+
+    test('aiuto automatico dopo 120s di inattività evidenzia una coppia senza consumare aiuti', async () => {
+      await mount(1, 'normal', { settings: { ...DEFAULT_SETTINGS, comfort: true } });
+      expect(board().hint).toEqual([]);
+      advance(120_000);
+      expect(board().hint.length).toBeGreaterThan(0);
+      advance(2_500);
+      expect(board().hint).toEqual([]);
     });
   });
 });
