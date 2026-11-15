@@ -17,6 +17,27 @@ import type { TileBoardProps } from './TileBoard';
 
 // Si prova la logica della schermata (effetti, timer, avvisi, animazione, vittoria) con la tavola Skia sostituita da un
 // finto componente che registra le proprietà ricevute. Il disegno vero si prova solo su dispositivo.
+// Reanimated non si carica nei test (richiede i moduli nativi di worklets): finto. Le animazioni non finiscono da sole: `withTiming`
+// registra la funzione di fine, che il test chiama per far svanire il premio «+N» della vittoria.
+const mockAnimationEnds: ((finished: boolean) => void)[] = [];
+jest.mock('react-native-reanimated', () => {
+  const { View } = require('react-native');
+  const { useRef } = require('react');
+  return {
+    __esModule: true,
+    default: { View },
+    Easing: { ease: 0, out: (f: unknown) => f, in: (f: unknown) => f },
+    // Stabile da un disegno all'altro, come i valori condivisi veri: un oggetto nuovo a ogni disegno rifarebbe partire gli effetti.
+    useSharedValue: (v: unknown) => useRef({ value: v }).current,
+    useAnimatedStyle: (fn: () => unknown) => fn(),
+    withTiming: (v: unknown, _options?: unknown, done?: (finished: boolean) => void) => {
+      if (done) mockAnimationEnds.push(done);
+      return v;
+    },
+    withSequence: (...values: unknown[]) => values[values.length - 1],
+    runOnJS: (fn: unknown) => fn,
+  };
+});
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('./svgs', () => ({ useTileSvgs: () => Array.from({ length: 129 }, () => null) }));
 jest.mock('./TileBoard', () => ({
@@ -59,6 +80,7 @@ jest.mock('./FireworksLayer', () => {
 });
 
 beforeEach(() => {
+  mockAnimationEnds.length = 0;
   jest.useFakeTimers();
   (globalThis as { __fireworks?: unknown }).__fireworks = undefined;
   jest.spyOn(Math, 'random').mockReturnValue(0.123);
@@ -668,6 +690,33 @@ describe('GameScreen: salvataggi', () => {
       await mount(1, 'normal', { resume: wonSession(1, 'normal') });
       await flush();
       expect((globalThis as unknown as { __fireworks?: { reduced: boolean } }).__fireworks?.reduced).toBe(true);
+    });
+
+    test('il premio «+N» compare alla vittoria e svanisce quando finisce la dissolvenza', async () => {
+      const { onProgress } = await mount(1);
+      playToEnd();
+      await flush();
+      const coins = onProgress.mock.calls[0][0].coins - newProgress().coins;
+      expect(coins).toBeGreaterThan(0);
+      expect(screen.getByTestId('win-coins-reward')).toBeOnTheScreen();
+      expect(texts()).toContain(`+${coins}`);
+      expect(mockAnimationEnds).toHaveLength(1); // la dissolvenza finale è l'unica animazione con una funzione di fine
+      act(() => mockAnimationEnds.forEach((end) => end(false))); // interrotta: resta
+      expect(screen.queryByTestId('win-coins-reward')).not.toBeNull();
+      act(() => mockAnimationEnds.forEach((end) => end(true))); // finita: sparisce
+      expect(screen.queryByTestId('win-coins-reward')).toBeNull();
+      expect(texts()).not.toContain(`+${coins}`);
+    });
+
+    test('con la riduzione del movimento il premio compare subito, pieno e fermo, senza animazione', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValueOnce(true);
+      await mount(1);
+      await act(async () => {});
+      playToEnd();
+      await flush();
+      const reward = screen.getByTestId('win-coins-reward');
+      expect(StyleSheet.flatten(reward.props.style)).toMatchObject({ opacity: 1, transform: [{ translateY: 0 }] });
+      expect(mockAnimationEnds).toHaveLength(0);
     });
 
     test('la scheda di vittoria interpola il conteggio delle tessere d’oro', async () => {
