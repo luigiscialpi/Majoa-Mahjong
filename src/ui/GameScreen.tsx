@@ -517,23 +517,24 @@ function AidButton({ label, icon, left, onPress, testID }: { label: string; icon
 
 /** `behind` sta tra lo sfondo scuro e la scheda (i fuochi d'artificio della vittoria). */
 function Overlay({ children, behind, animated }: { children: ReactNode; behind?: ReactNode; animated?: boolean }) {
-  // cardIn: scala .3→1, rotazione -8°→0°, opacità 0→1 in 600 ms cubic-bezier(.2,1.4,.4,1)
-  const scale = useSharedValue(animated ? 0.3 : 1);
-  const rotate = useSharedValue(animated ? -8 : 0);
-  const opacity = useSharedValue(animated ? 0 : 1);
+  // cardIn: scala .3→1, rotazione -8°→0°, opacità 0→1 in 600 ms cubic-bezier(.2,1.4,.4,1).
+  // Un solo shared value di progresso invece di tre mapper concorrenti (docs/rendering.md).
+  const progress = useSharedValue(animated ? 0 : 1);
 
   useEffect(() => {
     if (!animated) return;
-    const cfg = { duration: 600, easing: Easing.bezier(0.2, 1.4, 0.4, 1) };
-    scale.value = withTiming(1, cfg);
-    rotate.value = withTiming(0, cfg);
-    opacity.value = withTiming(1, cfg);
-  }, [animated, scale, rotate, opacity]);
+    progress.value = withTiming(1, { duration: 600, easing: Easing.bezier(0.2, 1.4, 0.4, 1) });
+  }, [animated, progress]);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    const scale = 0.3 + 0.7 * p;
+    const rotate = -8 * (1 - p);
+    return {
+      opacity: p,
+      transform: [{ scale }, { rotate: `${rotate}deg` }],
+    };
+  });
 
   return (
     <View style={styles.overlay}>
@@ -543,23 +544,28 @@ function Overlay({ children, behind, animated }: { children: ReactNode; behind?:
   );
 }
 
-/** Trofeo 🏆 con bob infinito: translateY 0→-8px, rotate -6°→6°, scale 1→1.1 in 1.2 s ease-in-out loop. */
+/** Trofeo 🏆 con bob armonico: 1 solo mapper Reanimated oscillante (reverse: true) invece di 3 loop concorrenti. */
 function WinTrophy({ animated }: { animated: boolean }) {
-  const translateY = useSharedValue(0);
-  const rotate = useSharedValue(-6);
-  const scale = useSharedValue(1);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     if (!animated) return;
-    const half = { duration: 600, easing: Easing.inOut(Easing.ease) };
-    translateY.value = withRepeat(withSequence(withTiming(-8, half), withTiming(0, half)), -1, false);
-    rotate.value = withRepeat(withSequence(withTiming(6, half), withTiming(-6, half)), -1, false);
-    scale.value = withRepeat(withSequence(withTiming(1.1, half), withTiming(1, half)), -1, false);
-  }, [animated, translateY, rotate, scale]);
+    progress.value = withRepeat(
+      withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [animated, progress]);
 
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }, { rotate: `${rotate.value}deg` }, { scale: scale.value }],
-  }));
+  const style = useAnimatedStyle(() => {
+    const p = progress.value;
+    const translateY = -8 * p;
+    const rotate = -6 + 12 * p;
+    const scale = 1 + 0.1 * p;
+    return {
+      transform: [{ translateY }, { rotate: `${rotate}deg` }, { scale }],
+    };
+  });
 
   return (
     <Animated.Text style={[styles.overlayTrophy, style]} testID="win-trophy" accessibilityLabel="🏆">
@@ -580,37 +586,39 @@ function WinStars({ stars, color, animated }: { stars: 1 | 2 | 3; color: string;
 }
 
 function WinStar({ active, color, delay, animated }: { active: boolean; color: string; delay: number; animated: boolean }) {
-  // starpop: opacity 0→0 @0%, scala 0 rotate -90° → scale 1.5 rotate 15° @70%, → scale 1 rotate 0° @100%
-  const opacity = useSharedValue(active && animated ? 0 : active ? 1 : 0.25);
-  const scale = useSharedValue(active && animated ? 0 : 1);
-  const rotate = useSharedValue(active && animated ? -90 : 0);
+  // starpop: 1 solo shared value per stella (3 totali invece di 9), curva 0%→70%→100% dell'originale.
+  const progress = useSharedValue(active && animated ? 0 : 1);
 
   useEffect(() => {
     if (!animated || !active) return;
-    const easing = Easing.bezier(0.2, 1.6, 0.4, 1);
-    // Fase 1: 0% → 70% (420 ms): opacity 0→1, scale 0→1.5, rotate -90→15
-    // Fase 2: 70% → 100% (180 ms): scale 1.5→1, rotate 15→0
-    opacity.value = withDelay(delay, withTiming(1, { duration: 420, easing }));
-    scale.value = withDelay(
+    progress.value = withDelay(
       delay,
-      withSequence(
-        withTiming(1.5, { duration: 420, easing }),
-        withTiming(1, { duration: 180, easing: Easing.out(Easing.ease) }),
-      ),
+      withTiming(1, { duration: 600, easing: Easing.bezier(0.2, 1.6, 0.4, 1) }),
     );
-    rotate.value = withDelay(
-      delay,
-      withSequence(
-        withTiming(15, { duration: 420, easing }),
-        withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) }),
-      ),
-    );
-  }, [animated, active, delay, opacity, scale, rotate]);
+  }, [animated, active, delay, progress]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
-  }));
+  const style = useAnimatedStyle(() => {
+    if (!active) return { opacity: 0.25 };
+    const p = progress.value;
+    let opacity = 1;
+    let scale = 1;
+    let rotate = 0;
+    if (p <= 0.7) {
+      const t = p / 0.7;
+      opacity = t;
+      scale = 1.5 * t;
+      rotate = -90 + 105 * t;
+    } else {
+      const t = (p - 0.7) / 0.3;
+      opacity = 1;
+      scale = 1.5 - 0.5 * t;
+      rotate = 15 - 15 * t;
+    }
+    return {
+      opacity,
+      transform: [{ scale }, { rotate: `${rotate}deg` }],
+    };
+  });
 
   return (
     <Animated.Text style={[styles.overlayStar, { color: active ? color : undefined }, style]}>
