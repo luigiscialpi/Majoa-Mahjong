@@ -21,12 +21,12 @@ import type { TileBoardProps } from './TileBoard';
 // registra la funzione di fine, che il test chiama per far svanire il premio «+N» della vittoria.
 const mockAnimationEnds: ((finished: boolean) => void)[] = [];
 jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
+  const { View, Text } = require('react-native');
   const { useRef } = require('react');
   return {
     __esModule: true,
-    default: { View },
-    Easing: { ease: 0, out: (f: unknown) => f, in: (f: unknown) => f },
+    default: { View, Text },
+    Easing: { ease: 0, out: (f: unknown) => f, in: (f: unknown) => f, inOut: (f: unknown) => f, bezier: () => 0 },
     // Stabile da un disegno all'altro, come i valori condivisi veri: un oggetto nuovo a ogni disegno rifarebbe partire gli effetti.
     useSharedValue: (v: unknown) => useRef({ value: v }).current,
     useAnimatedStyle: (fn: () => unknown) => fn(),
@@ -35,6 +35,8 @@ jest.mock('react-native-reanimated', () => {
       return v;
     },
     withSequence: (...values: unknown[]) => values[values.length - 1],
+    withDelay: (_ms: unknown, v: unknown) => v,
+    withRepeat: (v: unknown) => v,
     runOnJS: (fn: unknown) => fn,
   };
 });
@@ -285,7 +287,7 @@ describe('GameScreen', () => {
       advance(300);
     }
     expect(texts()).toContain('superato!');
-    expect(texts()).toMatch(/[★☆]{3}/);
+    expect(screen.getByTestId('win-stars')).toBeOnTheScreen();
     expect(texts()).toContain('Tempo');
     press('btn-restart');
     layout(); // la schermata si rimonta: l'area riparte da zero finché non arriva il layout
@@ -626,7 +628,7 @@ describe('GameScreen: salvataggi', () => {
       const progress = onProgress.mock.calls[0][0];
       expect(progress.levels[1].stars).toBeGreaterThanOrEqual(1);
       expect(await store.loadProgress()).toEqual({ ok: true, value: progress });
-      expect(texts()).toMatch(/[★☆]{3}/);
+      expect(screen.getByTestId('win-stars')).toBeOnTheScreen();
       const coins = progress.coins - newProgress().coins;
       if (coins > 0) expect(texts()).toContain(`+${coins}`);
       expect(texts()).not.toContain('Nuovo record!');
@@ -746,6 +748,29 @@ describe('GameScreen: salvataggi', () => {
       const reward = screen.getByTestId('win-coins-reward');
       expect(StyleSheet.flatten(reward.props.style)).toMatchObject({ opacity: 1, transform: [{ translateY: 0 }] });
       expect(mockAnimationEnds).toHaveLength(0);
+    });
+
+    test('la scheda di vittoria mostra il trofeo 🏆', async () => {
+      await mount(1, 'normal', { resume: wonSession(1, 'normal') });
+      await flush();
+      expect(screen.getByTestId('win-trophy')).toBeOnTheScreen();
+    });
+
+    test('la scheda di vittoria mostra le stelle (win-stars)', async () => {
+      await mount(1, 'normal', { resume: wonSession(1, 'normal') });
+      await flush();
+      expect(screen.getByTestId('win-stars')).toBeOnTheScreen();
+    });
+
+    test('con la riduzione del movimento le stelle compaiono già visibili, senza animazione', async () => {
+      jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValueOnce(true);
+      await mount(1);
+      await act(async () => {});
+      playToEnd();
+      await flush();
+      // Le stelle attive hanno opacity:1 fin dall'inizio; nessuna animazione registrata oltre il premio
+      expect(screen.getByTestId('win-stars')).toBeOnTheScreen();
+      expect(screen.getByTestId('win-trophy')).toBeOnTheScreen();
     });
 
     test('la scheda di vittoria interpola il conteggio delle tessere d’oro', async () => {

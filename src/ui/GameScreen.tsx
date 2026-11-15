@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
 import { finaleOf } from '../application/finale';
@@ -25,7 +25,7 @@ import { useMascotUri } from './mascots';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
-import { aidText, formatTime, islandName, PROFILE_KEYS, starsText } from './format';
+import { aidText, formatTime, islandName, PROFILE_KEYS } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
@@ -415,10 +415,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         {session.phase === 'won' && session.outcome ? (
-          <Overlay behind={<FireworksLayer level={level.id} finale={finaleOf(level.id, islands, trisLevelIds) !== null} reduced={!fxOn} />}>
+          <Overlay animated={fxOn} behind={<FireworksLayer level={level.id} finale={finaleOf(level.id, islands, trisLevelIds) !== null} reduced={!fxOn} />}>
+            <WinTrophy animated={fxOn} />
             <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: level.id })}</Text>
             <View style={styles.overlayStarsRow}>
-              <Text style={[styles.overlayStars, { color: palette[2] }]}>{starsText(session.outcome.stars)}</Text>
+              <WinStars stars={session.outcome.stars} color={palette[2]} animated={fxOn} />
               {victoryRewards && victoryRewards.coins > 0 ? <WinCoinReward coins={victoryRewards.coins} animated={fxOn} /> : null}
             </View>
             <Text style={styles.overlayLine}>{tl('winTime', { t: formatTime(session.outcome.seconds) })}</Text>
@@ -515,12 +516,106 @@ function AidButton({ label, icon, left, onPress, testID }: { label: string; icon
 }
 
 /** `behind` sta tra lo sfondo scuro e la scheda (i fuochi d'artificio della vittoria). */
-function Overlay({ children, behind }: { children: ReactNode; behind?: ReactNode }) {
+function Overlay({ children, behind, animated }: { children: ReactNode; behind?: ReactNode; animated?: boolean }) {
+  // cardIn: scala .3→1, rotazione -8°→0°, opacità 0→1 in 600 ms cubic-bezier(.2,1.4,.4,1)
+  const scale = useSharedValue(animated ? 0.3 : 1);
+  const rotate = useSharedValue(animated ? -8 : 0);
+  const opacity = useSharedValue(animated ? 0 : 1);
+
+  useEffect(() => {
+    if (!animated) return;
+    const cfg = { duration: 600, easing: Easing.bezier(0.2, 1.4, 0.4, 1) };
+    scale.value = withTiming(1, cfg);
+    rotate.value = withTiming(0, cfg);
+    opacity.value = withTiming(1, cfg);
+  }, [animated, scale, rotate, opacity]);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+  }));
+
   return (
     <View style={styles.overlay}>
       {behind}
-      <View style={styles.card}>{children}</View>
+      <Animated.View style={[styles.card, cardStyle]}>{children}</Animated.View>
     </View>
+  );
+}
+
+/** Trofeo 🏆 con bob infinito: translateY 0→-8px, rotate -6°→6°, scale 1→1.1 in 1.2 s ease-in-out loop. */
+function WinTrophy({ animated }: { animated: boolean }) {
+  const translateY = useSharedValue(0);
+  const rotate = useSharedValue(-6);
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!animated) return;
+    const half = { duration: 600, easing: Easing.inOut(Easing.ease) };
+    translateY.value = withRepeat(withSequence(withTiming(-8, half), withTiming(0, half)), -1, false);
+    rotate.value = withRepeat(withSequence(withTiming(6, half), withTiming(-6, half)), -1, false);
+    scale.value = withRepeat(withSequence(withTiming(1.1, half), withTiming(1, half)), -1, false);
+  }, [animated, translateY, rotate, scale]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }, { rotate: `${rotate.value}deg` }, { scale: scale.value }],
+  }));
+
+  return (
+    <Animated.Text style={[styles.overlayTrophy, style]} testID="win-trophy" accessibilityLabel="🏆">
+      {'🏆'}
+    </Animated.Text>
+  );
+}
+
+/** Stelle animate una per una: starpop 0.6 s cubic-bezier(.2,1.6,.4,1), sfalsate di 150 ms. */
+function WinStars({ stars, color, animated }: { stars: 1 | 2 | 3; color: string; animated: boolean }) {
+  return (
+    <View style={styles.overlayStarsRow2} testID="win-stars">
+      {([0, 1, 2] as const).map((i) => (
+        <WinStar key={i} active={i < stars} color={color} delay={i * 150} animated={animated} />
+      ))}
+    </View>
+  );
+}
+
+function WinStar({ active, color, delay, animated }: { active: boolean; color: string; delay: number; animated: boolean }) {
+  // starpop: opacity 0→0 @0%, scala 0 rotate -90° → scale 1.5 rotate 15° @70%, → scale 1 rotate 0° @100%
+  const opacity = useSharedValue(active && animated ? 0 : active ? 1 : 0.25);
+  const scale = useSharedValue(active && animated ? 0 : 1);
+  const rotate = useSharedValue(active && animated ? -90 : 0);
+
+  useEffect(() => {
+    if (!animated || !active) return;
+    const easing = Easing.bezier(0.2, 1.6, 0.4, 1);
+    // Fase 1: 0% → 70% (420 ms): opacity 0→1, scale 0→1.5, rotate -90→15
+    // Fase 2: 70% → 100% (180 ms): scale 1.5→1, rotate 15→0
+    opacity.value = withDelay(delay, withTiming(1, { duration: 420, easing }));
+    scale.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(1.5, { duration: 420, easing }),
+        withTiming(1, { duration: 180, easing: Easing.out(Easing.ease) }),
+      ),
+    );
+    rotate.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(15, { duration: 420, easing }),
+        withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) }),
+      ),
+    );
+  }, [animated, active, delay, opacity, scale, rotate]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+  }));
+
+  return (
+    <Animated.Text style={[styles.overlayStar, { color: active ? color : undefined }, style]}>
+      {'★'}
+    </Animated.Text>
   );
 }
 
@@ -557,8 +652,10 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: { width: '100%', maxWidth: 360, borderRadius: 20, backgroundColor: colors.feltB, borderWidth: 2, borderColor: colors.accent, padding: 24, alignItems: 'center', gap: 8 },
   overlayTitle: { color: colors.accent, fontSize: 22, fontFamily: fontFamilies.title },
+  overlayTrophy: { fontSize: 54, lineHeight: 60 },
   overlayStarsRow: { position: 'relative', width: '100%', height: 48, alignItems: 'center', justifyContent: 'center' },
-  overlayStars: { fontSize: 36, letterSpacing: 4 },
+  overlayStarsRow2: { flexDirection: 'row', gap: 4 },
+  overlayStar: { fontSize: 36, color: colors.inkSoft },
   overlayCoinRewardPosition: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
   overlayCoinText: { color: colors.accent, fontSize: 16, lineHeight: 22, fontFamily: fontFamilies.bodyBold, fontVariant: ['tabular-nums'] },
   overlayLine: { color: colors.inkSoft, fontSize: 15, textAlign: 'center', fontFamily: fontFamilies.body },
