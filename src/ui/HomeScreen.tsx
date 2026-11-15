@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { planStart, type Home, type ResumeInfo } from '../application/saveFlow';
@@ -12,6 +12,7 @@ import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { formatTime, PROFILE_KEYS } from './format';
 import { LevelPicker } from './LevelPicker';
+import { loadTileSvgs } from './svgs';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 
@@ -41,6 +42,10 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
   const [busy, setBusy] = useState(false);
   const { resume } = home;
   const plan = planStart(resume);
+
+  // Precarica i 129 SVG in background appena la home è visibile: quando l'utente
+  // entra in partita i disegni sono già pronti e il "Caricamento dei disegni" non appare.
+  useEffect(() => { void loadTileSvgs(); }, []);
 
   // Le operazioni che toccano l'archivio disattivano i pulsanti finché non finiscono.
   const run = async (task: () => Promise<void>) => {
