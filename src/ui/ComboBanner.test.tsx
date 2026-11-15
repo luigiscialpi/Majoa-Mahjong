@@ -34,6 +34,8 @@ const HIDDEN = { includeHiddenElements: true };
 
 const box = must(/\.cmbox\{[^}]*background:(rgba\([^)]*\));border:(\d+)px solid (#\w+);border-radius:(\d+)px;padding:[^;]*;box-shadow:0 (\d+)px 0 (rgba\([^)]*\))/.exec(src));
 const text = must(/\.cmbox span\{[^}]*font-size:(\d+)px;color:(#\w+);text-shadow:0 (\d+)px 0 (#\w+)\}/.exec(src));
+const mascotCss = must(/\.cmbox\{[^}]*gap:(\d+)px;[^}]*padding:(\d+)px (\d+)px (\d+)px (\d+)px/.exec(src));
+const medallionCss = must(/\.cmbox \.mcv\{width:(\d+)px;height:(\d+)px;border-radius:(\d+)%;background:(#\w+)/.exec(src));
 const hot = must(/\.cmbox\.hot span\{color:(#\w+);text-shadow:0 \d+px 0 (#\w+)\}/.exec(src));
 
 describe('ComboBanner', () => {
@@ -62,6 +64,33 @@ describe('ComboBanner', () => {
     await render(<ComboBanner text="Grande!" hot onDone={() => {}} />);
     const pink = StyleSheet.flatten(screen.getByText('Grande!', HIDDEN).props.style);
     expect([pink.color, pink.textShadowColor]).toEqual([hot[1], hot[2]]);
+  });
+
+  test('con la mascotte: medaglione tondo a sinistra della scritta, misure e margini come `.cmbox` e `.cmbox .mcv`', async () => {
+    await render(<ComboBanner text="Bene!" hot={false} mascotUri="data:image/png;base64,QUJD" onDone={() => {}} />);
+    const box = screen.getByTestId('combo-box', HIDDEN);
+    expect(box.children.map((c) => (typeof c === 'string' ? c : (c as { props: { testID?: string } }).props.testID ?? 'testo'))).toEqual(['mascot-medallion', 'testo']);
+    const medallion = StyleSheet.flatten(screen.getByTestId('mascot-medallion', HIDDEN).props.style);
+    expect(medallion).toMatchObject({ width: Number(medallionCss[1]), height: Number(medallionCss[2]), borderRadius: Number(medallionCss[1]) / 2, backgroundColor: medallionCss[4] });
+    // `padding: 4px 20px 4px 5px` e `gap: 8px`: si stringe a sinistra, dove sta la mascotte.
+    expect(mascotCss[2]).toBe(mascotCss[4]); // sopra e sotto uguali: nello stile è `paddingVertical`
+    expect(StyleSheet.flatten(box.props.style)).toMatchObject({
+      gap: Number(mascotCss[1]),
+      paddingVertical: Number(mascotCss[2]),
+      paddingRight: Number(mascotCss[3]),
+      paddingLeft: Number(mascotCss[5]),
+    });
+  });
+
+  test('senza mascotte (nessuna scelta o immagine non pronta) c\'è solo la scritta, con i margini simmetrici', async () => {
+    for (const mascotUri of [undefined, null]) {
+      await render(<ComboBanner text="Bene!" hot={false} mascotUri={mascotUri} onDone={() => {}} />);
+      expect(screen.queryByTestId('mascot-medallion', HIDDEN)).toBeNull();
+      const box = StyleSheet.flatten(screen.getByTestId('combo-box', HIDDEN).props.style);
+      expect(box).toMatchObject({ paddingHorizontal: 20, paddingVertical: 4 });
+      expect([box.gap, box.paddingLeft, box.paddingRight]).toEqual([undefined, undefined, undefined]); // niente margini della mascotte
+      await screen.unmount();
+    }
   });
 
   test('non intercetta i tocchi, non è letto dai lettori di schermo ed è nella posizione prevista', async () => {

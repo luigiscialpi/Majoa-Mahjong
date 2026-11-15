@@ -58,10 +58,11 @@ jest.mock('./SparkLayer', () => ({
 jest.mock('./ComboBanner', () => {
   const React = require('react');
   return {
-    ComboBanner: (props: { text: string; hot: boolean; onDone: () => void }) => {
+    ComboBanner: (props: { text: string; hot: boolean; mascotUri?: string | null; onDone: () => void }) => {
       React.useEffect(() => {
-        const g = globalThis as unknown as { __banners: { text: string; hot: boolean }[]; __bannerDone: () => void };
+        const g = globalThis as unknown as { __banners: { text: string; hot: boolean }[]; __bannerDone: () => void; __bannerMascot: unknown };
         g.__banners.push({ text: props.text, hot: props.hot });
+        g.__bannerMascot = props.mascotUri;
         g.__bannerDone = props.onDone;
       }, []); // eslint-disable-line react-hooks/exhaustive-deps -- si registra al montaggio: ogni scritta nuova rimonta (key)
       return React.createElement('View', { testID: 'combo-banner' });
@@ -69,6 +70,14 @@ jest.mock('./ComboBanner', () => {
   };
 });
 
+// L'immagine della mascotte la decide il test (`__mascotUri`); si registra quale mascotte si è chiesta.
+jest.mock('./mascots', () => ({
+  useMascotUri: (mascot: string) => {
+    const g = globalThis as { __mascotAsked?: string; __mascotUri?: string };
+    g.__mascotAsked = mascot;
+    return g.__mascotUri ?? null;
+  },
+}));
 jest.mock('./FireworksLayer', () => {
   const React = require('react');
   return {
@@ -83,6 +92,9 @@ beforeEach(() => {
   mockAnimationEnds.length = 0;
   jest.useFakeTimers();
   (globalThis as { __fireworks?: unknown }).__fireworks = undefined;
+  (globalThis as { __mascotUri?: unknown }).__mascotUri = undefined;
+  (globalThis as { __mascotAsked?: unknown }).__mascotAsked = undefined;
+  (globalThis as { __bannerMascot?: unknown }).__bannerMascot = undefined;
   jest.spyOn(Math, 'random').mockReturnValue(0.123);
   (globalThis as { __sparks?: unknown }).__sparks = undefined;
   (globalThis as { __banners?: unknown }).__banners = [];
@@ -356,6 +368,23 @@ describe('GameScreen: scintille e combo', () => {
     expect(banners()).toEqual(
       (['cmb1', 'cmb2', 'cmb3', 'cmb4', 'cmb4', 'cmb4'] as const).map((key) => ({ text: t(key), hot: key === 'cmb3' || key === 'cmb4' })),
     );
+  });
+
+  test('la scritta della combo porta la mascotte scelta: Collie finché non ci sono le impostazioni', async () => {
+    (globalThis as { __mascotUri?: string }).__mascotUri = 'data:image/png;base64,TEST';
+    await mount(1);
+    playNext();
+    playNext();
+    expect((globalThis as unknown as { __mascotAsked?: string }).__mascotAsked).toBe('collie');
+    expect((globalThis as unknown as { __bannerMascot?: unknown }).__bannerMascot).toBe('data:image/png;base64,TEST');
+  });
+
+  test('senza l\'immagine della mascotte la scritta è solo testo', async () => {
+    await mount(1);
+    playNext();
+    playNext();
+    expect(banners()).toHaveLength(1);
+    expect((globalThis as unknown as { __bannerMascot?: unknown }).__bannerMascot).toBeNull();
   });
 
   test('la scritta segue la lingua scelta', async () => {

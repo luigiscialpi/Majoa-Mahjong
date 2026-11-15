@@ -13,6 +13,7 @@ import type { GameState } from '../domain/gameState';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
 import { blockersOf } from '../domain/geometry';
+import { DEFAULT_MASCOT } from '../domain/mascot';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
@@ -20,6 +21,7 @@ import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels
 import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
 import { FireworksLayer } from './FireworksLayer';
+import { useMascotUri } from './mascots';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
@@ -340,6 +342,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
 
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema.
   const fxOn = !useReduceMotion();
+  // La mascotte scelta: finché non ci sono le impostazioni è la predefinita (Collie).
+  const mascotUri = useMascotUri(DEFAULT_MASCOT);
   const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
 
   return (
@@ -396,7 +400,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             </View>
           ) : null}
           {fxOn && area.width > 0 ? <SparkLayer bursts={bursts} width={area.width} height={area.height} /> : null}
-          {fxOn && banner ? <ComboBanner key={banner.key} text={tl(`cmb${banner.level}`)} hot={banner.level >= 3} onDone={() => clearBanner(banner.key)} /> : null}
+          {fxOn && banner ? <ComboBanner key={banner.key} text={tl(`cmb${banner.level}`)} hot={banner.level >= 3} mascotUri={mascotUri} onDone={() => clearBanner(banner.key)} /> : null}
           {notice ? (
             <View style={styles.noticeBox} pointerEvents="none">
               <Text style={styles.noticeBoxText}>{notice}</Text>
