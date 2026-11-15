@@ -337,7 +337,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
       dispatch({ type: 'tap', tile });
     }
   }, []);
-  const column = gameColumn(area.width, area.height);
+  const column = useMemo(() => gameColumn(area.width, area.height), [area.width, area.height]);
   const { got, total } = goldCount(session);
 
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema.
@@ -371,7 +371,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         ) : null}
 
         <View style={styles.boardArea} onLayout={onLayout} testID="board-area">
-          {area.width > 0 ? (
+          {area.width > 0 && (session.phase !== 'won' || view.removing.size > 0) ? (
             <View style={{ width: column.w, height: column.h, marginLeft: column.x }}>
               <TileBoard
                 tiles={game.tiles}

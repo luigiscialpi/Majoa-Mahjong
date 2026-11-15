@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio } from 'react-native';
 import { Canvas, Circle, Group, Image, Path, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -100,7 +100,7 @@ function useMarkFont(size: number): SkFont | null {
  * togliere) e quelle in rimozione, con valori condivisi solo per l'animazione. Così il costo per fotogramma segue le tessere
  * vive, non l'intera tavola. Il tocco si risolve con `hitTest` del dominio, non con viste per tessera.
  */
-export function TileBoard({
+function TileBoardComponent({
   tiles,
   designs,
   svgs,
@@ -429,3 +429,5 @@ export function TileBoard({
     </GestureDetector>
   );
 }
+
+export const TileBoard = memo(TileBoardComponent);
