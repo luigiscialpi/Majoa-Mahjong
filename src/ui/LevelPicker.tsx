@@ -25,10 +25,12 @@ export type LevelPickerProps = {
   onPlay: (level: number, profile: Profile) => void;
   /** Sopra la scelta del profilo: la scheda «Continua» e gli avvisi della home. */
   top?: ReactNode;
+  /** Apre la schermata delle impostazioni. */
+  onOpenSettings?: () => void;
 };
 
 // ponytail: selettore provvisorio dei 100 livelli e dei profili, per provare le partite; lo sostituisce la mappa delle isole.
-export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps) {
+export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: LevelPickerProps) {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile>('normal');
   const [prova, setProva] = useState(true);
@@ -45,20 +47,33 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
   return (
     <FeltBackground cyRatio={0.2} testID="level-picker-bg">
       <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom }]}>
-        <View style={styles.langRow}>
-          {LANGS.map((l) => (
+        <View style={styles.topRow}>
+          <View style={styles.langRow}>
+            {LANGS.map((l) => (
+              <Pressable
+                key={l}
+                onPress={() => setLang(l)}
+                style={[styles.langChip, l === lang ? styles.langChipOn : null]}
+                accessibilityRole="button"
+                accessibilityLabel={LANG_NAMES[l]}
+                accessibilityState={{ selected: l === lang }}
+                testID={`lang-${l}`}
+              >
+                <Text style={[styles.langText, l === lang ? styles.langTextOn : null]}>{LANG_LABELS[l]}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {onOpenSettings ? (
             <Pressable
-              key={l}
-              onPress={() => setLang(l)}
-              style={[styles.langChip, l === lang ? styles.langChipOn : null]}
+              onPress={onOpenSettings}
+              style={styles.settingsBtn}
               accessibilityRole="button"
-              accessibilityLabel={LANG_NAMES[l]}
-              accessibilityState={{ selected: l === lang }}
-              testID={`lang-${l}`}
+              accessibilityLabel={t('setAria')}
+              testID="btn-settings"
             >
-              <Text style={[styles.langText, l === lang ? styles.langTextOn : null]}>{LANG_LABELS[l]}</Text>
+              <AppIcon name="settings" size={20} color={colors.ink} />
             </Pressable>
-          ))}
+          ) : null}
         </View>
         <Text style={styles.title} accessibilityRole="header">
           Majoa Mahjong
@@ -122,7 +137,9 @@ export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  langRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12, marginBottom: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 4, position: 'relative' },
+  settingsBtn: { position: 'absolute', right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center' },
+  langRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   langChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.panel, minHeight: 32, justifyContent: 'center', alignItems: 'center' },
   langChipOn: { backgroundColor: colors.feltA, borderWidth: 1.5, borderColor: colors.accent },
   langText: { fontSize: 13, color: colors.inkSoft, fontFamily: fontFamilies.bodyBold },

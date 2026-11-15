@@ -12,6 +12,8 @@ export interface SoundService {
   setHapticsEnabled(enabled: boolean): void;
   isSoundEnabled(): boolean;
   isHapticsEnabled(): boolean;
+  setVolume(volume: number): void;
+  getVolume(): number;
   dispose(): void;
 }
 
@@ -30,6 +32,7 @@ class ExpoAudioSoundService implements SoundService {
   private players = new Map<SoundKey, AudioPlayerLike>();
   private soundEnabled = true;
   private hapticsEnabled = true;
+  private volume = 1.0;
   private initialized = false;
   private lastBoom = 0;
 
@@ -147,6 +150,21 @@ class ExpoAudioSoundService implements SoundService {
 
   isHapticsEnabled(): boolean {
     return this.hapticsEnabled;
+  }
+
+  setVolume(volume: number): void {
+    this.volume = Math.max(0, Math.min(1, volume));
+    for (const player of this.players.values()) {
+      try {
+        player.volume = this.volume;
+      } catch {
+        // Ignorato se il player nativo fallisce
+      }
+    }
+  }
+
+  getVolume(): number {
+    return this.volume;
   }
 
   dispose(): void {

@@ -36,7 +36,7 @@ export default function Play() {
       </View>
     );
   }
-  return <GameScreen level={level} profile={profile} onExit={exit} store={store} progress={home.progress.value} onProgress={setProgress} resume={resuming?.session} />;
+  return <GameScreen level={level} profile={profile} onExit={exit} store={store} progress={home.progress.value} onProgress={setProgress} resume={resuming?.session} onOpenSettings={() => router.push('/settings')} />;
 }
 
 const styles = StyleSheet.create({

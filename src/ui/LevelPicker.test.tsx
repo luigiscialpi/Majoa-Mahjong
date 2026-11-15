@@ -227,4 +227,15 @@ describe('cambio lingua al volo', () => {
     expect(texts()).toContain('Scegli un livello · 20 sfide');
     expect(texts()).toContain('Normale');
   });
+
+  test('il pulsante impostazioni chiama onOpenSettings se fornito', async () => {
+    const onOpenSettings = jest.fn();
+    await render(
+      <LanguageProvider initial="it">
+        <LevelPicker progress={newProgress()} islands={legacyIslands} onPlay={() => {}} onOpenSettings={onOpenSettings} />
+      </LanguageProvider>,
+    );
+    await press('btn-settings');
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
 });

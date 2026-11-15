@@ -3,11 +3,12 @@ import { ImageFormat, PaintStyle, Skia, StrokeCap, StrokeJoin } from '@shopify/r
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 
-export type AppIconName = 'help' | 'shuffle' | 'undo' | 'lock';
+export type AppIconName = 'help' | 'shuffle' | 'undo' | 'lock' | 'settings';
 
 const ICON_PATHS = {
   undo: Skia.Path.MakeFromSVGString('M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H13')!,
   shuffle: Skia.Path.MakeFromSVGString('M3 6h2.5a4 4 0 0 1 3.2 1.6l6.6 8.8a4 4 0 0 0 3.2 1.6H21m-4-4 4 4-4 4M3 18h2.5a4 4 0 0 0 3.2-1.6l6.6-8.8A4 4 0 0 1 18.5 6H21m-4-4 4 4-4 4')!,
+  settings: Skia.Path.MakeFromSVGString('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z')!,
 };
 
 const iconCache = new Map<string, string>();
@@ -17,7 +18,7 @@ const iconCache = new Map<string, string>();
  * Evita di montare un <Canvas> Skia (TextureView hardware Vulkan) permanente nella barra dei comandi
  * per ogni singola icona statica da 24 dp (docs/rendering.md).
  */
-function getIconUri(name: 'undo' | 'shuffle', size: number, color: string): string | null {
+function getIconUri(name: 'undo' | 'shuffle' | 'settings', size: number, color: string): string | null {
   const key = `${name}:${size}:${color}`;
   const hit = iconCache.get(key);
   if (hit) return hit;
@@ -67,7 +68,7 @@ export function AppIcon({ name, size = 24, color = colors.ink }: { name: AppIcon
     );
   }
 
-  if (name === 'undo' || name === 'shuffle') {
+  if (name === 'undo' || name === 'shuffle' || name === 'settings') {
     const uri = getIconUri(name, size, color);
     return (
       <View style={[styles.box, { width: size, height: size }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

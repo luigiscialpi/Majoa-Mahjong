@@ -25,13 +25,15 @@ export type HomeScreenProps = {
   /** Rilegge progressi e partita dall'archivio. */
   onReload: () => Promise<void>;
   islands?: readonly IslandInfo[];
+  /** Apre la schermata delle impostazioni. */
+  onOpenSettings?: () => void;
 };
 
 /**
  * Home: la scheda «Continua» con la partita salvata, il selettore dei livelli con i progressi, la conferma prima di
  * sostituire la partita salvata e gli errori di lettura (`docs/salvataggi.md`, «Scelte per la UI»).
  */
-export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = legacyIslands }: HomeScreenProps) {
+export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = legacyIslands, onOpenSettings }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [pending, setPending] = useState<{ levelId: number; profile: Profile } | null>(null);
@@ -115,7 +117,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
 
   return (
     <View style={styles.root}>
-      <LevelPicker progress={home.progress.value} islands={islands} onPlay={pick} top={top} />
+      <LevelPicker progress={home.progress.value} islands={islands} onPlay={pick} top={top} onOpenSettings={onOpenSettings} />
       {pending && plan.kind === 'confirm' ? (
         <ConfirmDialog
           title={t('replaceGameTitle')}

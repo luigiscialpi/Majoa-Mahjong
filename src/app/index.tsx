@@ -19,6 +19,7 @@ export default function Home() {
       onPlay={(level, profile) => router.push({ pathname: '/play', params: { level: String(level), profile } })}
       onResume={() => router.push({ pathname: '/play', params: { resume: '1' } })}
       onReload={reload}
+      onOpenSettings={() => router.push('/settings')}
     />
   );
 }

@@ -22,6 +22,8 @@ function createMockService() {
     setHapticsEnabled: () => {},
     isSoundEnabled: () => true,
     isHapticsEnabled: () => true,
+    setVolume: () => {},
+    getVolume: () => 1,
     dispose: () => {},
   };
 

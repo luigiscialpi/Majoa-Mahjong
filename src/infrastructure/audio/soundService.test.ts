@@ -22,6 +22,14 @@ describe('SoundService', () => {
 
     service.setHapticsEnabled(false);
     expect(service.isHapticsEnabled()).toBe(false);
+
+    expect(service.getVolume()).toBe(1.0);
+    service.setVolume(0.5);
+    expect(service.getVolume()).toBe(0.5);
+    service.setVolume(2.0);
+    expect(service.getVolume()).toBe(1.0);
+    service.setVolume(-0.5);
+    expect(service.getVolume()).toBe(0.0);
   });
 
   test('playMatch scala le note della combo e limita l’indice a 7', () => {
@@ -36,6 +44,8 @@ describe('SoundService', () => {
       setHapticsEnabled: () => {},
       isSoundEnabled: () => true,
       isHapticsEnabled: () => true,
+      setVolume: () => {},
+      getVolume: () => 1,
       dispose: () => {},
     };
 
@@ -64,6 +74,8 @@ describe('SoundService', () => {
       setHapticsEnabled: () => {},
       isSoundEnabled: () => true,
       isHapticsEnabled: () => true,
+      setVolume: () => {},
+      getVolume: () => 1,
       dispose: () => {},
     };
 

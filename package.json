@@ -6,8 +6,8 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
-    "test": "jest --testPathIgnorePatterns='sqliteSaveStore'",
-    "test:sqlite": "source ~/.nvm/nvm.sh && nvm exec 22 npx jest --testPathPattern='sqliteSaveStore'",
+    "test": "jest --testPathIgnorePatterns='sqlite.*Store'",
+    "test:sqlite": "source ~/.nvm/nvm.sh && nvm exec 22 npx jest --testPathPattern='sqlite.*Store'",
     "test:all": "source ~/.nvm/nvm.sh && nvm exec 22 npx jest",
     "typecheck": "tsc --noEmit"
   },

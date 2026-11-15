@@ -13,7 +13,7 @@ import type { GameState } from '../domain/gameState';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
 import { blockersOf } from '../domain/geometry';
-import { DEFAULT_MASCOT } from '../domain/mascot';
+import { useSettings } from './SettingsProvider';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
@@ -56,13 +56,15 @@ export type GameScreenProps = {
   /** Partita ricostruita da un salvataggio, da riprendere; senza, ne parte una nuova. */
   resume?: Session;
   islands?: readonly IslandInfo[];
+  /** Apre la schermata delle impostazioni. */
+  onOpenSettings?: () => void;
 };
 
 /**
  * Schermata di gioco di un livello: carica i disegni, sceglie un seme nuovo a ogni partita e ricomincia a richiesta. La
  * partita si salva da sola (`docs/salvataggi.md`) e il tempo corre solo con l'app in primo piano.
  */
-export function GameScreen({ level, profile, onExit, store, progress, onProgress, resume, islands = legacyIslands }: GameScreenProps) {
+export function GameScreen({ level, profile, onExit, store, progress, onProgress, resume, islands = legacyIslands, onOpenSettings }: GameScreenProps) {
   const [attempt, setAttempt] = useState(0);
   const { t } = useTranslation();
   // Il seme è casuale a ogni partita (nell'originale non esiste seme); il dominio resta deterministico.
@@ -87,6 +89,7 @@ export function GameScreen({ level, profile, onExit, store, progress, onProgress
       islands={islands}
       onRestart={() => setAttempt((a) => a + 1)}
       onExit={onExit}
+      onOpenSettings={onOpenSettings}
     />
   );
 }
@@ -116,12 +119,13 @@ type RoundViewProps = {
   islands: readonly IslandInfo[];
   onRestart: () => void;
   onExit: () => void;
+  onOpenSettings?: () => void;
 };
 
 /** La causa di un errore di salvataggio va nei log (`adb logcat`, tag ReactNativeJS): l'avviso a schermo non la mostra. */
 const logSaveError = (error: SaveError) => console.warn(`Autosalvataggio non riuscito: ${JSON.stringify(error)}`);
 
-function RoundView({ level, profile, palette, svgs, initial, store, progress, onProgress, islands, onRestart, onExit }: RoundViewProps) {
+function RoundView({ level, profile, palette, svgs, initial, store, progress, onProgress, islands, onRestart, onExit, onOpenSettings }: RoundViewProps) {
   const [round, dispatch] = useReducer(reduceRound, initial);
   const { session } = round;
   const game = session.game;
@@ -342,10 +346,10 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const column = useMemo(() => gameColumn(area.width, area.height), [area.width, area.height]);
   const { got, total } = goldCount(session);
 
-  // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema.
-  const fxOn = !useReduceMotion();
-  // La mascotte scelta: finché non ci sono le impostazioni è la predefinita (Collie).
-  const mascotUri = useMascotUri(DEFAULT_MASCOT);
+  // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema o da impostazioni.
+  const { settings } = useSettings();
+  const fxOn = !useReduceMotion() && settings.effects;
+  const mascotUri = useMascotUri(settings.mascot);
   const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
 
   useGameAudio({
@@ -368,9 +372,22 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
               {tl(PROFILE_KEYS[profile])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · ${tl('goldLbl', { a: got, b: total })}` : ''}
             </Text>
           </View>
-          <Text style={[styles.time, { color: palette[2] }]} testID="timer">
-            {formatTime(session.seconds)}
-          </Text>
+          <View style={styles.headerRight}>
+            <Text style={[styles.time, { color: palette[2] }]} testID="timer">
+              {formatTime(session.seconds)}
+            </Text>
+            {onOpenSettings ? (
+              <Pressable
+                onPress={onOpenSettings}
+                style={styles.headerSettingsBtn}
+                accessibilityRole="button"
+                accessibilityLabel={tl('setAria')}
+                testID="btn-game-settings"
+              >
+                <AppIcon name="settings" size={20} color={colors.ink} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         {trouble ? (
@@ -662,6 +679,8 @@ const styles = StyleSheet.create({
   back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   backText: { color: colors.ink, fontSize: 32, lineHeight: 36 },
   headerCenter: { flex: 1, alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerSettingsBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.2)' },
   title: { color: colors.ink, fontSize: 17, fontFamily: fontFamilies.title },
   subtitle: { color: colors.inkSoft, fontSize: 12, marginTop: 2, fontFamily: fontFamilies.body },
   time: { width: 64, textAlign: 'right', fontSize: 17, fontVariant: ['tabular-nums'], paddingRight: 8, color: colors.accent, fontFamily: fontFamilies.title },

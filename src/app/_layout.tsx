@@ -2,7 +2,9 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { openAppStore } from '../infrastructure/storage/openAppStore';
+import { openAppSettingsStore } from '../infrastructure/storage/sqliteSettingsStore';
 import { SaveProvider } from '../ui/SaveProvider';
+import { SettingsProvider } from '../ui/SettingsProvider';
 import { FONT_MAP } from '../ui/theme/typography';
 import { LanguageProvider } from '../infrastructure/i18n';
 
@@ -16,11 +18,13 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <LanguageProvider initial="it">
-        <SaveProvider open={openAppStore}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </SaveProvider>
-      </LanguageProvider>
+      <SettingsProvider open={openAppSettingsStore}>
+        <LanguageProvider initial="it">
+          <SaveProvider open={openAppStore}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </SaveProvider>
+        </LanguageProvider>
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }
