@@ -41,6 +41,9 @@ module.exports = {
   }),
   usePaint: () => ({}),
   PaintStyle: { Fill: 0, Stroke: 1 },
+  ImageFormat: { JPEG: 3, PNG: 4, WEBP: 6 },
+  // Carica l'asset come farebbe `loadData`: qui subito, con dati finti.
+  loadData: (_source, onData) => Promise.resolve(onData({ finto: true })),
   PointMode: { Points: 0, Lines: 1, Polygon: 2 },
   StrokeCap: { Butt: 0, Round: 1, Square: 2 },
   createPicture: (draw, size) => {
@@ -74,5 +77,6 @@ module.exports = {
       },
     }),
     Path: { MakeFromSVGString: (d) => ({ d }) },
+    SVG: { MakeFromData: (data) => ({ svg: data }) },
   },
 };
