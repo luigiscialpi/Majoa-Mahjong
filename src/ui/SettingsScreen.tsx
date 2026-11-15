@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MASCOT_IDS, type Mascot } from '../domain/mascot';
+import { BG_PALETTES, TILE_PALETTES, type BgPalette, type TilePalette } from '../domain/settings';
+import { BG_PALETTE_COLORS, TILE_PALETTE_COLORS } from '../infrastructure/content/appearancePalettes';
 import { getSoundService } from '../infrastructure/audio/soundService';
 import { useTranslation, type Language } from '../infrastructure/i18n';
 import { Button } from './Button';
@@ -79,8 +81,27 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     soundService.play('select');
   }, [resetSettings, soundService]);
 
+  const handleSelectBg = useCallback(
+    (key: BgPalette) => {
+      void updateSetting('bgPalette', key);
+      soundService.play('select');
+    },
+    [updateSetting, soundService],
+  );
+
+  const handleSelectTile = useCallback(
+    (key: TilePalette) => {
+      void updateSetting('tilePalette', key);
+      soundService.play('select');
+    },
+    [updateSetting, soundService],
+  );
+
+  const bgFeltA = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltA : colors.feltA;
+  const bgFeltB = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltB : colors.feltB;
+
   return (
-    <FeltBackground cyRatio={0.15} testID="settings-bg">
+    <FeltBackground colorA={bgFeltA} colorB={bgFeltB} cyRatio={0.15} testID="settings-bg">
       <View style={[styles.root, { paddingTop: insets.top + 6, paddingBottom: insets.bottom }]}>
         {/* Intestazione */}
         <View style={styles.header}>
@@ -110,7 +131,70 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             </ScrollView>
           </View>
 
-          {/* 2. Suoni e vibrazione */}
+          {/* 2. Aspetto */}
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>{t('sgApp')}</Text>
+
+            {/* Sfondo */}
+            <View style={styles.swatchSection}>
+              <Text style={styles.rowLabel}>{t('slBg')}</Text>
+              <View style={styles.swatchesRow}>
+                {BG_PALETTES.map((k) => {
+                  const isSelected = settings.bgPalette === k;
+                  const label = k === 'level' ? t('setLevelTheme') : t(`bg_${k}` as any);
+                  const color = k === 'level' ? colors.feltA : BG_PALETTE_COLORS[k].feltA;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => handleSelectBg(k)}
+                      style={[
+                        styles.swatch,
+                        { backgroundColor: color },
+                        isSelected ? styles.swatchOn : null,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}
+                      accessibilityState={{ selected: isSelected }}
+                      testID={`bg-${k}`}
+                    >
+                      {k === 'level' ? <Text style={styles.swatchAutoText}>↺</Text> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Bordo tessere */}
+            <View style={styles.swatchSection}>
+              <Text style={styles.rowLabel}>{t('slTile')}</Text>
+              <View style={styles.swatchesRow}>
+                {TILE_PALETTES.map((k) => {
+                  const isSelected = settings.tilePalette === k;
+                  const label = k === 'level' ? t('setLevelTheme') : t(`tile_${k}` as any);
+                  const color = k === 'level' ? colors.edge : TILE_PALETTE_COLORS[k].edge;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => handleSelectTile(k)}
+                      style={[
+                        styles.swatch,
+                        { backgroundColor: color },
+                        isSelected ? styles.swatchOn : null,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}
+                      accessibilityState={{ selected: isSelected }}
+                      testID={`tile-${k}`}
+                    >
+                      {k === 'level' ? <Text style={styles.swatchAutoText}>↺</Text> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* 3. Suoni e vibrazione */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgSound')}</Text>
             <SettingSwitchRow
@@ -491,5 +575,33 @@ const styles = StyleSheet.create({
   resetContainer: {
     marginTop: 8,
     alignItems: 'center',
+  },
+  swatchSection: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  swatchesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  swatch: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  swatchOn: {
+    borderColor: '#ffffff',
+    transform: [{ scale: 1.08 }],
+  },
+  swatchAutoText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: fontFamilies.title,
+    lineHeight: 22,
   },
 });

@@ -17,6 +17,8 @@ describe('impostazioni (dominio)', () => {
       colorBlind: false,
       noTimeLimit: false,
       selectedBar: false,
+      bgPalette: 'level',
+      tilePalette: 'level',
     });
   });
 
@@ -36,6 +38,8 @@ describe('impostazioni (dominio)', () => {
       colorBlind: true,
       noTimeLimit: true,
       selectedBar: true,
+      bgPalette: 'ocean',
+      tilePalette: 'pink',
     };
     expect(validateSettings(custom)).toEqual(custom);
   });
@@ -50,12 +54,16 @@ describe('impostazioni (dominio)', () => {
       volume: 999,
       defaultProfile: 'impossibile',
       sound: 'no',
+      bgPalette: 'arcobaleno',
+      tilePalette: 'invisibile',
     };
     const validated = validateSettings(bad);
     expect(validated.mascot).toBe('collie');
     expect(validated.volume).toBe(100);
     expect(validated.defaultProfile).toBe('normal');
     expect(validated.sound).toBe(true);
+    expect(validated.bgPalette).toBe('level');
+    expect(validated.tilePalette).toBe('level');
   });
 
   test('validateSettings limita il volume tra 0 e 100', () => {

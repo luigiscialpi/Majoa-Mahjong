@@ -1,6 +1,14 @@
 import { isMascot, type Mascot } from './mascot';
 import { PROFILES, type Profile } from './profile';
 
+/** Palette sfondo (reference HTML riga 1363: BGP). */
+export const BG_PALETTES = ['level', 'jade', 'ocean', 'cherry', 'sunset', 'violet', 'graphite', 'night', 'sand'] as const;
+export type BgPalette = (typeof BG_PALETTES)[number];
+
+/** Palette spessore tessere (reference HTML riga 1365: TLP). */
+export const TILE_PALETTES = ['level', 'green', 'blue', 'pink', 'gold', 'violet', 'graphite', 'red', 'teal'] as const;
+export type TilePalette = (typeof TILE_PALETTES)[number];
+
 /**
  * Impostazioni dell'app (reference/majoa-originale/Majoa Mahjong.html, riga 1362: SDEF).
  * Modello puro del dominio, immutabile, senza effetti collaterali.
@@ -34,6 +42,10 @@ export type Settings = {
   noTimeLimit: boolean;
   /** Mostra la barra delle tessere selezionate in fondo. */
   selectedBar: boolean;
+  /** Palette dello sfondo (feltro). 'level' = usa la tavolozza del livello. */
+  bgPalette: BgPalette;
+  /** Palette del bordo (spessore) delle tessere. 'level' = usa la tavolozza del livello. */
+  tilePalette: TilePalette;
 };
 
 /** Valori predefiniti delle impostazioni (fedeli a SDEF dell'originale). */
@@ -52,6 +64,8 @@ export const DEFAULT_SETTINGS: Settings = {
   colorBlind: false,
   noTimeLimit: false,
   selectedBar: false,
+  bgPalette: 'level',
+  tilePalette: 'level',
 };
 
 /**
@@ -82,6 +96,12 @@ export function validateSettings(input: unknown): Settings {
   const colorBlind = typeof raw.colorBlind === 'boolean' ? raw.colorBlind : DEFAULT_SETTINGS.colorBlind;
   const noTimeLimit = typeof raw.noTimeLimit === 'boolean' ? raw.noTimeLimit : DEFAULT_SETTINGS.noTimeLimit;
   const selectedBar = typeof raw.selectedBar === 'boolean' ? raw.selectedBar : DEFAULT_SETTINGS.selectedBar;
+  const bgPalette = (BG_PALETTES as readonly string[]).includes(raw.bgPalette as string)
+    ? (raw.bgPalette as BgPalette)
+    : DEFAULT_SETTINGS.bgPalette;
+  const tilePalette = (TILE_PALETTES as readonly string[]).includes(raw.tilePalette as string)
+    ? (raw.tilePalette as TilePalette)
+    : DEFAULT_SETTINGS.tilePalette;
 
   return {
     mascot,
@@ -98,6 +118,8 @@ export function validateSettings(input: unknown): Settings {
     colorBlind,
     noTimeLimit,
     selectedBar,
+    bgPalette,
+    tilePalette,
   };
 }
 

@@ -7,9 +7,9 @@ export const MEDALLION_COLOR = '#fff7dd';
  * La mascotte nel suo medaglione tondo e crema, ritagliata a cerchio come nell'originale (un `<svg>` con `border-radius: 50%`).
  * Decorativa: nascosta ai lettori di schermo. `uri` è l'immagine di `useMascotUri`.
  */
-export function MascotMedallion({ uri, size }: { uri: string; size: number }) {
+export function MascotMedallion({ uri, size, testID = 'mascot-medallion' }: { uri: string; size: number; testID?: string }) {
   return (
-    <View style={[styles.medallion, { width: size, height: size, borderRadius: size / 2 }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="mascot-medallion">
+    <View style={[styles.medallion, { width: size, height: size, borderRadius: size / 2 }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID={testID}>
       <Image source={{ uri }} style={{ width: size, height: size }} resizeMode="contain" />
     </View>
   );

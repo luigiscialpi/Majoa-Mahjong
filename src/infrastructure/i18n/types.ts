@@ -257,6 +257,27 @@ export type Locale = {
   mapNeedPrev: string;
   giftIslands: string;
   albNextI: string;
+  // ---- palette aspetto ----
+  /** Nomi delle 8 palette sfondo (escluso 'level'). */
+  bg_jade: string;
+  bg_ocean: string;
+  bg_cherry: string;
+  bg_sunset: string;
+  bg_violet: string;
+  bg_graphite: string;
+  bg_night: string;
+  bg_sand: string;
+  /** Nomi delle 8 palette bordo tessere (escluso 'level'). */
+  tile_green: string;
+  tile_blue: string;
+  tile_pink: string;
+  tile_gold: string;
+  tile_violet: string;
+  tile_graphite: string;
+  tile_red: string;
+  tile_teal: string;
+  /** Pulsante OK nella finestra regalo. */
+  giftOk: string;
   // ---- estensioni UI ----
   testMode: string;
   starsOfThree: string;

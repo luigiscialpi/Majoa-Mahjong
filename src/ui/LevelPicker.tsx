@@ -10,6 +10,8 @@ import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 import { useTranslation, type Language } from '../infrastructure/i18n';
+import { useSettings } from './SettingsProvider';
+import { BG_PALETTE_COLORS } from '../infrastructure/content/appearancePalettes';
 import { AppIcon } from './AppIcon';
 
 /** Quanto resta visibile il motivo di un lucchetto. */
@@ -36,6 +38,9 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
   const [prova, setProva] = useState(true);
   const [reason, setReason] = useState<{ text: string } | null>(null);
   const { t, lang, setLang } = useTranslation();
+  const { settings } = useSettings();
+  const bgFeltA = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltA : colors.feltA;
+  const bgFeltB = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltB : colors.feltB;
 
   // Il motivo di un lucchetto sparisce da solo; un nuovo tocco lo sostituisce e riparte il conto.
   useEffect(() => {
@@ -45,7 +50,7 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
   }, [reason]);
 
   return (
-    <FeltBackground cyRatio={0.2} testID="level-picker-bg">
+    <FeltBackground colorA={bgFeltA} colorB={bgFeltB} cyRatio={0.2} testID="level-picker-bg">
       <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom }]}>
         <View style={styles.topRow}>
           <View style={styles.langRow}>

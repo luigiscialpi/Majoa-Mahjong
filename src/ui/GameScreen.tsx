@@ -19,6 +19,7 @@ import { useSettings } from './SettingsProvider';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
+import { resolveEffectivePalette } from '../infrastructure/content/appearancePalettes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
 import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
@@ -87,7 +88,8 @@ export function GameScreen({ level, profile, onExit, store, progress, onProgress
     [level, profile, seed, attempt, resume, isComfort, effectiveS.noTimeLimit],
   );
   const svgs = useTileSvgs();
-  const palette = levelPalette(level.id);
+  const basePalette = levelPalette(level.id);
+  const palette = resolveEffectivePalette(basePalette, settings.bgPalette, settings.tilePalette);
 
   if (!started.ok) return <Notice palette={palette} text={t('genError', { kind: started.error.kind })} onExit={onExit} />;
   if (!svgs) return <Notice palette={palette} text={t('loadingSvgs')} onExit={onExit} />;

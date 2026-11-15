@@ -34,6 +34,7 @@ describe('SettingsScreen', () => {
 
     expect(screen.getByText('Impostazioni')).toBeTruthy();
     expect(screen.getByText('Mascotte')).toBeTruthy();
+    expect(screen.getByText('Aspetto')).toBeTruthy();
     expect(screen.getByText('Suoni e vibrazione')).toBeTruthy();
     expect(screen.getByText('Aiuti di gioco')).toBeTruthy();
     expect(screen.getByText('Comfort e accessibilità')).toBeTruthy();
@@ -58,6 +59,20 @@ describe('SettingsScreen', () => {
 
     const saved = await store.loadSettings();
     expect(saved.mascot).toBe('sheltie');
+  });
+
+  test('permette di scegliere la tavolozza di sfondo e del bordo tessere', async () => {
+    const { store } = await renderSettings();
+
+    const bgOcean = screen.getByTestId('bg-ocean');
+    await fireEvent.press(bgOcean);
+
+    const tilePink = screen.getByTestId('tile-pink');
+    await fireEvent.press(tilePink);
+
+    const saved = await store.loadSettings();
+    expect(saved.bgPalette).toBe('ocean');
+    expect(saved.tilePalette).toBe('pink');
   });
 
   test('permette di attivare/disattivare suoni e vibrazione', async () => {
