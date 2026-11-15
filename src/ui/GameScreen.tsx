@@ -37,6 +37,8 @@ import { fontFamilies } from './theme/typography';
 import { useTranslation } from '../infrastructure/i18n';
 import type { SkSVG } from '@shopify/react-native-skia';
 import { AppIcon, type AppIconName } from './AppIcon';
+import { useGameAudio } from './useGameAudio';
+import { getSoundService } from '../infrastructure/audio/soundService';
 
 const REMOVE_MS = 250;
 const RESCUE_DELAY_MS = 1100;
@@ -346,6 +348,13 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const mascotUri = useMascotUri(DEFAULT_MASCOT);
   const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
 
+  useGameAudio({
+    feedback: round.feedback,
+    seq: round.seq,
+    phase: session.phase,
+    revealingCount: revealing.length,
+  });
+
   return (
     <FeltBackground colorA={palette[0]} colorB={palette[1]} cyRatio={0.4} testID="game-felt-bg">
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -579,23 +588,31 @@ function WinStars({ stars, color, animated }: { stars: 1 | 2 | 3; color: string;
   return (
     <View style={styles.overlayStarsRow2} testID="win-stars">
       {([0, 1, 2] as const).map((i) => (
-        <WinStar key={i} active={i < stars} color={color} delay={i * 150} animated={animated} />
+        <WinStar key={i} index={i} active={i < stars} color={color} delay={i * 150} animated={animated} />
       ))}
     </View>
   );
 }
 
-function WinStar({ active, color, delay, animated }: { active: boolean; color: string; delay: number; animated: boolean }) {
+function WinStar({ index, active, color, delay, animated }: { index: number; active: boolean; color: string; delay: number; animated: boolean }) {
   // starpop: 1 solo shared value per stella (3 totali invece di 9), curva 0%→70%→100% dell'originale.
   const progress = useSharedValue(active && animated ? 0 : 1);
 
   useEffect(() => {
-    if (!animated || !active) return;
-    progress.value = withDelay(
-      delay,
-      withTiming(1, { duration: 600, easing: Easing.bezier(0.2, 1.6, 0.4, 1) }),
-    );
-  }, [animated, active, delay, progress]);
+    if (!active) return;
+    if (animated) {
+      progress.value = withDelay(
+        delay,
+        withTiming(1, { duration: 600, easing: Easing.bezier(0.2, 1.6, 0.4, 1) }),
+      );
+      const id = setTimeout(() => {
+        getSoundService().playStar(index);
+      }, delay);
+      return () => clearTimeout(id);
+    } else {
+      getSoundService().playStar(index);
+    }
+  }, [animated, active, delay, index, progress]);
 
   const style = useAnimatedStyle(() => {
     if (!active) return { opacity: 0.25 };

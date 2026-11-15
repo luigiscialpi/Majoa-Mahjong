@@ -3,6 +3,7 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Canvas, PaintStyle, Picture, PointMode, Skia, StrokeCap, createPicture, type SkColor, type SkPaint } from '@shopify/react-native-skia';
 import { useDerivedValue, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import { FIREWORKS_COLORS, advanceClock, drawFireworks, makeShow, type FireworksEnums, type Show } from './fireworks';
+import { getSoundService } from '../infrastructure/audio/soundService';
 
 // Fuochi d'artificio della vittoria (`startFx`, riga 2264 dell'originale) su un canvas Skia trasparente a tutta schermata,
 // dietro la scheda. Stessa regola delle scintille (`SparkLayer`): un solo nodo `Picture` e un solo valore derivato, qualunque
@@ -59,6 +60,15 @@ export function FireworksLayer({ level, finale, reduced }: { level: number; fina
     const id = setTimeout(() => setFinished(true), show.durationMs + 200);
     return () => clearTimeout(id);
   }, [show]);
+
+  // Emette boom sonori durante lo spettacolo dei fuochi d'artificio
+  useEffect(() => {
+    if (!show || finished || reduced) return;
+    const id = setInterval(() => {
+      getSoundService().playBoom();
+    }, 450);
+    return () => clearInterval(id);
+  }, [show, finished, reduced]);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout} testID="fireworks">
