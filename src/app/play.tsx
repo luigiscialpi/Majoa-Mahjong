@@ -5,9 +5,11 @@ import { GameScreen } from '../ui/GameScreen';
 import { parsePlayParams } from '../ui/playParams';
 import { useSaves } from '../ui/SaveProvider';
 import { useTranslation } from '../infrastructure/i18n';
+import { campaignIslandsForProgress } from '../infrastructure/content/campaignLevels';
+import { legacyIslands } from '../infrastructure/content/legacyIslands';
 
 /**
- * Rotta di una partita: `/play?level=<1-100>&profile=<easy|normal|medium|hard|expert|master>` per una partita nuova,
+ * Rotta di una partita: `/play?level=<id interno>&profile=<easy|normal|medium|hard|expert|master>` per una partita nuova,
  * `/play?resume=1` per riprendere quella salvata (livello e profilo vengono dal salvataggio).
  */
 export default function Play() {
@@ -16,6 +18,7 @@ export default function Play() {
   const router = useRouter();
   const { store, home, setProgress } = useSaves();
   const { t } = useTranslation();
+  const islands = home.progress.ok ? campaignIslandsForProgress(home.progress.value) : legacyIslands;
   const exit = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const resuming = params.resume === '1' && home.resume.kind === 'ready' ? home.resume : null;
   const { level, profile } = resuming ? parsePlayParams(String(resuming.info.levelId), resuming.info.profile) : parsePlayParams(params.level, params.profile);
@@ -36,7 +39,7 @@ export default function Play() {
       </View>
     );
   }
-  return <GameScreen level={level} profile={profile} onExit={exit} store={store} progress={home.progress.value} onProgress={setProgress} resume={resuming?.session} onOpenSettings={() => router.push('/settings')} />;
+  return <GameScreen level={level} profile={profile} onExit={exit} store={store} progress={home.progress.value} onProgress={setProgress} resume={resuming?.session} islands={islands} onOpenSettings={() => router.push('/settings')} />;
 }
 
 const styles = StyleSheet.create({

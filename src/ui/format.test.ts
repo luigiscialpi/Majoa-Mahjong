@@ -1,6 +1,7 @@
 import { PROFILES } from '../domain/profile';
 import { setActiveLanguage } from '../infrastructure/i18n';
-import { PROFILE_KEYS, aidText, formatTime, islandName, starsText } from './format';
+import { PROFILE_KEYS, aidText, displayLevelNumber, formatTime, islandName, starsText } from './format';
+import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 
 test('formatTime: minuti e secondi, ore oltre i 60 minuti, mai negativo', () => {
   expect([0, 9, 59, 60, 61, 599, 3599, 3600, 3725, 45296].map(formatTime)).toEqual(['0:00', '0:09', '0:59', '1:00', '1:01', '9:59', '59:59', '1:00:00', '1:02:05', '12:34:56']);
@@ -46,4 +47,20 @@ describe('islandName', () => {
   test('un\'isola sconosciuta si mostra con il suo id', () => {
     expect(islandName('nuvole')).toBe('nuvole');
   });
+});
+
+test('il numero visibile segue la posizione di campagna senza cambiare i codici salvati', () => {
+  const expanded = [
+    legacyIslands[0],
+    legacyIslands[1],
+    { ...legacyIslands[2], levelIds: [...legacyIslands[2].levelIds, ...Array.from({ length: 10 }, (_, i) => 101 + i)] },
+    { ...legacyIslands[3], levelIds: [...legacyIslands[3].levelIds, ...Array.from({ length: 10 }, (_, i) => 111 + i)] },
+    { ...legacyIslands[4], levelIds: [...legacyIslands[4].levelIds, ...Array.from({ length: 10 }, (_, i) => 121 + i)] },
+    { ...legacyIslands[5], levelIds: [...legacyIslands[5].levelIds, ...Array.from({ length: 10 }, (_, i) => 131 + i)] },
+    { ...legacyIslands[6], levelIds: [...legacyIslands[6].levelIds, ...Array.from({ length: 10 }, (_, i) => 141 + i)] },
+  ];
+  expect(displayLevelNumber(expanded, 101)).toBe(51);
+  expect(displayLevelNumber(expanded, 51)).toBe(61);
+  expect(displayLevelNumber(expanded, 150)).toBe(140);
+  expect(displayLevelNumber(legacyIslands, trisLevelIds[4])).toBe(5);
 });

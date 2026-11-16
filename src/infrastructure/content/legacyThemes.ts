@@ -22,12 +22,22 @@ export const STAR_DESIGN = data.starDesign;
 /** Numero di disegni dell'originale. */
 export const DESIGN_COUNT = data.designCount;
 
-/** Tavolozza del livello `levelId` (1-100). */
-export function levelPalette(levelId: number): Palette {
-  const palette = data.palettes[levelId - 1];
+/** Tavolozza del livello originale o, per un livello generato, la tavolozza base del suo tema originale. */
+export function levelPalette(levelId: number, theme?: string): Palette {
+  const palette = data.palettes[levelId - 1] ?? (theme ? data.palettes[THEME_PALETTE_LEVEL[theme] - 1] : undefined);
   if (!palette) throw new Error(`il livello ${levelId} non ha una tavolozza`);
   return palette;
 }
+
+const THEME_PALETTE_LEVEL: Readonly<Record<string, number>> = {
+  prologue: 1,
+  animals: 21,
+  sweets: 41,
+  art: 51,
+  science: 61,
+  sea: 71,
+  flowers: 81,
+};
 
 /**
  * Indice del disegno (0-128) di un tipo di tessera. Il generatore assegna posizioni `0...poolSize-1` del gruppo di disegni

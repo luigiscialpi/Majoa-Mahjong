@@ -1,6 +1,6 @@
 import { newProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
-import { levelStatus } from './levelStatus';
+import { islandStatus, levelStatus } from './levelStatus';
 
 const ISLANDS: IslandInfo[] = [
   { id: 'prologue', levelIds: [1, 2, 3], gift: 0 },
@@ -13,6 +13,22 @@ const stars = (byLevel: Record<number, number>): Progress => ({
 });
 const locked = (reason: string) => ({ open: false, reason });
 const status = (progress: Progress, levelId: number, prova = false, islands: readonly IslandInfo[] = ISLANDS) => levelStatus(progress, islands, levelId, prova);
+
+describe('islandStatus', () => {
+  test('la mappa espone le isole aperte e la prossima con il requisito mancante', () => {
+    expect(islandStatus(newProgress(), ISLANDS, 0, false)).toEqual({ open: true });
+    expect(islandStatus(newProgress(), ISLANDS, 1, false)).toEqual(locked('Servono 6 ★ per aprire Animali'));
+    expect(islandStatus(newProgress(), ISLANDS, 2, false)).toEqual(locked('Servono 6 ★ per aprire Dolci'));
+  });
+
+  test('con stelle sufficienti ma isola incompleta indica il livello da vincere', () => {
+    expect(islandStatus(stars({ 1: 3, 2: 3 }), ISLANDS, 1, false)).toEqual(locked('Vinci il livello 3 per aprire Animali'));
+  });
+
+  test('la modalità prova apre tutte le isole della campagna', () => {
+    expect(islandStatus(newProgress(), ISLANDS, 2, true)).toEqual({ open: true });
+  });
+});
 
 describe('levelStatus', () => {
   test('con la modalità prova tutto è aperto, anche i Tris e le isole chiuse', () => {

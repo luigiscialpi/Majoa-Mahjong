@@ -4,7 +4,7 @@ import { coinsForWin } from './stars';
 // Progressi del giocatore e regole di sblocco di livelli e isole (`docs/motore-livelli.md`, «Progressione e sblocco»).
 // Funzioni pure sullo stato: ogni aggiornamento restituisce un nuovo `Progress`. Il salvataggio su disco è altrove.
 
-/** Rapporto di stelle dell'isola precedente che apre la successiva. Proposta di partenza (2/3, cioè 40 stelle su 60 con isole da 20 livelli): decisione aperta. */
+/** Rapporto deciso di stelle dell'isola precedente che apre la successiva: 2/3 (40 su 60 con 20 livelli). */
 export const UNLOCK_RATIO = 2 / 3;
 
 /** ✨ di partenza (nell'originale). */

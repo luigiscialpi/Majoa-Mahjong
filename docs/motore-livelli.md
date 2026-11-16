@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** Il capitolo descrive il modello deciso. Generatore, solver, indice di difficoltà, progressi e regole di sblocco sono implementati in `src/domain/` e verificati sui 100 livelli dell'originale in `src/infrastructure/content/`; restano `TO DO` la tolleranza dell'indice, la curva tra isole, la decisione su `ρ` di sblocco, la generazione delle forme e delle isole oltre la campagna (README, sezione 8).
+> **Stato: DRAFT.** La mappa e la progressione coprono sette isole da 20 livelli e una sequenza infinita generata da forme originali verificate. Gli identificativi interni restano distinti dalla numerazione visibile. L'indice generale di difficoltà non guida ancora la generazione: la curva corrente usa il numero di disegni per isola e si ferma a 14.
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -33,6 +33,8 @@ Se la costruzione non riesce entro il numero massimo di tentativi (1500 nell'ori
 Per ogni gruppo di tessere nascoste si pianifica un gruppo di stelle nella prima parte della soluzione, e le tessere nascoste del gruppo `g` si scelgono tra quelle rimosse dopo il `g`-esimo gruppo di stelle. La nebbia si assegna a tessere non libere all'inizio, né nascoste né stelle; l'oro a tessere visibili e non stella; nessuna delle due cambia la risolvibilità.
 
 Verificato nel prototipo S4 su 100 livelli dell'originale: 1000 tavole su un Android (Hermes) senza fallimenti, con in media 1,8 tentativi e al più 22, in media 0,9 ms e al più 17,6 ms; un solver indipendente dalla costruzione conferma risolvibili tutte le 300 tavole campione (al più 218 ms e 2617 nodi).
+
+Per le isole aggiunte, `src/infrastructure/content/campaignLevels.ts` riusa le geometrie originali e costruisce una `LegacyLevel`; `toSpec()` la passa allo stesso generatore con un seme nuovo. I livelli 11–20 delle isole 3–7 riusano in ordine le dieci forme dello stesso tema, aggiungono due tipi (fino al pool del tema) e mantengono meccaniche e aiuti del livello modello. Dall'isola 8 si ripetono i cinque temi Dolci, Arte, Scienza, Mare e Fiori; ogni isola usa in ciclo le dieci forme originali del tema, due volte. Il numero di tipi è 12 sull'isola 8, 13 sull'isola 9 e 14 dall'isola 10 in poi, tetto del pool. La tavola viene riassegnata dal generatore a ogni nuova partita. Questo è il criterio iniziale approvato; la curva dell'indice non è ancora calibrata.
 
 ### Indice di difficoltà
 
@@ -75,9 +77,13 @@ Regole per l'indice dentro un'isola:
 
 Tra un'isola e la successiva l'andamento è «a dente di sega»: i primi livelli di un'isola nuova sono più facili degli ultimi della precedente, come nell'originale, dove le isole nuove ripartono da aiuti illimitati e pochi tipi. Il punto di partenza e quello di arrivo crescono con l'indice dell'isola fino a un tetto (`TO DO`: forma della curva e tetto).
 
-**Isole dell'originale.** Le prime sette isole sono quelle dell'originale: livelli iniziali, Isola degli animali, Dolci, Arte, Scienza, Mare, Fiori. Le prime due hanno già 20 livelli. Per le altre cinque, i 10 livelli disegnati a mano sono i livelli 1-10 e i livelli **11-20 vengono generati** nel tema dell'isola, con indice che continua a salire e con le meccaniche già attive dal 6 e dal 7 dell'isola. `DRAFT`: ipotesi da confermare.
+**Isole dell'originale.** Le prime sette isole sono quelle dell'originale: livelli iniziali, Animali, Dolci, Arte, Scienza, Mare e Fiori. Ognuna ha 20 livelli. Per Dolci, Arte, Scienza, Mare e Fiori i livelli 1-10 conservano i riferimenti originali; i livelli generati 11-20 riusano le forme dello stesso tema. Gli identificativi originali da 1 a 100 non cambiano. I 50 nuovi livelli usano ID interni 101-150; gli ID 91-100 restano i Tris. La numerazione mostrata della campagna è continua: 1-140.
 
-**Temi.** Un tema è un dato: 14 disegni più la tessera stella, tre tavolozze che si alternano, nomi tradotti e 14 carte d'album. Dall'ottava isola in poi il tema si sceglie in sequenza tra quelli disponibili; finiti i temi, si ripetono con una variante (tavolozza). Nuovi temi arrivano come contenuti aggiornabili (README, sezione 5).
+**Isole infinite.** L'isola 8 comincia dall'ID interno 151; ogni isola successiva aggiunge 20 ID. Il tema ruota tra i cinque temi della campagna, le forme originali vengono riusate in ciclo e il generatore assegna una tavola risolvibile con seme. I tipi di disegno aumentano da 12 a 13 e poi al massimo di 14; dopo l'isola 10 questa parte della difficoltà resta al tetto. Ogni isola generata dà 5 ✨ quando si apre. La mappa prepara due isole oltre la campagna base e aggiunge un'isola per ogni isola generata completata, mantenendo visibile la prossima chiusa senza creare un array infinito.
+
+**Identificativo e numero mostrato.** L'identificativo interno serve a collegare progressi e partita salvata a uno specifico livello; per i 100 livelli originali non cambia. Il numero mostrato nella campagna è invece progressivo: `1 + livelli delle isole precedenti + posizione nell'isola`. Quando si aggiungono livelli a Dolci, Arte, Scienza, Mare e Fiori, i numeri visibili successivi slittano; i progressi salvati continuano a riferirsi agli stessi livelli. I Tris restano fuori dalla campagna e mostrano la propria numerazione. I nuovi livelli ricevono identificativi interni mai usati.
+
+**Temi.** Un tema è un dato: 14 disegni più la tessera stella, una tavolozza base, un nome tradotto e 14 carte d'album. Dall'ottava isola i cinque temi Dolci, Arte, Scienza, Mare e Fiori si ripetono in sequenza; anche il nome delle isole generate è progressivo («Isola 8», «Isola 9»…). Le isole riutilizzano la tavolozza base del tema. Nuovi temi possono arrivare come contenuti aggiornabili (README, sezione 5).
 
 **Livelli Tris.** Restano un insieme separato di 10 livelli con gruppi da 3, raggiungibile dalla sala Rompicapi e fuori dal percorso delle isole. L'estensione a livelli Tris generati è `TO DO`.
 
@@ -87,16 +93,16 @@ Per spiegare la regola serve l'originale: un'isola si apriva quando la precedent
 
 Regole del modello:
 1. Dentro un'isola i livelli si sbloccano in sequenza, vincendo il precedente con almeno una stella.
-2. L'isola `i+1` si apre quando l'isola `i` è completata (livello 20 con almeno una stella) **e** le stelle della sola isola `i` raggiungono `ρ × 60`. Proposta di partenza: `ρ = 2/3`, cioè 40 stelle su 60, che corrisponde alla prima soglia dell'originale (80 su 120). `ρ` è `TO DO`: nel codice è la costante `UNLOCK_RATIO` (2/3), un parametro esplicito di tutte le funzioni di sblocco, quindi cambiarlo non tocca la logica. L'isola completata e le sue stelle si contano a partire dai livelli dell'isola, qualunque ne sia il numero (oggi 20 per le prime due isole e 10 per le altre cinque, in attesa dei livelli da generare): la soglia è `⌈ρ × 3 × livelli⌉`.
+2. L'isola `i+1` si apre quando l'isola `i` è completata (ultimo livello con almeno una stella) **e** le stelle della sola isola `i` raggiungono `ρ × 3 × livelli`. È deciso `ρ = 2/3`: 40 stelle su 60 per ogni isola da 20 livelli. La soglia nel codice è `⌈ρ × 3 × livelli⌉` (`UNLOCK_RATIO = 2/3`).
 3. Un solo criterio per le stelle (1-3 per livello, da tempo e aiuti come nell'originale): la stessa somma alimenta sblocco e album.
 4. Il regalo ✨ all'apertura di un'isola è un dato dell'isola (nell'originale: 3 per l'Isola degli animali, 5 per le altre).
 5. Le spiegazioni delle meccaniche compaiono alla **prima comparsa** della meccanica nel gioco, non per numero di livello.
-6. La mappa è un elenco virtualizzato: mostra le isole aperte, la prossima chiusa con il requisito mancante e nulla oltre.
+6. La mappa è un elenco virtualizzato: mostra le isole aperte, la prossima chiusa con il requisito mancante e nulla oltre. Il catalogo genera solo le isole necessarie all'avanzamento e due successive; l'elenco non è allocato all'infinito.
 7. `TO DO`: formula delle carte d'album per isola. Con 20 livelli (massimo 60 stelle e 4 boss) la formula dell'originale (`⌊stelle/2⌋ + boss`, tetto 14) raggiungerebbe il tetto a metà isola: va ricalibrata.
 
 ## Punti d'ingresso nel codice
 
-`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). L'indice di difficoltà è in `src/domain/difficulty.ts` e `weights.ts`; isole e progressione hanno solo il percorso previsto (`TO DO`). Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`). I 100 livelli dell'originale sono dati in `src/infrastructure/content/legacy-levels.json`, esportati con `prototipi/s4-generatore/tools/export-levels.js` (richiede Playwright); `legacyLevels.ts` li tipizza e `toSpec` li converte in `LevelSpec`. Le misure di riferimento dei 100 livelli (media su 5 semi × 60 partite simulate) sono in `src/infrastructure/content/__fixtures__/legacy-measures.json`, prodotte da `prototipi/s4-generatore/tools/measures.ts`.
+`LevelSpec`, `generateLevel` e il solver sono in `src/domain/` (`docs/dominio-di-gioco.md`). L'indice di difficoltà è in `src/domain/difficulty.ts` e `weights.ts`; `campaignLevels.ts` assegna gli ID, compone le isole, sceglie il tema e riusa le forme per i contenuti generati. Per l'originale, i riferimenti sono righe di `Majoa Mahjong.html` (vedi `docs/gioco-originale.md`). I 100 livelli dell'originale sono dati in `src/infrastructure/content/legacy-levels.json`, esportati con `prototipi/s4-generatore/tools/export-levels.js` (richiede Playwright); `legacyLevels.ts` li tipizza e `toSpec` li converte in `LevelSpec`. Le misure di riferimento dei 100 livelli (media su 5 semi × 60 partite simulate) sono in `src/infrastructure/content/__fixtures__/legacy-measures.json`, prodotte da `prototipi/s4-generatore/tools/measures.ts`.
 
 | Elemento | Percorso | Ruolo | Riferimento nell'originale |
 |---|---|---|---|
@@ -109,7 +115,7 @@ Regole del modello:
 | `newProgress()`, `recordWin()`, `levelProgress()` | `src/domain/progress.ts` | Progressi per livello e ✨ di una vittoria | `prog` (stelle, oro, record, profilo), `win` (2279) |
 | `isLevelUnlocked()`, `isIslandUnlocked()`, `unlockThreshold()`, `islandStars()`, `isIslandCompleted()` | `src/domain/progress.ts` | Regole di sblocco di livelli e isole | `worldState` (2472), `islandEarned` (3213) |
 | `openGifts()` | `src/domain/progress.ts` | Regalo ✨ delle isole appena aperte | campo `gift` delle isole |
-| `legacyIslands`, `trisLevelIds`, `islandData()` | `src/infrastructure/content/legacyIslands.ts`, `legacyThemes.ts` | Le 7 isole della campagna, i Tris a parte, regali letti dall'originale | `ISLANDS` (1159) |
+| `legacyIslands`, `campaignIslandsForProgress()`, `campaignLevelById()` | `src/infrastructure/content/legacyIslands.ts`, `campaignLevels.ts` | Isole base, contenuti generati, numerazione interna; Tris a parte | `ISLANDS` (1159) |
 
 ## Vincoli e scartato
 
@@ -124,10 +130,11 @@ Regole del modello:
 
 ## Verifica
 
-- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`) e dell'indice di difficoltà (misure calcolate a mano, pesi, intervalli, etichetta); in `src/infrastructure/content/`, test sui 100 livelli dell'originale (forma dei dati; misure statiche uguali a quelle salvate; correlazione di Spearman 0,991 con l'ordine di progetto e 0,943 con le etichette 1-5 su 80 livelli; intervallo di libertà osservato; libertà e blocchi simulati riprodotti dal prototipo su 4 livelli; tessera libera contro `isFree` dell'originale in partite casuali; generazione con soluzione rigiocata; solver senza tavole irrisolvibili né senza esito, con il seme 3); in `src/domain/progress.test.ts` e `src/infrastructure/content/legacyIslands.test.ts`, regole di sblocco, record, ✨, regali e simulazioni di giocatori sulle isole della campagna (13 difetti introdotti di proposito, tutti rilevati; un quattordicesimo, equivalente, non cambia nulla); nel prototipo S4, 14 test.
+- **Coperto da test**: in `src/domain/`, test su forme sintetiche di determinismo, soluzione rigiocata con le regole di gioco, specifiche non valide, `generation-failed` e solver (`docs/dominio-di-gioco.md`) e dell'indice di difficoltà (misure calcolate a mano, pesi, intervalli, etichetta); in `src/infrastructure/content/`, test sui 100 livelli originali, ID e lunghezza delle isole, progressione della difficoltà generata e generazione risolvibile di forme originali per i nuovi ID; in `src/domain/progress.test.ts` e `src/infrastructure/content/legacyIslands.test.ts`, regole di sblocco, record, ✨, regali e simulazioni di giocatori sulle isole della campagna.
 - **Test previsti**: per ogni isola e livello, su un campione di semi, la tavola è risolvibile; l'indice è entro la tolleranza dall'obiettivo; la curva rispetta le regole dell'isola; il tempo di generazione sta sotto la soglia; confronto dei livelli esportati con le tabelle di `docs/gioco-originale.md`.
 - **Misurato su dispositivo**: un Android (modello non indicato), Hermes, produzione: vedi il paragrafo «Generazione» e `prototipi/s4-generatore/README.md`.
-- **Non verificato**: pesi dell'indice su dati di gioco; tolleranza e curva tra isole; sblocco dei Tris (nell'originale bloccati finché non si finiscono i livelli iniziali); salvataggio dei progressi; generazione di forme e di livelli oltre la campagna (`levelForIndex`); il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
+- **Verificato su dispositivo**: su Galaxy A36 la mappa mostra le isole 1-9, l'isola 8 espone i numeri 141-160 e il livello 141 avvia una tavola generata da 16 coppie.
+- **Non verificato**: taratura dell'indice con dati reali; andamento complessivo della difficoltà oltre il parametro `types`; confronto visivo con le catture dell'originale e misure prestazionali delle partite generate; sblocco dei Tris; generazione di nuove forme invece del riuso delle forme originali; il solver su tris piatti molto grandi (forme sintetiche da 90 tessere con 8 tipi: 3 tavole su 20 `unknown` entro 200000 nodi; sui 100 livelli dell'originale nessuna); iOS.
 
 ## Collegamenti
 

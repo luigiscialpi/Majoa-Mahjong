@@ -28,7 +28,7 @@ import { useMascotUri } from './mascots';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
-import { aidText, formatTime, islandName, PROFILE_KEYS } from './format';
+import { aidText, displayLevelNumber, formatTime, islandName, PROFILE_KEYS } from './format';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
@@ -88,7 +88,7 @@ export function GameScreen({ level, profile, onExit, store, progress, onProgress
     [level, profile, seed, attempt, resume, isComfort, effectiveS.noTimeLimit],
   );
   const svgs = useTileSvgs();
-  const basePalette = levelPalette(level.id);
+  const basePalette = levelPalette(level.id, level.island);
   const palette = resolveEffectivePalette(basePalette, settings.bgPalette, settings.tilePalette);
 
   if (!started.ok) return <Notice palette={palette} text={t('genError', { kind: started.error.kind })} onExit={onExit} />;
@@ -150,6 +150,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const game = session.game;
   const insets = useSafeAreaInsets();
   const { t: tl } = useTranslation();
+  const visibleLevelNumber = displayLevelNumber(islands, level.id);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [hintGroup, setHintGroup] = useState<readonly number[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -403,11 +404,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
     <FeltBackground colorA={palette[0]} colorB={palette[1]} cyRatio={0.4} testID="game-felt-bg">
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
-          <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel={tl('backToLevels')} testID="btn-back">
+          <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel={tl('backToIslands')} testID="btn-back">
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>{tl('level', { n: level.id })}</Text>
+            <Text style={styles.title}>{tl('level', { n: visibleLevelNumber })}</Text>
             <Text style={styles.subtitle}>
               {tl(PROFILE_KEYS[profile])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · ${tl('goldLbl', { a: got, b: total })}` : ''}
             </Text>
@@ -489,7 +490,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         {session.phase === 'won' && session.outcome ? (
           <Overlay animated={fxOn} behind={<FireworksLayer level={level.id} finale={finaleOf(level.id, islands, trisLevelIds) !== null} reduced={!fxOn} />}>
             <WinTrophy animated={fxOn} />
-            <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: level.id })}</Text>
+            <Text style={styles.overlayTitle}>{tl('winLevelDone', { n: visibleLevelNumber })}</Text>
             <View style={styles.overlayStarsRow}>
               <WinStars stars={session.outcome.stars} color={palette[2]} animated={fxOn} />
               {victoryRewards && victoryRewards.coins > 0 ? <WinCoinReward coins={victoryRewards.coins} animated={fxOn} /> : null}

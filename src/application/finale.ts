@@ -13,7 +13,10 @@ const last = (ids: readonly number[]): number | undefined => ids[ids.length - 1]
  * prima sono i livelli iniziali, l'ultima chiude la campagna); `bonusLevelIds` i livelli dell'isola bonus, fuori dal percorso.
  */
 export function finaleOf(levelId: number, islands: readonly IslandInfo[], bonusLevelIds: readonly number[]): Finale | null {
-  if (islands.length > 0 && levelId === last(islands[islands.length - 1].levelIds)) return 'grand';
+  const authoredIslands = islands.filter((island) => !island.id.startsWith('generated-'));
+  const campaignEnd = last(authoredIslands[authoredIslands.length - 1]?.levelIds ?? []);
+  if (campaignEnd !== undefined && levelId === campaignEnd) return 'grand';
+  if (authoredIslands.length === islands.length && islands.length > 0 && levelId === last(islands[islands.length - 1].levelIds)) return 'grand';
   if (islands.length > 0 && levelId === last(islands[0].levelIds)) return 'prologue';
   if (islands.some((island) => levelId === last(island.levelIds))) return 'island';
   return levelId === last(bonusLevelIds) ? 'island' : null;

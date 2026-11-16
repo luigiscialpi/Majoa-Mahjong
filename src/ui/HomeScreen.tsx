@@ -5,12 +5,11 @@ import { planStart, type Home, type ResumeInfo } from '../application/saveFlow';
 import type { SaveStore } from '../application/saveStore';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo } from '../domain/progress';
-import { legacyIslands } from '../infrastructure/content/legacyIslands';
-import { legacyLevels } from '../infrastructure/content/legacyLevels';
+import { campaignIslandsForProgress, campaignLevelById } from '../infrastructure/content/campaignLevels';
 import { useTranslation } from '../infrastructure/i18n';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
-import { formatTime, PROFILE_KEYS } from './format';
+import { displayLevelNumber, formatTime, PROFILE_KEYS } from './format';
 import { LevelPicker } from './LevelPicker';
 import { loadTileSvgs } from './svgs';
 import { colors } from './theme/colors';
@@ -34,7 +33,7 @@ export type HomeScreenProps = {
  * Home: la scheda «Continua» con la partita salvata, il selettore dei livelli con i progressi, la conferma prima di
  * sostituire la partita salvata e gli errori di lettura (`docs/salvataggi.md`, «Scelte per la UI»).
  */
-export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = legacyIslands, onOpenSettings }: HomeScreenProps) {
+export function HomeScreen({ home, store, onPlay, onResume, onReload, islands: suppliedIslands, onOpenSettings }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [pending, setPending] = useState<{ levelId: number; profile: Profile } | null>(null);
@@ -42,6 +41,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
   const [busy, setBusy] = useState(false);
   const { resume } = home;
   const plan = planStart(resume);
+  const islands = suppliedIslands ?? (home.progress.ok ? campaignIslandsForProgress(home.progress.value) : []);
 
   // Precarica i 129 SVG in background appena la home è visibile: quando l'utente
   // entra in partita i disegni sono già pronti e il "Caricamento dei disegni" non appare.
@@ -65,7 +65,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
     run(async () => {
       await store.clearGame();
       const saved = resume.kind === 'broken' ? resume.saved : null;
-      if (saved && legacyLevels.some((l) => l.id === saved.levelId)) onPlay(saved.levelId, saved.profile);
+      if (saved && campaignLevelById(saved.levelId)) onPlay(saved.levelId, saved.profile);
       else await onReload();
     });
 
@@ -110,7 +110,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
 
   const top =
     resume.kind === 'ready' ? (
-      <ContinueCard info={resume.info} onPress={onResume} />
+      <ContinueCard info={resume.info} islands={islands} onPress={onResume} />
     ) : resume.kind === 'broken' ? (
       <View style={styles.notice} testID="broken-notice">
         <Text style={styles.noticeText} accessibilityRole="alert">
@@ -127,7 +127,7 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
         <ConfirmDialog
           title={t('replaceGameTitle')}
           body={t('replaceGameBody', {
-            level: plan.info.levelId,
+            level: displayLevelNumber(islands, plan.info.levelId),
             profile: t(PROFILE_KEYS[plan.info.profile]),
             time: formatTime(plan.info.seconds),
           })}
@@ -163,10 +163,11 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands = 
   );
 }
 
-function ContinueCard({ info, onPress }: { info: ResumeInfo; onPress: () => void }) {
+function ContinueCard({ info, islands, onPress }: { info: ResumeInfo; islands: readonly IslandInfo[]; onPress: () => void }) {
   const { t } = useTranslation();
   const profile = t(PROFILE_KEYS[info.profile]);
   const time = formatTime(info.seconds);
+  const level = displayLevelNumber(islands, info.levelId);
   const remaining = t('resumeTiles', { n: info.remaining });
   const detail = `${profile} · ${time} · ${remaining}`;
   return (
@@ -174,12 +175,12 @@ function ContinueCard({ info, onPress }: { info: ResumeInfo; onPress: () => void
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
       accessibilityRole="button"
-      accessibilityLabel={t('resumeAria', { level: info.levelId, profile, time, tiles: remaining })}
+      accessibilityLabel={t('resumeAria', { level, profile, time, tiles: remaining })}
       testID="continue-card"
     >
       <View style={styles.cardTexts}>
         <Text style={styles.kicker}>{t('continueShort')}</Text>
-        <Text style={styles.cardTitle}>{t('level', { n: info.levelId })}</Text>
+        <Text style={styles.cardTitle}>{t('level', { n: level })}</Text>
         <Text style={styles.cardDetail}>{detail}</Text>
       </View>
       <Text style={styles.chevron}>›</Text>

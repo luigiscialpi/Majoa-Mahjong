@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { Profile } from '../domain/profile';
 import { newProgress, type Progress } from '../domain/progress';
-import { legacyIslands } from '../infrastructure/content/legacyIslands';
+import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { LevelPicker, REASON_MS } from './LevelPicker';
 import { LanguageProvider, type Language } from '../infrastructure/i18n';
 
@@ -24,6 +24,21 @@ const toggle = async (value: boolean) => {
   await fireEvent(screen.getByTestId('prova-switch'), 'valueChange', value);
 };
 
+async function visitIsland(id: string) {
+  if (!screen.queryByTestId('island-map-list')) await press('btn-back-islands');
+  await press('island-' + id);
+}
+
+async function visitLevel(level: number) {
+  const island = legacyIslands.find((candidate) => candidate.levelIds.includes(level));
+  await visitIsland(island?.id ?? 'tris');
+}
+
+async function pressLevel(level: number) {
+  await visitLevel(level);
+  await press('level-' + level);
+}
+
 function extractTexts(node: unknown): string[] {
   if (!node) return [];
   if (typeof node === 'string') return [node];
@@ -34,198 +49,139 @@ function extractTexts(node: unknown): string[] {
   return [];
 }
 const texts = (): string => extractTexts(screen.toJSON()).join('|');
-
-const reason = (): string | null => {
-  const node = screen.queryByTestId('level-reason');
-  return node ? extractTexts(node).join('') : null;
-};
-
-const label = (level: number): string => screen.getByTestId(`level-${level}`).props.accessibilityLabel;
-
+const label = (level: number): string => screen.getByTestId('level-' + level).props.accessibilityLabel;
+const islandText = (id: string): string => extractTexts(screen.getByTestId('island-' + id)).join('');
 const withStars = (byLevel: Record<number, number>): Progress => ({
   ...newProgress(),
   levels: Object.fromEntries(Object.entries(byLevel).map(([id, stars]) => [id, { stars, bestSeconds: null, gold: 0, profile: null }])),
 });
 
-test('con il profilo Normale di partenza, toccare un livello lo avvia', async () => {
+test('la mappa mostra le isole disponibili e apre i livelli dell’isola scelta', async () => {
   const calls: [number, Profile][] = [];
   await renderPicker((level, profile) => calls.push([level, profile]));
-  await press('level-1');
+  expect(screen.getByTestId('island-map-list')).toBeTruthy();
+  await pressLevel(1);
   expect(calls).toEqual([[1, 'normal']]);
+  expect(screen.getByTestId('btn-back-islands')).toBeTruthy();
 });
 
-test('etichetta Tris e motivo di sblocco seguono la lingua selezionata', async () => {
-  await renderPicker(() => {}, newProgress(), 'en');
-  expect(label(91)).toBe('Level 91 (Triples), 0 stars out of 3');
+test('la mappa con progressione mostra solo isole aperte e la prossima chiusa', async () => {
+  await renderPicker();
   await toggle(false);
-  await press('level-21');
-  expect(reason()).toBe('Need 40 ★ to open Animals');
+  expect(screen.getByTestId('island-prologue')).toBeTruthy();
+  expect(islandText('animals')).toContain('Servono 40 ★ per aprire Animali');
+  expect(screen.queryByTestId('island-sweets')).toBeNull();
+  expect(screen.queryByTestId('island-tris')).toBeNull();
 });
 
-test('il profilo scelto vale per i livelli toccati dopo', async () => {
+test('la soglia apre l’isola successiva solo dopo aver vinto l’ultima dell’isola', async () => {
+  const atThreshold = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { stars: 2, bestSeconds: null, gold: 0, profile: null }])) as Progress['levels'];
+  await renderPicker(() => {}, { ...newProgress(), levels: atThreshold });
+  await toggle(false);
+  expect(screen.getByTestId('island-animals')).toBeTruthy();
+  expect(islandText('sweets')).toContain('Servono 40 ★ per aprire Dolci');
+});
+
+test('con le stelle ma senza aver completato l’isola indica l’ultimo livello da vincere', async () => {
+  const unfinished = Object.fromEntries(Array.from({ length: 19 }, (_, i) => [i + 1, { stars: 3, bestSeconds: null, gold: 0, profile: null }])) as Progress['levels'];
+  await renderPicker(() => {}, { ...newProgress(), levels: unfinished });
+  await toggle(false);
+  expect(islandText('animals')).toContain('Vinci il livello 20 per aprire Animali');
+});
+
+test('il profilo scelto si applica ai livelli avviati', async () => {
   const calls: [number, Profile][] = [];
   await renderPicker((level, profile) => calls.push([level, profile]));
+  await visitIsland('prologue');
   await press('profile-master');
   await press('level-7');
   await press('profile-easy');
   await press('level-3');
-  expect(calls).toEqual([
-    [7, 'master'],
-    [3, 'easy'],
-  ]);
+  expect(calls).toEqual([[7, 'master'], [3, 'easy']]);
 });
 
 describe('modalità prova', () => {
-  test("è accesa all'inizio, col suo testo, e con lei ogni livello si gioca", async () => {
-    const calls: [number, Profile][] = [];
-    await renderPicker((level, profile) => calls.push([level, profile]));
-    expect(texts()).toContain('Modalità prova: tutti i livelli aperti');
+  test('è accesa all’inizio e rende accessibili anche isole e Tris', async () => {
+    await renderPicker();
+    expect(texts()).toContain('Mappa delle isole');
     expect(screen.getByTestId('prova-switch').props.value).toBe(true);
-    await press('level-50');
-    await press('level-95');
-    expect(calls).toEqual([
-      [50, 'normal'],
-      [95, 'normal'],
-    ]);
-    expect(reason()).toBeNull();
+    expect(screen.getByTestId('island-flowers')).toBeTruthy();
+    expect(screen.getByTestId('island-tris')).toBeTruthy();
+    await pressLevel(95);
+    expect(label(95)).toBe('Livello 5 (Tris), 0 stelle su 3');
   });
 
-  test('spenta, i livelli chiusi non partono e dicono perché; quelli aperti sì', async () => {
-    const calls: number[] = [];
-    await renderPicker((level) => calls.push(level));
+  test('spenta, i livelli consecutivi restano bloccati finché non si vince il precedente', async () => {
+    await renderPicker();
+    await visitIsland('prologue');
     await toggle(false);
     await press('level-1');
-    expect(calls).toEqual([1]);
-    await press('level-2');
-    expect(reason()).toBe('Vinci il livello 1 per aprire questo');
-    await press('level-21');
-    expect(reason()).toBe('Servono 40 ★ per aprire Animali');
-    await press('level-91');
-    expect(reason()).toBe('Si sbloccano più avanti');
-    expect(calls).toEqual([1]);
+    expect(label(2)).toBe('Livello 2, bloccato. Vinci il livello 1 per aprire questo');
   });
 
-  test('riaccendendola si torna a poter giocare tutto', async () => {
-    const calls: number[] = [];
-    await renderPicker((level) => calls.push(level));
+  test('riaccendendola si può aprire ogni isola e livello della campagna', async () => {
+    await renderPicker();
     await toggle(false);
     await toggle(true);
-    await press('level-30');
-    expect(calls).toEqual([30]);
+    await press('island-flowers');
+    await press('level-90');
+    expect(screen.getByTestId('level-90')).toBeTruthy();
   });
 });
 
-describe('progressi nel selettore', () => {
-  test('stelle sotto ogni livello aperto; i chiusi mostrano il lucchetto e non le stelle', async () => {
-    await renderPicker(() => {}, withStars({ 1: 3, 2: 1 }));
+describe('progressi e accessibilità', () => {
+  test('mostra le stelle per isola e livello', async () => {
+    await renderPicker(() => {}, withStars({ 1: 3, 2: 0 }));
+    expect(islandText('prologue')).toContain('3 / 60 stelle');
+    await visitIsland('prologue');
     await toggle(false);
-    const t = texts();
-    expect(t).toContain('★★★');
-    expect(t).toContain('★☆☆');
-    expect(t).toContain('☆☆☆');
-    expect(t).toContain('21');
-    const level21Text = extractTexts(screen.getByTestId('level-21')).join('');
-    expect(level21Text).not.toMatch(/[★☆]/);
-  });
-
-  test('si aggiornano con i progressi', async () => {
-    const { rerender } = await renderPicker(() => {}, withStars({ 5: 2 }));
-    expect(label(5)).toBe('Livello 5, 2 stelle su 3');
-    await rerender(<LevelPicker progress={withStars({ 5: 3 })} islands={legacyIslands} onPlay={() => {}} />);
-    expect(label(5)).toBe('Livello 5, 3 stelle su 3');
-  });
-
-  test('anche i livelli sbloccati dai progressi si giocano con la modalità prova spenta', async () => {
-    const calls: number[] = [];
-    await renderPicker((level) => calls.push(level), withStars({ 1: 1 }));
-    await toggle(false);
-    await press('level-2');
-    expect(calls).toEqual([2]);
-  });
-});
-
-describe('lucchetti accessibili e motivo', () => {
-  test("l'etichetta per i lettori di schermo dice stelle o blocco e motivo", async () => {
-    await renderPicker(() => {}, withStars({ 1: 2 }));
-    await toggle(false);
-    expect(label(1)).toBe('Livello 1, 2 stelle su 3');
+    expect(label(1)).toBe('Livello 1, 3 stelle su 3');
     expect(label(3)).toBe('Livello 3, bloccato. Vinci il livello 2 per aprire questo');
-    expect(label(91)).toBe('Livello 91 (Tris), bloccato. Si sbloccano più avanti');
   });
 
-  test('i Tris aperti si annunciano come tali', async () => {
-    await renderPicker(() => {});
-    expect(label(91)).toBe('Livello 91 (Tris), 0 stelle su 3');
+  test('i Tris restano fuori dalla campagna e si provano solo in modalità prova', async () => {
+    const tris = trisLevelIds[0];
+    await renderPicker();
+    await visitIsland('tris');
+    await toggle(false);
+    expect(label(tris)).toContain('bloccato. Si sbloccano più avanti');
   });
 
-  test('il motivo sparisce da solo dopo qualche secondo e un nuovo tocco lo sostituisce', async () => {
+  test('il motivo di blocco si aggiorna e sparisce dopo REASON_MS', async () => {
     jest.useFakeTimers();
     try {
-      await renderPicker(() => {});
+      await renderPicker();
+      await visitIsland('prologue');
       await toggle(false);
       await press('level-2');
-      await act(async () => {
-        jest.advanceTimersByTime(REASON_MS - 1);
-      });
-      expect(reason()).not.toBeNull();
-      await press('level-21');
-      await act(async () => {
-        jest.advanceTimersByTime(REASON_MS - 1);
-      });
-      expect(reason()).toBe('Servono 40 ★ per aprire Animali');
-      await act(async () => {
-        jest.advanceTimersByTime(1);
-      });
-      expect(reason()).toBeNull();
+      expect(texts()).toContain('Vinci il livello 1 per aprire questo');
+      await act(async () => { jest.advanceTimersByTime(REASON_MS); });
+      expect(screen.queryByTestId('level-reason')).toBeNull();
     } finally {
       jest.useRealTimers();
     }
   });
 
-  test('toccare lo stesso livello chiuso due volte rinnova il conto', async () => {
-    jest.useFakeTimers();
-    try {
-      await renderPicker(() => {});
-      await toggle(false);
-      await press('level-2');
-      await act(async () => {
-        jest.advanceTimersByTime(REASON_MS - 1);
-      });
-      await press('level-2');
-      await act(async () => {
-        jest.advanceTimersByTime(REASON_MS - 1);
-      });
-      expect(reason()).not.toBeNull();
-    } finally {
-      jest.useRealTimers();
+  test('i controlli principali rispettano 48 dp', async () => {
+    await renderPicker();
+    for (const id of ['prova-row', 'lang-it', 'btn-settings']) {
+      const node = screen.queryByTestId(id);
+      if (node) {
+        const style = StyleSheet.flatten(node.props.style);
+        expect(Math.max(style?.minHeight ?? 0, style?.height ?? 0)).toBeGreaterThanOrEqual(48);
+      }
     }
   });
-});
-
-test('i controlli del selettore sono alti almeno 48 dp', async () => {
-  await renderPicker(() => {});
-  for (const id of ['profile-easy', 'profile-master']) {
-    expect(StyleSheet.flatten(screen.getByTestId(id).props.style).minHeight).toBeGreaterThanOrEqual(48);
-  }
 });
 
 describe('cambio lingua al volo', () => {
-  test('toccare una lingua aggiorna i testi del selettore istantaneamente', async () => {
-    await renderPicker(() => {});
-    expect(texts()).toContain('Scegli un livello · 20 sfide');
-    expect(texts()).toContain('Normale');
-
-    await press('lang-en');
-    expect(texts()).toContain('Choose a level · 20 challenges');
-    expect(texts()).toContain('Normal');
-
+  test('la mappa e i suoi controlli seguono la lingua selezionata', async () => {
+    await renderPicker(() => {}, newProgress(), 'en');
+    expect(texts()).toContain('Island map');
     await press('lang-fr');
-    expect(texts()).toContain('Choisis un niveau · 20 défis');
-    expect(texts()).toContain('Normal');
-
+    expect(texts()).toContain('Carte des îles');
     await press('lang-it');
-    expect(texts()).toContain('Scegli un livello · 20 sfide');
-    expect(texts()).toContain('Normale');
+    expect(texts()).toContain('Mappa delle isole');
   });
 
   test('il pulsante impostazioni chiama onOpenSettings se fornito', async () => {

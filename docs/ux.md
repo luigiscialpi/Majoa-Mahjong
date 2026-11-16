@@ -1,6 +1,6 @@
 # Interazione (UX)
 
-> **Stato: DRAFT.** I principi sono decisi; la UI esistente (`src/ui/`) li rispetta solo in parte e ogni scostamento è elencato in README, sezione 8.
+> **Stato: DRAFT.** I principi sono decisi; la UI esistente (`src/ui/`) li rispetta solo in parte. Mappa, isola 8 e avvio del livello 141 sono provati su Galaxy A36; restano il confronto con le catture dell'originale e le verifiche delle schermate non completate.
 
 Questo capitolo fissa i principi generali di interazione dell'app. Si legge prima di progettare o cambiare una schermata, un messaggio o una conferma. Il caso del salvataggio è in `docs/salvataggi.md`.
 
@@ -42,7 +42,7 @@ Frasi brevi nella lingua selezionata, con il verbo dell'azione sul pulsante. Le 
 | `HomeScreen` | `src/ui/HomeScreen.tsx` | Home: scheda «Continua», conferma di sostituzione, errori di lettura |
 | `ConfirmDialog` | `src/ui/ConfirmDialog.tsx` | Conferma con pulsanti a verbo, uno per riga, scelta sicura in rilievo |
 | `levelStatus()` | `src/ui/levelStatus.ts` | Perché un livello è bloccato |
-| `LevelPicker` | `src/ui/LevelPicker.tsx` | Selettore provvisorio con stelle, lucchetti col motivo e «Modalità prova» |
+| `LevelPicker` | `src/ui/LevelPicker.tsx` | Mappa delle isole, progressi, requisito della prossima isola chiusa e livelli dell'isola scelta |
 | Scheda di vittoria | `src/ui/GameScreen.tsx` | Stelle centrate e premio «+N» temporaneo a destra; l'esito è già calcolato prima della scrittura su disco |
 
 ## Vincoli e scartato

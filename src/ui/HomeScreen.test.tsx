@@ -8,6 +8,7 @@ import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { serializeProgress } from '../application/progressCodec';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LanguageProvider, type Language } from '../infrastructure/i18n';
 import { HomeScreen } from './HomeScreen';
 
@@ -34,6 +35,14 @@ async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScre
 }
 
 const press = async (testID: string) => {
+  const level = /^level-(\d+)$/.exec(testID);
+  const profile = /^profile-/.test(testID);
+  if ((level || profile) && screen.queryByTestId('island-map-list')) {
+    const id = level ? Number(level[1]) : 1;
+    const island = legacyIslands.find((candidate) => candidate.levelIds.includes(id));
+    const groupId = island?.id ?? 'tris';
+    if (screen.queryByTestId('island-' + groupId)) await fireEvent.press(screen.getByTestId('island-' + groupId));
+  }
   await fireEvent.press(screen.getByTestId(testID));
 };
 
@@ -115,7 +124,7 @@ describe('senza partita salvata', () => {
   test('i progressi si vedono nel selettore', async () => {
     const progress = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 50, gold: 0, profile: 'normal', noTimePressure: false }).progress;
     await mount(storeWith(undefined, serializeProgress(progress)));
-    expect(texts()).toContain('★★★');
+    expect(texts()).toContain('3 / 60 stelle');
   });
 });
 
@@ -275,12 +284,12 @@ describe('partita salvata illeggibile', () => {
     expect(await savedOf(store)).toBeNull();
   });
 
-  test('se il livello salvato non esiste più resta nella home', async () => {
+  test('se il livello salvato ha un ID generato lo riavvia', async () => {
     const store = storeWith(savedGame({ levelId: 999, fingerprint: '0000000000000000' }));
     const { onPlay, onReload } = await mount(store);
     await press('btn-restart-saved');
-    expect(onPlay).not.toHaveBeenCalled();
-    expect(onReload).toHaveBeenCalledTimes(1);
+    expect(onPlay).toHaveBeenCalledWith(999, 'hard');
+    expect(onReload).not.toHaveBeenCalled();
   });
 
   test('mentre scarta, «Ricomincia» è disattivato', async () => {

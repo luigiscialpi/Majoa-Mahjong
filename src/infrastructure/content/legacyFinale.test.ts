@@ -1,6 +1,8 @@
 import { finaleOf } from '../../application/finale';
 import { legacyIslands, trisLevelIds } from './legacyIslands';
 import { legacyLevels } from './legacyLevels';
+import { campaignIslandsForProgress } from './campaignLevels';
+import { newProgress } from '../../domain/progress';
 
 const fs: { readFileSync(path: string, encoding: string): string } = jest.requireActual('fs');
 const src = fs.readFileSync('reference/majoa-originale/Majoa Mahjong.html', 'utf8'); // percorso dalla radice del progetto
@@ -39,5 +41,11 @@ describe('finaleOf', () => {
 
   test('senza isole né livelli bonus nessun livello è un finale', () => {
     expect(finaleOf(5, [], [])).toBeNull();
+  });
+
+  test('la fine della campagna iniziale resta il finale anche quando la mappa prosegue all’infinito', () => {
+    const islands = campaignIslandsForProgress(newProgress());
+    expect(finaleOf(150, islands, trisLevelIds)).toBe('grand');
+    expect(finaleOf(170, islands, trisLevelIds)).toBe('island');
   });
 });

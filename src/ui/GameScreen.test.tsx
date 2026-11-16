@@ -205,7 +205,7 @@ const playPair = (pair: [number, number]) => {
 describe('GameScreen', () => {
   test('localizza le etichette di navigazione e quelle per l\'accessibilità', async () => {
     await mount(1, 'normal', {}, 'en');
-    expect(screen.getByRole('button', { name: 'Back to levels' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Back to islands' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: /^Hint, (?:\d+|∞) remaining$/ })).toBeOnTheScreen();
   });
 

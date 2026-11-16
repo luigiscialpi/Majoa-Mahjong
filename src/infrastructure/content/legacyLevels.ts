@@ -5,6 +5,8 @@ import { comfortCellsForLevel } from './legacyComfortLevels';
 /** Livello dell'originale come esportato da `prototipi/s4-generatore/tools/export-levels.js`. */
 export type LegacyLevel = {
   id: number;
+  /** Identificativo dell'isola nella progressione; per i livelli originali coincide con `island`. */
+  islandId?: string;
   island: string;
   local: number;
   islandSize: number;

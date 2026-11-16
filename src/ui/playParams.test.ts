@@ -10,6 +10,11 @@ test('profilo mancante o non valido: Normale', () => {
   expect(parsePlayParams('1', 'impossibile').profile).toBe('normal');
 });
 
-test('livello mancante, fuori dai 100 o non numerico: nessun livello', () => {
-  for (const level of [undefined, '0', '101', 'abc', '']) expect({ level, found: parsePlayParams(level, 'easy').level }).toEqual({ level, found: undefined });
+test('i nuovi ID puntano ai livelli estesi e infiniti', () => {
+  expect(parsePlayParams('101', 'easy').level?.id).toBe(101);
+  expect(parsePlayParams('151', 'easy').level?.id).toBe(151);
+});
+
+test('livello mancante, non positivo o non numerico: nessun livello', () => {
+  for (const level of [undefined, '0', '-1', 'abc', '']) expect({ level, found: parsePlayParams(level, 'easy').level }).toEqual({ level, found: undefined });
 });

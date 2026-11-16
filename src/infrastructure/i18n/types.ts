@@ -2,9 +2,9 @@ export type Language = 'it' | 'en' | 'fr';
 
 export type IntroEntry = { t: string; l: string[] };
 
-/** Una locale completa: 251 chiavi stringa + tn, names, intro. */
+/** Una locale completa: chiavi stringa + tn, names, intro. */
 export type Locale = {
-  // ---- chiavi stringa (251) ----
+  // ---- chiavi stringa ----
   level: string;
   pairs: string;
   time: string;
@@ -319,6 +319,12 @@ export type Locale = {
   islandNameScience: string;
   islandNameSea: string;
   islandNameFlowers: string;
+  islandNameGenerated: string;
+  islandMap: string;
+  backToIslands: string;
+  islandLabel: string;
+  islandProgress: string;
+  testModeShort: string;
   // ---- strutture speciali ----
   /** Nomi delle 129 tessere (base + isole). */
   tn: string[];

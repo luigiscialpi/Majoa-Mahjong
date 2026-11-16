@@ -1,4 +1,6 @@
 import type { Profile } from '../domain/profile';
+import type { IslandInfo } from '../domain/progress';
+import { trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { t, type TranslationKey } from '../infrastructure/i18n';
 
 export const PROFILE_KEYS = {
@@ -43,5 +45,20 @@ const ISLAND_NAME_KEYS: Readonly<Record<string, TranslationKey | undefined>> = {
 
 export function islandName(id: string, translate: typeof t = t): string {
   const key = ISLAND_NAME_KEYS[id];
+  const generated = /^generated-(\d+)$/.exec(id);
+  if (generated) return translate('islandNameGenerated', { n: Number(generated[1]) });
   return key ? translate(key) : id;
+}
+
+/** Numero visibile in sequenza; l'identificativo salvato del livello resta stabile. */
+export function displayLevelNumber(islands: readonly IslandInfo[], levelId: number): number {
+  let first = 1;
+  for (const island of islands) {
+    const position = island.levelIds.indexOf(levelId);
+    if (position >= 0) return first + position;
+    first += island.levelIds.length;
+  }
+  const trisPosition = trisLevelIds.indexOf(levelId);
+  if (trisPosition >= 0) return trisPosition + 1;
+  return levelId;
 }
