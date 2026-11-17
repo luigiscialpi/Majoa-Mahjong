@@ -59,6 +59,16 @@ jest.mock('./SparkLayer', () => ({
     return null;
   },
 }));
+// Anche la barra delle tessere selezionate registra ciò che riceve (il suo disegno è provato in SelectionBar.test.tsx).
+jest.mock('./SelectionBar', () => {
+  const React = require('react'); // eslint-disable-line @typescript-eslint/no-require-imports
+  return {
+    SelectionBar: (props: unknown) => {
+      (globalThis as { __bar?: unknown }).__bar = props;
+      return React.createElement('View', { testID: 'selection-bar' });
+    },
+  };
+});
 jest.mock('./ComboBanner', () => {
   const React = require('react');
   return {
@@ -114,6 +124,8 @@ afterEach(() => {
 
 const board = (): TileBoardProps => (globalThis as unknown as { __board: TileBoardProps }).__board;
 const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
+type BarProps = { view: { slots: (number | string)[]; status: string | null }; recent: number[]; groupSize: number };
+const bar = (): BarProps => (globalThis as unknown as { __bar: BarProps }).__bar;
 
 const press = (testID: string) => {
   const el = screen.getByTestId(testID);
@@ -862,6 +874,65 @@ describe('GameScreen: salvataggi', () => {
       advance(2_500);
       expect(board().hint).toEqual([]);
     });
+  });
+});
+
+describe('GameScreen: barra delle tessere selezionate', () => {
+  const withBar = { ...DEFAULT_SETTINGS, selectedBar: true };
+
+  test('di default non c\'è; la modalità comoda non la accende (resta un\'opzione a sé)', async () => {
+    await mount(1);
+    expect(screen.queryByTestId('selection-bar')).toBeNull();
+    await screen.unmount();
+    await mount(1, 'normal', { settings: { ...DEFAULT_SETTINGS, comfort: true } });
+    expect(screen.queryByTestId('selection-bar')).toBeNull();
+  });
+
+  test('con l\'impostazione accesa c\'è, vuota, con due caselle', async () => {
+    await mount(1, 'normal', { settings: withBar });
+    expect(screen.queryByTestId('selection-bar')).not.toBeNull();
+    expect(bar()).toMatchObject({ view: { slots: [], status: null }, recent: [], groupSize: 2 });
+  });
+
+  test('una tessera toccata compare nella barra con il suo disegno; toccata di nuovo sparisce', async () => {
+    await mount(1, 'normal', { settings: withBar });
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(pair[0]); });
+    expect(bar().view).toEqual({ slots: [board().designs[pair[0]]], status: null });
+    act(() => { board().onTap(pair[0]); });
+    expect(bar().view).toEqual({ slots: [], status: null });
+  });
+
+  test('una coppia: ✔ con le due tessere e l\'abbinamento tra i recenti; dopo 1100 ms la barra si svuota', async () => {
+    await mount(1, 'normal', { settings: withBar });
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    playPair(pair);
+    expect(bar().view).toEqual({ slots: [board().designs[pair[0]], board().designs[pair[1]]], status: 'ok' });
+    expect(bar().recent).toEqual([board().designs[pair[0]]]);
+    advance(1100);
+    expect(bar().view).toEqual({ slots: [], status: null });
+    expect(bar().recent).toHaveLength(1);
+  });
+
+  test('una tessera bloccata: segno «blocked» per 900 ms, poi torna la selezione', async () => {
+    await mount(1, 'normal', { settings: withBar });
+    const blocked = board().tiles.findIndex((_, i) => !board().free.has(i));
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(pair[0]); });
+    act(() => { board().onTap(blocked); });
+    expect(bar().view.status).toBe('blocked');
+    advance(900);
+    expect(bar().view).toEqual({ slots: [board().designs[pair[0]]], status: null });
+  });
+
+  test('nei livelli Tris la barra ha tre caselle', async () => {
+    const tris = legacyLevels.findIndex((l) => l.groupSize === 3) + 1;
+    expect(tris).toBeGreaterThan(0);
+    await mount(tris, 'normal', { settings: withBar });
+    expect(bar().groupSize).toBe(3);
   });
 });
 

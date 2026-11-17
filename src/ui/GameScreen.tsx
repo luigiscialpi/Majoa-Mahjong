@@ -25,6 +25,7 @@ import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
 import { FireworksLayer } from './FireworksLayer';
 import { useMascotUri } from './mascots';
+import { SelectionBar } from './SelectionBar';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
@@ -34,6 +35,7 @@ import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
 import { useMatchEffects } from './useMatchEffects';
 import { useReduceMotion } from './useReduceMotion';
+import { useSelectionBar } from './useSelectionBar';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -369,6 +371,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema o da impostazioni.
   const { settings } = useSettings();
   const effective = effectiveSettings(settings);
+  const bar = useSelectionBar({ round, island: level.island, tapped: lastTapped, enabled: settings.selectedBar });
   const fxOn = !useReduceMotion() && settings.effects;
   const mascotUri = useMascotUri(settings.mascot);
   const { bursts, banner, clearBanner } = useMatchEffects({ feedback: round.feedback, seq: round.seq, tiles: game.tiles, column, areaWidth: area.width, enabled: fxOn });
@@ -442,6 +445,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             <Text style={styles.troubleText}>{tl('saveTrouble')}</Text>
           </View>
         ) : null}
+
+        {settings.selectedBar ? <SelectionBar view={bar.view} recent={bar.recent} groupSize={game.g} svgs={svgs} palette={palette} /> : null}
 
         <View style={styles.boardArea} onLayout={onLayout} testID="board-area">
           {area.width > 0 && (session.phase !== 'won' || view.removing.size > 0) ? (
