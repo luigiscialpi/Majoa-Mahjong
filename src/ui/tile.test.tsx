@@ -25,6 +25,7 @@ jest.mock('react-native-reanimated', () => ({
 }));
 
 import { render, screen } from '@testing-library/react-native';
+import { HATCH, hatchPathD } from './contrastSignals';
 import { sparklePathsD } from './effects';
 import { StaticTile, blockedDimOverlay, designBox, flipEase, flipTransform, starPathD, tinDelayMs, tinEase, tinTransform } from './tile';
 
@@ -178,5 +179,47 @@ describe('StaticTile d\'oro', () => {
     await screen.unmount();
     await render(<StaticTile {...props} status={{ locked: false, fog: false, gold: false, match: false }} />);
     expect(walk(screen.toJSON() as unknown as Node).filter((n) => n.type === 'Path' && n.props.color === '#ffe040')).toHaveLength(0);
+  });
+});
+
+describe('StaticTile: tratteggio delle bloccate', () => {
+  type Node = { type: string; props: Record<string, unknown>; children?: Node[] | null };
+  const walk = (node: Node | Node[] | null, out: Node[] = []): Node[] => {
+    if (!node) return out;
+    if (Array.isArray(node)) node.forEach((n) => walk(n, out));
+    else {
+      out.push(node);
+      walk(node.children as Node[] | null, out);
+    }
+    return out;
+  };
+  const rect = { x: 30, y: 40, w: 56, h: 75 };
+  const props = { rect, radius: 6, svg: null, shadow: false, body: null, palette: ['#fff', '#eee', '#ddd', '#ccc', '#bbb'] as const, font: null, status: { locked: false, fog: false, gold: false, match: false } };
+  const hatchPaths = () => walk(screen.toJSON() as unknown as Node).filter((n) => n.type === 'Path' && n.props.color === HATCH.color);
+
+  it('con `hatch` disegna le strisce del riquadro, a tratto di 5 px, ritagliate sulla tessera arrotondata', async () => {
+    await render(<StaticTile {...props} hatch />);
+    const [stripes, ...rest] = hatchPaths();
+    expect(rest).toHaveLength(0);
+    expect(stripes.props).toMatchObject({ path: hatchPathD(rect.w, rect.h), style: 'stroke', strokeWidth: HATCH.width });
+    const clipped = walk(screen.toJSON() as unknown as Node).find((n) => n.type === 'Group' && (n.props.clip as { rx?: number } | undefined)?.rx === 6);
+    expect(clipped?.props.clip).toEqual({ rect: { x: rect.x, y: rect.y, w: rect.w, h: rect.h }, rx: 6, ry: 6 });
+  });
+
+  it('senza `hatch` (o con `hatch` falso) non c\'è nulla', async () => {
+    await render(<StaticTile {...props} />);
+    expect(hatchPaths()).toHaveLength(0);
+    await screen.unmount();
+    await render(<StaticTile {...props} hatch={false} />);
+    expect(hatchPaths()).toHaveLength(0);
+  });
+
+  it('sta sopra l\'oscuramento delle bloccate', async () => {
+    await render(<StaticTile {...props} hatch dimColor="rgba(0,0,0,0.40)" />);
+    const nodes = walk(screen.toJSON() as unknown as Node);
+    const dim = nodes.findIndex((n) => n.type === 'RoundedRect' && n.props.color === 'rgba(0,0,0,0.40)');
+    const stripes = nodes.findIndex((n) => n.type === 'Path' && n.props.color === HATCH.color);
+    expect(dim).toBeGreaterThanOrEqual(0);
+    expect(stripes).toBeGreaterThan(dim);
   });
 });

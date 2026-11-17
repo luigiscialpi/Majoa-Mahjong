@@ -14,12 +14,12 @@ import { findMove } from '../domain/hint';
 import type { Profile } from '../domain/profile';
 import type { IslandInfo, Progress } from '../domain/progress';
 import { blockersOf } from '../domain/geometry';
-import { effectiveSettings } from '../domain/settings';
+import { contrastOf, effectiveSettings } from '../domain/settings';
 import { useSettings } from './SettingsProvider';
 import { STAR_TYPE, type GenError, type Result } from '../domain/types';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { designOf, levelPalette, type Palette } from '../infrastructure/content/legacyThemes';
-import { resolveEffectivePalette } from '../infrastructure/content/appearancePalettes';
+import { COLORBLIND_PALETTE, resolveEffectivePalette } from '../infrastructure/content/appearancePalettes';
 import { toSpec, type LegacyLevel } from '../infrastructure/content/legacyLevels';
 import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
@@ -90,7 +90,8 @@ export function GameScreen({ level, profile, onExit, store, progress, onProgress
     [level, profile, seed, attempt, resume, isComfort, effectiveS.noTimeLimit],
   );
   const svgs = useTileSvgs();
-  const basePalette = levelPalette(level.id, level.island);
+  // Con il daltonismo la tavolozza è la sua blu e arancio, al posto di quella del livello; sfondo e bordo scelti si applicano sopra
+  const basePalette = settings.colorBlind ? COLORBLIND_PALETTE : levelPalette(level.id, level.island);
   const palette = resolveEffectivePalette(basePalette, settings.bgPalette, settings.tilePalette);
 
   if (!started.ok) return <Notice palette={palette} text={t('genError', { kind: started.error.kind })} onExit={onExit} />;
@@ -371,6 +372,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema o da impostazioni.
   const { settings } = useSettings();
   const effective = effectiveSettings(settings);
+  const contrast = contrastOf(settings);
   const bar = useSelectionBar({ round, island: level.island, tapped: lastTapped, enabled: settings.selectedBar });
   const fxOn = !useReduceMotion() && settings.effects;
   const mascotUri = useMascotUri(settings.mascot);
@@ -457,7 +459,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 svgs={svgs}
                 statuses={statuses}
                 palette={palette}
-                profile={profile}
+                // Con i segnali lo scurimento delle bloccate non segue la difficoltà: resta quello di Normale (`dm`, riga 2393)
+                profile={contrast.signals ? 'normal' : profile}
+                signals={contrast.signals}
                 width={column.w}
                 height={column.h}
                 free={free}

@@ -1,5 +1,6 @@
 import {
   BG_PALETTE_COLORS,
+  COLORBLIND_PALETTE,
   TILE_PALETTE_COLORS,
   bgPreviewColor,
   tilePreviewColor,
@@ -95,5 +96,22 @@ describe('appearancePalettes', () => {
       TILE_PALETTE_COLORS.teal.edge,
       TILE_PALETTE_COLORS.teal.edge2,
     ]);
+  });
+});
+
+describe('COLORBLIND_PALETTE', () => {
+  test('è la CBP dell\'originale (riga 1374): blu e arancio, nello stesso ordine di una tavolozza di livello', () => {
+    const source = fs.readFileSync(ORIGINAL_HTML, 'utf8');
+    const match = /var CBP=\[([^\]]+)\]/.exec(source);
+    expect(match).not.toBeNull();
+    expect([...COLORBLIND_PALETTE]).toEqual(match![1].split(',').map((c) => c.trim().replace(/'/g, '')));
+    expect(COLORBLIND_PALETTE).toHaveLength(5);
+  });
+
+  test('le scelte di sfondo e di bordo dell\'utente si applicano sopra, come in `applyTheme`', () => {
+    const out = resolveEffectivePalette(COLORBLIND_PALETTE, 'ocean', 'level');
+    expect(out.slice(0, 3)).toEqual([BG_PALETTE_COLORS.ocean.feltA, BG_PALETTE_COLORS.ocean.feltB, BG_PALETTE_COLORS.ocean.accent]);
+    expect(out.slice(3)).toEqual([COLORBLIND_PALETTE[3], COLORBLIND_PALETTE[4]]);
+    expect(resolveEffectivePalette(COLORBLIND_PALETTE, 'level', 'level')).toEqual([...COLORBLIND_PALETTE]);
   });
 });

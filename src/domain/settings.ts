@@ -158,3 +158,18 @@ export function effectiveSettings(settings: Settings): Settings {
     autoHint: true,
   };
 }
+
+export type Contrast = {
+  /** Forme e contorni che non dipendono dal colore (tratteggio sulle bloccate, contorni bianchi): daltonismo o alto contrasto. */
+  readonly signals: boolean;
+  /** Alto contrasto: cambia anche i colori. */
+  readonly high: boolean;
+};
+
+/**
+ * Quali parti dell'accessibilità visiva sono attive. L'alto contrasto porta con sé i segnali del daltonismo
+ * (`c.toggle('hc',!!S.hc); c.toggle('cb',!!(S.cb||S.hc))`, riga 3403 dell'originale). Non dipende dalla Modalità comoda.
+ */
+export function contrastOf(settings: Pick<Settings, 'colorBlind' | 'highContrast'>): Contrast {
+  return { signals: settings.colorBlind || settings.highContrast, high: settings.highContrast };
+}

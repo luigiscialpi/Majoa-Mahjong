@@ -9,6 +9,13 @@
 import type { BgPalette, TilePalette } from '../../domain/settings';
 import type { Palette } from './legacyThemes';
 
+/**
+ * Tavolozza per il daltonismo (`CBP`, riga 1374 dell'originale): blu e arancio, distinguibili anche con le forme di
+ * colore più comuni. Sostituisce quella del livello (`applyTheme`: `S.cb?CBP:c.th`); le scelte di sfondo e di bordo
+ * delle tessere dell'utente si applicano poi sopra, come nell'originale.
+ */
+export const COLORBLIND_PALETTE: Palette = ['#243447', '#0e1620', '#E69F00', '#0072B2', '#0b3d62'];
+
 /** Colori di una palette sfondo: [felt-a (chiaro), felt-b (scuro), accent]. */
 export type BgColors = { feltA: string; feltB: string; accent: string };
 

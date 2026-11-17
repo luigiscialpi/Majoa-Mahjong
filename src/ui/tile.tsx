@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { PixelRatio } from 'react-native';
-import { Circle, Group, Image, ImageSVG, LinearGradient, Path, RoundedRect, Shadow, Text, drawAsImage, rect as clipRect, vec, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
+import { Circle, Group, Image, ImageSVG, LinearGradient, Path, RoundedRect, Shadow, Text, drawAsImage, rect as clipRect, rrect, vec, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Easing, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import type { Profile } from '../domain/profile';
 import type { Rect } from '../domain/board';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import type { TileStatus } from './boardView';
+import { HATCH, hatchPathD } from './contrastSignals';
 import { sparklePathsD } from './effects';
 
 /**
@@ -285,10 +286,12 @@ export type StaticTileProps = {
   font: SkFont | null;
   dimColor?: string | null;
   fade?: boolean;
+  /** Tratteggio a 45° delle tessere bloccate, per chi non distingue le tessere dal colore (daltonismo o alto contrasto). */
+  hatch?: boolean;
 };
 
 /** Tessera ferma: componente senza hook né valori condivisi, adatto a essere disegnato una volta sola in un'immagine. */
-export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor, fade }: StaticTileProps) {
+export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor, fade, hatch }: StaticTileProps) {
   const box = designBox(rect.x, rect.y, rect.w, rect.h);
   const covered = status.locked || status.fog;
   return (
@@ -331,6 +334,14 @@ export function StaticTile({ rect, radius, svg, shadow, body, palette, status, f
       {/* Oscuramento per tessere bloccate (non libere) */}
       {dimColor && !covered ? (
         <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={dimColor} />
+      ) : null}
+      {/* Tratteggio delle bloccate (CSS .cb .tile.blocked::after riga 212): sopra a tutto, ritagliato sulla tessera */}
+      {hatch ? (
+        <Group clip={rrect(clipRect(rect.x, rect.y, rect.w, rect.h), radius, radius)}>
+          <Group transform={[{ translateX: rect.x }, { translateY: rect.y }]}>
+            <Path path={hatchPathD(rect.w, rect.h)} style="stroke" strokeWidth={HATCH.width} color={HATCH.color} />
+          </Group>
+        </Group>
       ) : null}
       {/* Attenuazione per tessere libere non-match con selezione attiva (CSS .tile.fade brightness .8) */}
       {fade && !covered ? (

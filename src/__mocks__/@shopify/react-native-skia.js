@@ -34,6 +34,8 @@ module.exports = {
   LinearGradient: el('LinearGradient'),
   vec: (x, y) => ({ x, y }),
   rect: (x, y, w, h) => ({ x, y, w, h }),
+  rrect: (r, rx, ry) => ({ rect: r, rx, ry }),
+  DashPathEffect: el('DashPathEffect'),
   drawAsImage: () => Promise.resolve(null),
   matchFont: () => ({
     measureText: (s) => ({ width: s.length * 8 }),

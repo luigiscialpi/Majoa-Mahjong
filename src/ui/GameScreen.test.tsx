@@ -44,6 +44,9 @@ jest.mock('react-native-reanimated', () => {
 });
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('./svgs', () => ({ useTileSvgs: () => Array.from({ length: 129 }, () => null) }));
+import { BG_PALETTE_COLORS, COLORBLIND_PALETTE, TILE_PALETTE_COLORS } from '../infrastructure/content/appearancePalettes';
+import { levelPalette } from '../infrastructure/content/legacyThemes';
+
 jest.mock('./TileBoard', () => ({
   TileBoard: (props: unknown) => {
     (globalThis as { __board?: unknown }).__board = props;
@@ -933,6 +936,53 @@ describe('GameScreen: barra delle tessere selezionate', () => {
     expect(tris).toBeGreaterThan(0);
     await mount(tris, 'normal', { settings: withBar });
     expect(bar().groupSize).toBe(3);
+  });
+});
+
+describe('GameScreen: daltonismo e alto contrasto', () => {
+  const level = legacyLevels[0];
+  const base = [...levelPalette(level.id, level.island)];
+  const on = (extra: Partial<Settings>): { settings: Settings } => ({ settings: { ...DEFAULT_SETTINGS, ...extra } });
+
+  test('di base: tavolozza del livello, nessun segnale, scurimento della difficoltà', async () => {
+    await mount(1, 'hard', on({}));
+    expect([...board().palette]).toEqual(base);
+    expect(board().signals).toBe(false);
+    expect(board().profile).toBe('hard');
+  });
+
+  test('daltonismo: tavolozza blu e arancio al posto di quella del livello, segnali accesi, scurimento fisso come Normale', async () => {
+    await mount(1, 'hard', on({ colorBlind: true }));
+    expect([...board().palette]).toEqual([...COLORBLIND_PALETTE]);
+    expect(board().signals).toBe(true);
+    expect(board().profile).toBe('normal');
+  });
+
+  test('alto contrasto: segnali accesi e scurimento fisso, ma la tavolozza resta quella del livello (la CBP è del solo daltonismo)', async () => {
+    await mount(1, 'hard', on({ highContrast: true }));
+    expect([...board().palette]).toEqual(base);
+    expect(board().signals).toBe(true);
+    expect(board().profile).toBe('normal');
+  });
+
+  test('la Modalità comoda non accende i segnali', async () => {
+    await mount(1, 'normal', on({ comfort: true }));
+    expect(board().signals).toBe(false);
+  });
+
+  test('sfondo e bordo scelti dall\'utente si applicano sopra la tavolozza del daltonismo', async () => {
+    await mount(1, 'normal', on({ colorBlind: true, bgPalette: 'ocean', tilePalette: 'red' }));
+    const ocean = BG_PALETTE_COLORS.ocean;
+    const red = TILE_PALETTE_COLORS.red;
+    expect([...board().palette]).toEqual([ocean.feltA, ocean.feltB, ocean.accent, red.edge, red.edge2]);
+    await screen.unmount();
+    await mount(1, 'normal', on({ colorBlind: true, bgPalette: 'ocean' }));
+    expect([...board().palette]).toEqual([ocean.feltA, ocean.feltB, ocean.accent, COLORBLIND_PALETTE[3], COLORBLIND_PALETTE[4]]);
+  });
+
+  test('anche la barra delle tessere selezionate usa la tavolozza del daltonismo', async () => {
+    await mount(1, 'normal', on({ colorBlind: true, selectedBar: true }));
+    expect((globalThis as unknown as { __bar: { palette: string[] } }).__bar.palette).toEqual([...COLORBLIND_PALETTE]);
   });
 });
 

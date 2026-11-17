@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { PixelRatio } from 'react-native';
-import { Canvas, Circle, Group, Image, Path, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
+import { Canvas, Circle, DashPathEffect, Group, Image, Path, RoundedRect, drawAsImage, matchFont, type SkFont, type SkImage, type SkSVG } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing, runOnJS, useSharedValue, withSequence, withTiming, useDerivedValue } from 'react-native-reanimated';
 import { boardMetrics, drawOrder, hitTest, tileRect } from '../domain/board';
@@ -8,6 +8,7 @@ import type { Profile } from '../domain/profile';
 import type { PlacedTile } from '../domain/types';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import { statusKey, type TileStatus } from './boardView';
+import { MATCH_BADGE, blockerSignal, hintSignal, matchSignal, selectedSignal, type Ring } from './contrastSignals';
 import { EnteringTile, FlippingTile, RemovingTile, StaticTile, TileWaveGroup, blockedDimOverlay, tinDelayMs, useBodyImage, type StaticTileProps } from './tile';
 
 /** Tessera con animazione shake su tocco rifiutato (CSS @keyframes shake riga 225 HTML, 0.42s ease-in-out). */
@@ -43,6 +44,8 @@ export type TileBoardProps = {
   statuses: readonly TileStatus[];
   palette: Palette;
   profile?: Profile;
+  /** Segni che non dipendono dal colore (daltonismo o alto contrasto): tratteggio sulle bloccate e contorni bianchi o neri. */
+  signals?: boolean;
   width: number;
   height: number;
   /** Tessere vive e libere: le sole che possono essere toccate o tolte, quindi disegnate dal vivo. */
@@ -107,6 +110,7 @@ function TileBoardComponent({
   statuses,
   palette,
   profile = 'normal',
+  signals = false,
   width,
   height,
   free,
@@ -224,6 +228,7 @@ function TileBoardComponent({
                 status={statusesRef.current[i]}
                 font={font}
                 dimColor={isBlocked ? dimColor : null}
+                hatch={signals && isBlocked}
               />
             );
           })}
@@ -235,7 +240,7 @@ function TileBoardComponent({
     return () => {
       cancelled = true;
     };
-  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, free, boardIn]);
+  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, signals, free, boardIn]);
 
   // Finché l'immagine non è pronta si disegna tutto dal vivo; dopo, dal vivo solo ciò che l'immagine non contiene
   // o che sta per muoversi (stessi pixel, nessun buco durante il passaggio).
@@ -314,6 +319,7 @@ function TileBoardComponent({
                       font,
                       dimColor: isBlocked ? dimColor : null,
                       fade: false,
+                      hatch: signals && isBlocked,
                     };
                     return <StaticTile key={i} {...props} />;
                   })}
@@ -337,6 +343,7 @@ function TileBoardComponent({
                 font,
                 dimColor: isBlocked ? dimColor : null,
                 fade: isFaded,
+                hatch: signals && isBlocked,
               };
               if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
               if (unlockingSet.has(i)) return <FlippingTile key={i} kind="unlock" {...props} />;
@@ -350,7 +357,10 @@ function TileBoardComponent({
 
         {/* Aiuto: anello bianco */}
         {hint.filter((i) => !gone.has(i) && !removing.has(i)).map((i) => (
-          <RoundedRect key={`h${i}`} x={rects[i].x + 1.5} y={rects[i].y + 1.5} width={rects[i].w - 3} height={rects[i].h - 3} r={radius} style="stroke" strokeWidth={4} color="#ffffff" />
+          <Group key={`h${i}`}>
+            <RoundedRect x={rects[i].x + 1.5} y={rects[i].y + 1.5} width={rects[i].w - 3} height={rects[i].h - 3} r={radius} style="stroke" strokeWidth={4} color="#ffffff" />
+            {signals ? <Rings rings={hintSignal(rects[i], radius)} /> : null}
+          </Group>
         ))}
 
         {/* Tessere bloccanti: outline rosso 4px solido con 2px offset + bagliore (CSS .tile.blocker righe 222-223 HTML) */}
@@ -358,6 +368,8 @@ function TileBoardComponent({
           .filter((i) => !gone.has(i) && !removing.has(i))
           .map((i) => {
             const r = rects[i];
+            // Con i segnali il contorno è bianco «double» (CSS .cb .tile.blocker riga 227), non il rosso
+            if (signals) return <Rings key={`blk${i}`} rings={blockerSignal(r, radius)} />;
             return (
               <Group key={`blk${i}`}>
                 {/* Bagliore rosso esterno */}
@@ -399,6 +411,8 @@ function TileBoardComponent({
                 <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color={palette[2]} />
                 {/* Filo interno chiaro superiore (replica inset 0 2px 3px rgba(255,255,255,.9)) */}
                 <RoundedRect x={r.x + 3} y={r.y + 3} width={r.w - 6} height={r.h - 6} r={radius - 1} style="stroke" strokeWidth={1} color="rgba(255,255,255,0.7)" />
+                {/* Con i segnali, in più, il contorno bianco di 5 px (CSS .cb .tile.sel riga 213) */}
+                {signals ? <Rings rings={selectedSignal(r, radius)} /> : null}
               </Group>
             );
           })}
@@ -414,19 +428,43 @@ function TileBoardComponent({
             const checkD = `M${checkX - 3.5} ${checkY} L${checkX - 1} ${checkY + 3} L${checkX + 4} ${checkY - 3}`;
             return (
               <Group key={`m${i}`}>
-                {/* Alone verde esterno */}
-                <RoundedRect x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} r={radius + 4} style="stroke" strokeWidth={4} color="rgba(31,191,90,0.45)" />
-                {/* Bordo verde interno 3px */}
-                <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color="#1fbf5a" />
-                {/* Pallino ✔ in alto a destra: cerchio verde, contorno bianco e segno ✔ vettoriale */}
-                <Circle cx={checkX} cy={checkY} r={checkR} color="#1fbf5a" />
-                <Circle cx={checkX} cy={checkY} r={checkR} style="stroke" strokeWidth={2} color="#ffffff" />
+                {signals ? (
+                  <>
+                    {/* Anelli nero, bianco e nero, e quadrato nero per il segno (CSS .cb .tile.match righe 230 e 232) */}
+                    <Rings rings={matchSignal(r, radius)} />
+                    <RoundedRect x={checkX - checkR - MATCH_BADGE.ringWidth / 2} y={checkY - checkR - MATCH_BADGE.ringWidth / 2} width={2 * checkR + MATCH_BADGE.ringWidth} height={2 * checkR + MATCH_BADGE.ringWidth} r={2 * checkR * MATCH_BADGE.cornerRatio + MATCH_BADGE.ringWidth / 2} style="stroke" strokeWidth={MATCH_BADGE.ringWidth} color={MATCH_BADGE.ring} />
+                    <RoundedRect x={checkX - checkR} y={checkY - checkR} width={2 * checkR} height={2 * checkR} r={2 * checkR * MATCH_BADGE.cornerRatio} color={MATCH_BADGE.fill} />
+                  </>
+                ) : (
+                  <>
+                    {/* Alone verde esterno */}
+                    <RoundedRect x={r.x - 4} y={r.y - 4} width={r.w + 8} height={r.h + 8} r={radius + 4} style="stroke" strokeWidth={4} color="rgba(31,191,90,0.45)" />
+                    {/* Bordo verde interno 3px */}
+                    <RoundedRect x={r.x + 1.5} y={r.y + 1.5} width={r.w - 3} height={r.h - 3} r={radius} style="stroke" strokeWidth={3} color="#1fbf5a" />
+                    {/* Pallino ✔ in alto a destra: cerchio verde, contorno bianco e segno ✔ vettoriale */}
+                    <Circle cx={checkX} cy={checkY} r={checkR} color="#1fbf5a" />
+                    <Circle cx={checkX} cy={checkY} r={checkR} style="stroke" strokeWidth={2} color="#ffffff" />
+                  </>
+                )}
                 <Path path={checkD} style="stroke" strokeWidth={2.2} strokeCap="round" strokeJoin="round" color="#ffffff" />
               </Group>
             );
           })}
       </Canvas>
     </GestureDetector>
+  );
+}
+
+/** Anelli dei segnali (`contrastSignals.ts`), pieni o tratteggiati. */
+function Rings({ rings }: { rings: readonly Ring[] }) {
+  return (
+    <>
+      {rings.map((g, i) => (
+        <RoundedRect key={i} x={g.x} y={g.y} width={g.w} height={g.h} r={g.r} style="stroke" strokeWidth={g.width} color={g.color}>
+          {g.dash ? <DashPathEffect intervals={[g.dash[0], g.dash[1]]} /> : null}
+        </RoundedRect>
+      ))}
+    </>
   );
 }
 

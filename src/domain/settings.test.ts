@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
+import { DEFAULT_SETTINGS, contrastOf, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
 
 describe('impostazioni (dominio)', () => {
   test('DEFAULT_SETTINGS ha valori predefiniti fedeli all\'originale', () => {
@@ -108,6 +108,24 @@ describe('impostazioni (dominio)', () => {
       const s: Settings = { ...DEFAULT_SETTINGS, comfort: true, highlightEqual: true };
       const eff = effectiveSettings(s);
       expect(eff.highlightEqual).toBe(true);
+    });
+  });
+
+  describe('contrastOf', () => {
+    const of = (colorBlind: boolean, highContrast: boolean) => contrastOf({ ...DEFAULT_SETTINGS, colorBlind, highContrast });
+
+    test('di base nessun segnale e nessun alto contrasto', () => {
+      expect(of(false, false)).toEqual({ signals: false, high: false });
+    });
+    test('il daltonismo dà i segnali, ma non cambia i colori dell\'alto contrasto', () => {
+      expect(of(true, false)).toEqual({ signals: true, high: false });
+    });
+    test('l\'alto contrasto porta con sé i segnali del daltonismo (`cb` = `S.cb||S.hc`)', () => {
+      expect(of(false, true)).toEqual({ signals: true, high: true });
+      expect(of(true, true)).toEqual({ signals: true, high: true });
+    });
+    test('la Modalità comoda non li accende', () => {
+      expect(contrastOf(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true }))).toEqual({ signals: false, high: false });
     });
   });
 });
