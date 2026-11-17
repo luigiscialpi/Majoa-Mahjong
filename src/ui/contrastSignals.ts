@@ -69,3 +69,9 @@ export function hatchPathD(w: number, h: number): string {
   }
   return d;
 }
+
+/**
+ * Interfaccia in alto contrasto (`.hc`, righe 215, 220 e 221): testi bianchi, sfondo scuro al 65% dietro ai pulsanti
+ * della testata, bordo nero di 2 px sui pulsanti. In partita: le altre schermate non cambiano.
+ */
+export const HC_UI = { ink: '#fff', inkSoft: '#fff', pill: 'rgba(0,0,0,0.65)', buttonBorder: '#000', buttonBorderWidth: 2 } as const;

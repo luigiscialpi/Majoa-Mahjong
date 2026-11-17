@@ -16,8 +16,10 @@ import { sparklePathsD } from './effects';
  * - Difficile (nodim): brightness(.66) -> overlay 'rgba(0,0,0,0.28)'
  * - Esperto (nodim2): brightness(.82) -> overlay 'rgba(0,0,0,0.15)'
  * - Maestro (nodim3): nessun oscuramento (null)
+ * - Alto contrasto (riga 218): brightness(.4) -> overlay 'rgba(0,0,0,0.60)', qualunque sia il profilo (`contrast(1.15)` non si riproduce)
  */
-export function blockedDimOverlay(profile: Profile = 'normal'): string | null {
+export function blockedDimOverlay(profile: Profile = 'normal', highContrast = false): string | null {
+  if (highContrast) return HC_DIM;
   switch (profile) {
     case 'easy':
     case 'normal':
@@ -33,6 +35,12 @@ export function blockedDimOverlay(profile: Profile = 'normal'): string | null {
 }
 
 // Disegno di una tessera in Skia, portato dal prototipo S1 (`prototipi/s1-rendering/src/`): corpo, disegno SVG e rimozione.
+
+/** Alto contrasto (CSS `.hc .tile.blocked`, riga 218): le tessere bloccate al 40% della luminosità. */
+export const HC_DIM = 'rgba(0,0,0,0.60)';
+
+/** Colori dell'alto contrasto (CSS righe 216, 219, 261 e 288): faccia bianca con cornice nera, tessera nascosta, oro e nebbia piatti. */
+export const HC = { face: '#fff', frame: '#000', lockedFace: '#1b1740', lockedFrame: '#ffd34a', gold: '#fff0a8', fog: '#dde6ef', deepShadow: 'rgba(0,0,0,0.6)' } as const;
 
 /** Margine attorno alla tessera nell'immagine in cache: contiene bordo laterale e ombra sfocata. */
 export const BODY_PAD = 16;
@@ -77,20 +85,30 @@ function SvgAt({ svg, x, y, width, height }: { svg: SkSVG | null; x: number; y: 
   );
 }
 
-type BodyProps = { x: number; y: number; w: number; h: number; radius: number; shadow: boolean; palette: Palette };
+type BodyProps = { x: number; y: number; w: number; h: number; radius: number; shadow: boolean; palette: Palette; highContrast?: boolean };
 
 /** Corpo della tessera: bordo laterale a due toni, ombra (opzionale), faccia sfumata, filo interno. */
-function TileBody({ x, y, w, h, radius, shadow, palette }: BodyProps) {
+function TileBody({ x, y, w, h, radius, shadow, palette, highContrast }: BodyProps) {
+  // Alto contrasto (CSS riga 216): bordo laterale con filo nero al posto del secondo tono, ombra più lunga e scura, faccia bianca con cornice nera di 3 px
   return (
     <>
-      <RoundedRect x={x + 2} y={y + 3} width={w + 2} height={h + 2} r={radius + 1} color={palette[4]} />
+      <RoundedRect x={x + 2} y={y + 3} width={w + 2} height={h + 2} r={radius + 1} color={highContrast ? HC.frame : palette[4]} />
       <RoundedRect x={x + 3} y={y + 4} width={w} height={h} r={radius} color={palette[3]}>
-        {shadow ? <Shadow dx={4} dy={6} blur={5} color="rgba(0,0,0,0.45)" /> : null}
+        {shadow ? highContrast ? <Shadow dx={5} dy={8} blur={10} color={HC.deepShadow} /> : <Shadow dx={4} dy={6} blur={5} color="rgba(0,0,0,0.45)" /> : null}
       </RoundedRect>
-      <RoundedRect x={x} y={y} width={w} height={h} r={radius}>
-        <LinearGradient start={vec(x, y)} end={vec(x + w, y + h)} colors={['#fffdf3', '#f6edd2', '#eadcb4']} positions={[0, 0.6, 1]} />
-      </RoundedRect>
-      <RoundedRect x={x + 0.75} y={y + 0.75} width={w - 1.5} height={h - 1.5} r={radius} style="stroke" strokeWidth={1.5} color="rgba(120,95,40,0.35)" />
+      {highContrast ? (
+        <>
+          <RoundedRect x={x} y={y} width={w} height={h} r={radius} color={HC.face} />
+          <RoundedRect x={x + 1.5} y={y + 1.5} width={w - 3} height={h - 3} r={radius} style="stroke" strokeWidth={3} color={HC.frame} />
+        </>
+      ) : (
+        <>
+          <RoundedRect x={x} y={y} width={w} height={h} r={radius}>
+            <LinearGradient start={vec(x, y)} end={vec(x + w, y + h)} colors={['#fffdf3', '#f6edd2', '#eadcb4']} positions={[0, 0.6, 1]} />
+          </RoundedRect>
+          <RoundedRect x={x + 0.75} y={y + 0.75} width={w - 1.5} height={h - 1.5} r={radius} style="stroke" strokeWidth={1.5} color="rgba(120,95,40,0.35)" />
+        </>
+      )}
     </>
   );
 }
@@ -99,7 +117,7 @@ function TileBody({ x, y, w, h, radius, shadow, palette }: BodyProps) {
  * Disegna il corpo della tessera una sola volta in un'immagine (`drawAsImage`) condivisa da tutte le tessere:
  * ombra sfocata e sfumatura non si ricalcolano a ogni fotogramma. Restituisce `null` finché non è pronta.
  */
-export function useBodyImage(w: number, h: number, radius: number, shadow: boolean, palette: Palette): SkImage | null {
+export function useBodyImage(w: number, h: number, radius: number, shadow: boolean, palette: Palette, highContrast = false): SkImage | null {
   const [image, setImage] = useState<SkImage | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +125,7 @@ export function useBodyImage(w: number, h: number, radius: number, shadow: boole
     const size = { width: Math.ceil((w + 2 * BODY_PAD) * dpr), height: Math.ceil((h + 2 * BODY_PAD) * dpr) };
     drawAsImage(
       <Group transform={[{ scale: dpr }]}>
-        <TileBody x={BODY_PAD} y={BODY_PAD} w={w} h={h} radius={radius} shadow={shadow} palette={palette} />
+        <TileBody x={BODY_PAD} y={BODY_PAD} w={w} h={h} radius={radius} shadow={shadow} palette={palette} highContrast={highContrast} />
       </Group>,
       size,
     ).then((img) => {
@@ -116,7 +134,7 @@ export function useBodyImage(w: number, h: number, radius: number, shadow: boole
     return () => {
       cancelled = true;
     };
-  }, [w, h, radius, shadow, palette]);
+  }, [w, h, radius, shadow, palette, highContrast]);
   return image;
 }
 
@@ -124,7 +142,7 @@ export function useBodyImage(w: number, h: number, radius: number, shadow: boole
  * Faccia della tessera nascosta: sfondo viola scuro con cerchio tratteggiato, stella, «?» e lucchetto.
  * Scala i vettori originali (viewBox 0 0 60 80, righe 1883-1887 HTML) al riquadro reale della tessera.
  */
-function LockedFace({ rect, radius, font }: { rect: Rect; radius: number; font: SkFont | null }) {
+function LockedFace({ rect, radius, font, highContrast }: { rect: Rect; radius: number; font: SkFont | null; highContrast?: boolean }) {
   const scale = Math.min((rect.w - 8) / 60, (rect.h - 6) / 80);
   const ox = rect.x + (rect.w - 60 * scale) / 2;
   const oy = rect.y + (rect.h - 80 * scale) / 2;
@@ -133,16 +151,26 @@ function LockedFace({ rect, radius, font }: { rect: Rect; radius: number; font: 
   return (
     <>
       {/* Sfondo degradante viola-indaco (CSS .tile.locked riga 61 HTML) */}
-      <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
-        <LinearGradient
-          start={vec(rect.x, rect.y)}
-          end={vec(rect.x + rect.w, rect.y + rect.h)}
-          colors={['#4f4a82', '#2a2552', '#1f1b40']}
-          positions={[0, 0.7, 1]}
-        />
-      </RoundedRect>
-      {/* Bordo interno dorato (inset 0 0 0 1.5px rgba(255,207,90,.55)) */}
-      <RoundedRect x={rect.x + 1.5} y={rect.y + 1.5} width={rect.w - 3} height={rect.h - 3} r={radius} style="stroke" strokeWidth={1.5} color="rgba(255,207,90,0.55)" />
+      {highContrast ? (
+        <>
+          {/* Alto contrasto (CSS .hc .tile.locked riga 219): sfondo piatto e cornice dorata piena di 3 px */}
+          <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={HC.lockedFace} />
+          <RoundedRect x={rect.x + 1.5} y={rect.y + 1.5} width={rect.w - 3} height={rect.h - 3} r={radius} style="stroke" strokeWidth={3} color={HC.lockedFrame} />
+        </>
+      ) : (
+        <>
+          <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
+            <LinearGradient
+              start={vec(rect.x, rect.y)}
+              end={vec(rect.x + rect.w, rect.y + rect.h)}
+              colors={['#4f4a82', '#2a2552', '#1f1b40']}
+              positions={[0, 0.7, 1]}
+            />
+          </RoundedRect>
+          {/* Bordo interno dorato (inset 0 0 0 1.5px rgba(255,207,90,.55)) */}
+          <RoundedRect x={rect.x + 1.5} y={rect.y + 1.5} width={rect.w - 3} height={rect.h - 3} r={radius} style="stroke" strokeWidth={1.5} color="rgba(255,207,90,0.55)" />
+        </>
+      )}
       {/* Cerchio tratteggiato: circle cx=30 cy=40 r=27 stroke-dasharray="3 3" */}
       <Circle
         cx={ox + 30 * scale}
@@ -194,7 +222,7 @@ function LockedFace({ rect, radius, font }: { rect: Rect; radius: number; font: 
  * Faccia della tessera nebbiosa: sfondo azzurro chiaro con nuvola e «?».
  * Vettori originali (riga 1888-1889 HTML), scalati al riquadro reale.
  */
-function FogFace({ rect, radius, font }: { rect: Rect; radius: number; font: SkFont | null }) {
+function FogFace({ rect, radius, font, highContrast }: { rect: Rect; radius: number; font: SkFont | null; highContrast?: boolean }) {
   const scale = Math.min((rect.w - 8) / 60, (rect.h - 6) / 80);
   const ox = rect.x + (rect.w - 60 * scale) / 2;
   const oy = rect.y + (rect.h - 80 * scale) / 2;
@@ -211,14 +239,19 @@ function FogFace({ rect, radius, font }: { rect: Rect; radius: number; font: SkF
   return (
     <>
       {/* Sfondo degradante azzurro (CSS .tile.fog riga 287 HTML) */}
-      <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
-        <LinearGradient
-          start={vec(rect.x, rect.y)}
-          end={vec(rect.x + rect.w, rect.y + rect.h)}
-          colors={['#f1f5fa', '#c9d6e4', '#aebdd0']}
-          positions={[0, 0.7, 1]}
-        />
-      </RoundedRect>
+      {/* Alto contrasto (CSS .hc .tile.fog riga 288): sfondo piatto */}
+      {highContrast ? (
+        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={HC.fog} />
+      ) : (
+        <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
+          <LinearGradient
+            start={vec(rect.x, rect.y)}
+            end={vec(rect.x + rect.w, rect.y + rect.h)}
+            colors={['#f1f5fa', '#c9d6e4', '#aebdd0']}
+            positions={[0, 0.7, 1]}
+          />
+        </RoundedRect>
+      )}
       {/* Vettori scalati tramite Group di traslazione e scala */}
       <Group transform={[{ translateX: ox }, { translateY: oy }, { scale }]}>
         {/* Cerchio base: circle cx=30 cy=40 r=28 fill=#c9d6e4 */}
@@ -288,10 +321,12 @@ export type StaticTileProps = {
   fade?: boolean;
   /** Tratteggio a 45° delle tessere bloccate, per chi non distingue le tessere dal colore (daltonismo o alto contrasto). */
   hatch?: boolean;
+  /** Alto contrasto: faccia bianca con cornice nera, e nascosta, nebbiosa e oro piatte. */
+  highContrast?: boolean;
 };
 
 /** Tessera ferma: componente senza hook né valori condivisi, adatto a essere disegnato una volta sola in un'immagine. */
-export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor, fade, hatch }: StaticTileProps) {
+export function StaticTile({ rect, radius, svg, shadow, body, palette, status, font, dimColor, fade, hatch, highContrast }: StaticTileProps) {
   const box = designBox(rect.x, rect.y, rect.w, rect.h);
   const covered = status.locked || status.fog;
   return (
@@ -302,27 +337,32 @@ export function StaticTile({ rect, radius, svg, shadow, body, palette, status, f
           <Image image={body} x={0} y={0} width={rect.w + 2 * BODY_PAD} height={rect.h + 2 * BODY_PAD} fit="fill" />
         </Group>
       ) : (
-        <TileBody x={rect.x} y={rect.y} w={rect.w} h={rect.h} radius={radius} shadow={shadow} palette={palette} />
+        <TileBody x={rect.x} y={rect.y} w={rect.w} h={rect.h} radius={radius} shadow={shadow} palette={palette} highContrast={highContrast} />
       )}
       {/* Disegno SVG (solo quando scoperta e non oro: oro lo disegna sopra il suo gradient) */}
       {!covered && !status.gold ? <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} /> : null}
       {/* Facce speciali per stato locked/fog */}
       {status.locked ? (
-        <LockedFace rect={rect} radius={radius} font={font} />
+        <LockedFace rect={rect} radius={radius} font={font} highContrast={highContrast} />
       ) : status.fog ? (
-        <FogFace rect={rect} radius={radius} font={font} />
+        <FogFace rect={rect} radius={radius} font={font} highContrast={highContrast} />
       ) : null}
       {/* Bordo dorato e scintilla per tessere d'oro (CSS .tile.gold riga 260, .gem riga 262 HTML) */}
       {status.gold && !covered ? (
         <>
-          <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
-            <LinearGradient
-              start={vec(rect.x, rect.y)}
-              end={vec(rect.x + rect.w, rect.y + rect.h)}
-              colors={['#fff6c8', '#ffe27a', '#f2c13a']}
-              positions={[0, 0.65, 1]}
-            />
-          </RoundedRect>
+          {/* Alto contrasto (CSS .hc .tile.gold riga 261): fondo piatto */}
+          {highContrast ? (
+            <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius} color={HC.gold} />
+          ) : (
+            <RoundedRect x={rect.x} y={rect.y} width={rect.w} height={rect.h} r={radius}>
+              <LinearGradient
+                start={vec(rect.x, rect.y)}
+                end={vec(rect.x + rect.w, rect.y + rect.h)}
+                colors={['#fff6c8', '#ffe27a', '#f2c13a']}
+                positions={[0, 0.65, 1]}
+              />
+            </RoundedRect>
+          )}
           {/* Ridisegna il SVG sopra il gradient dorato */}
           <SvgAt svg={svg} x={box.x} y={box.y} width={box.width} height={box.height} />
           {/* Bordo dorato 2.5px */}

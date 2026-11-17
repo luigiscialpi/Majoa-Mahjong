@@ -1,4 +1,4 @@
-import { HATCH, MATCH_BADGE, blockerSignal, hatchPathD, hintSignal, matchSignal, selectedSignal, type Ring } from './contrastSignals';
+import { HATCH, HC_UI, MATCH_BADGE, blockerSignal, hatchPathD, hintSignal, matchSignal, selectedSignal, type Ring } from './contrastSignals';
 
 // Spessori, distanze e colori si leggono dal CSS dell'originale (righe 211-234), non si scrivono a occhio.
 const fs: { readFileSync(path: string, encoding: string): string } = jest.requireActual('fs');
@@ -125,5 +125,14 @@ describe('hatchPathD', () => {
     // la striscia che verrebbe prima della prima e quella dopo l'ultima stanno fuori dalla tessera (da c = -h a c = w)
     expect(ls[0].c - step + half).toBeLessThan(-70);
     expect(ls[ls.length - 1].c + step - half).toBeGreaterThan(50);
+  });
+});
+
+describe('HC_UI', () => {
+  test('testi bianchi, sfondo scuro al 65% dietro ai pulsanti della testata, bordo nero di 2 px sui pulsanti', () => {
+    expect(rule('.hc')).toBe('--ink:#fff;--ink-soft:#fff');
+    expect(rule('.hc .stat,.hc .lv,.hc .mute')).toBe('background:rgba(0,0,0,.65)');
+    expect(rule('.hc button')).toBe('border:2px solid #000');
+    expect(HC_UI).toEqual({ ink: '#fff', inkSoft: '#fff', pill: 'rgba(0,0,0,0.65)', buttonBorder: '#000', buttonBorderWidth: 2 });
   });
 });

@@ -3,6 +3,7 @@ import type { SkSVG } from '@shopify/react-native-skia';
 import { locale, useTranslation } from '../infrastructure/i18n';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import { AppIcon } from './AppIcon';
+import { HC_UI } from './contrastSignals';
 import { MINI_FACE, MINI_RECENT, MiniTile } from './miniTiles';
 import { BAR_RECENT, barName, type BarStatus, type BarView } from './selectionBar';
 import { colors } from './theme/colors';
@@ -23,6 +24,8 @@ export type SelectionBarProps = {
   groupSize: number;
   svgs: readonly (SkSVG | null)[];
   palette: Palette;
+  /** Alto contrasto: nome in bianco (`--ink`, riga 215). */
+  highContrast?: boolean;
 };
 
 /**
@@ -30,7 +33,7 @@ export type SelectionBarProps = {
  * ultimi abbinamenti. Annuncia il nome ai lettori di schermo (`aria-live="polite"` nell'originale). Il segno non usa font
  * né emoji: sono forme, e la forma distingue gli esiti anche senza il colore.
  */
-export function SelectionBar({ view, recent, groupSize, svgs, palette }: SelectionBarProps) {
+export function SelectionBar({ view, recent, groupSize, svgs, palette, highContrast }: SelectionBarProps) {
   const { lang, t } = useTranslation();
   const name = barName(view.slots, locale(lang).tn, t('tnHidden'), t('tnFog'));
   const slotCount = groupSize === 3 ? 3 : 2;
@@ -46,7 +49,7 @@ export function SelectionBar({ view, recent, groupSize, svgs, palette }: Selecti
           <Slot key={i + 1} slot={slot} index={i + 1} svgs={svgs} palette={palette} />
         ))}
       </View>
-      <Text style={styles.name} numberOfLines={1} testID="selection-bar-name">
+      <Text style={[styles.name, highContrast ? { color: HC_UI.ink } : null]} numberOfLines={1} testID="selection-bar-name">
         {name}
       </Text>
       <View style={styles.recent} testID="selection-bar-recent">

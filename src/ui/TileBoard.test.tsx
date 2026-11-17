@@ -20,6 +20,7 @@ import { designOf, levelPalette } from '../infrastructure/content/legacyThemes';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { tileStatuses } from './boardView';
 import { HATCH } from './contrastSignals';
+import { HC, HC_DIM } from './tile';
 import { TileBoard, type TileBoardProps } from './TileBoard';
 
 type Node = { type: string; props: Record<string, unknown>; children?: Node[] | null };
@@ -109,5 +110,36 @@ describe('TileBoard: segnali che non dipendono dal colore', () => {
     expect(nodes().filter((n) => n.type === 'Circle' && n.props.color === '#1fbf5a')).toHaveLength(0);
     expect(nodes().filter((n) => n.type === 'RoundedRect' && n.props.color === '#000' && n.props.style === undefined)).toHaveLength(1); // il quadrato nero
     expect(nodes().filter((n) => n.type === 'Path' && n.props.color === '#ffffff' && n.props.strokeWidth === 2.2)).toHaveLength(1); // il ✔ resta bianco
+  });
+});
+
+describe('TileBoard: alto contrasto', () => {
+  const solid = (color: string) => nodes().filter((n) => n.type === 'RoundedRect' && n.props.color === color && n.props.style === undefined);
+
+  test('di base: facce crema, oscuramento della difficoltà', async () => {
+    await render(<TileBoard {...props} profile="hard" />);
+    expect(solid(HC.face)).toHaveLength(0);
+    expect(solid('rgba(0,0,0,0.28)').length).toBe(blockedTiles.length);
+    expect(solid(HC_DIM)).toHaveLength(0);
+  });
+
+  test('con l\'alto contrasto: facce bianche e bloccate al 40% della luminosità, qualunque sia il profilo', async () => {
+    await render(<TileBoard {...props} profile="hard" highContrast />);
+    const alive = game.tiles.filter((_, i) => game.ft.alive[i] === 1 && !statuses[i].locked && !statuses[i].fog && !statuses[i].gold).length;
+    expect(solid(HC.face).length).toBe(alive);
+    expect(solid(HC_DIM).length).toBe(blockedTiles.filter((i) => !statuses[i].fog).length);
+    expect(solid('rgba(0,0,0,0.28)')).toHaveLength(0);
+  });
+
+  test('il corpo in cache si ridisegna quando si accende l\'alto contrasto, anche a tavola già aperta', async () => {
+    const skia = require('@shopify/react-native-skia') as { drawAsImage: (...args: unknown[]) => Promise<unknown> }; // eslint-disable-line @typescript-eslint/no-require-imports
+    const draw = jest.spyOn(skia, 'drawAsImage').mockResolvedValue(null as never);
+    const looks = () => draw.mock.calls.map((c) => (c[0] as unknown as { props: { children: { props: { highContrast?: boolean } } } }).props.children.props.highContrast);
+    const { rerender } = await render(<TileBoard {...props} />);
+    expect(looks()).toEqual([false]);
+    draw.mockClear();
+    await rerender(<TileBoard {...props} highContrast />);
+    expect(looks()).toContain(true);
+    draw.mockRestore();
   });
 });

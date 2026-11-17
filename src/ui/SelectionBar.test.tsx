@@ -15,10 +15,10 @@ const palette: Palette = ['#111', '#222', '#333', '#444', '#555'];
 const svgs = [] as never[];
 const none: BarView = { slots: [], status: null };
 
-async function bar(view: BarView, recent: number[] = [], groupSize = 2, lang: Language = 'it') {
+async function bar(view: BarView, recent: number[] = [], groupSize = 2, lang: Language = 'it', highContrast = false) {
   await render(
     <LanguageProvider initial={lang}>
-      <SelectionBar view={view} recent={recent} groupSize={groupSize} svgs={svgs} palette={palette} />
+      <SelectionBar view={view} recent={recent} groupSize={groupSize} svgs={svgs} palette={palette} highContrast={highContrast} />
     </LanguageProvider>,
   );
 }
@@ -82,6 +82,14 @@ describe('SelectionBar', () => {
     expect(bars.length).toBe(2);
     expect(StyleSheet.flatten(bars[0].props.style).backgroundColor).toBe(statusColor('✖'));
     expect(/color:#fff\b/.test(rule('.sbstat'))).toBe(true);
+  });
+
+  test('il nome è bianco in alto contrasto (`--ink`, riga 215) e color inchiostro negli altri casi', async () => {
+    await bar({ slots: [0], status: null });
+    expect(style('selection-bar-name').color).toBe('#f6efd9');
+    await screen.unmount();
+    await bar({ slots: [0], status: null }, [], 2, 'it', true);
+    expect(style('selection-bar-name').color).toBe('#fff');
   });
 
   test('si mostrano solo gli ultimi quattro abbinamenti, dal più vecchio', async () => {

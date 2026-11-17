@@ -980,6 +980,40 @@ describe('GameScreen: daltonismo e alto contrasto', () => {
     expect([...board().palette]).toEqual([ocean.feltA, ocean.feltB, ocean.accent, COLORBLIND_PALETTE[3], COLORBLIND_PALETTE[4]]);
   });
 
+  test('l\'alto contrasto arriva alla tavola solo con la sua impostazione (non con il daltonismo né con la Modalità comoda)', async () => {
+    await mount(1, 'normal', on({ highContrast: true }));
+    expect(board().highContrast).toBe(true);
+    await screen.unmount();
+    for (const extra of [{}, { colorBlind: true }, { comfort: true }] as Partial<Settings>[]) {
+      await mount(1, 'normal', on(extra));
+      expect(board().highContrast).toBe(false);
+      await screen.unmount();
+    }
+  });
+
+  test('alto contrasto: testi bianchi in testata e nei pulsanti, bordo nero di 2 px sui pulsanti, sfondo scuro dietro le impostazioni', async () => {
+    const color = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as object) as { color?: string }).color;
+    await mount(1, 'normal', { ...on({ highContrast: true }), onOpenSettings: jest.fn() });
+    expect(color(screen.getByText('Livello 1'))).toBe('#fff');
+    expect(color(screen.getByText(/coppie/))).toBe('#fff');
+    expect(StyleSheet.flatten(screen.getByTestId('btn-hint').props.style)).toMatchObject({ borderWidth: 2, borderColor: '#000' });
+    expect(StyleSheet.flatten(screen.getByTestId('btn-game-settings').props.style).backgroundColor).toBe('rgba(0,0,0,0.65)');
+    await screen.unmount();
+    await mount(1, 'normal', { ...on({}), onOpenSettings: jest.fn() });
+    expect(color(screen.getByText('Livello 1'))).toBe('#f6efd9');
+    expect(StyleSheet.flatten(screen.getByTestId('btn-hint').props.style)).toMatchObject({ borderWidth: 1 });
+    expect(StyleSheet.flatten(screen.getByTestId('btn-game-settings').props.style).backgroundColor).toBe('rgba(0,0,0,0.2)');
+  });
+
+  test('la barra delle tessere selezionate riceve l\'alto contrasto solo con la sua impostazione', async () => {
+    const received = () => (globalThis as unknown as { __bar: { highContrast?: boolean } }).__bar.highContrast;
+    await mount(1, 'normal', on({ highContrast: true, selectedBar: true }));
+    expect(received()).toBe(true);
+    await screen.unmount();
+    await mount(1, 'normal', on({ colorBlind: true, selectedBar: true }));
+    expect(received()).toBe(false);
+  });
+
   test('anche la barra delle tessere selezionate usa la tavolozza del daltonismo', async () => {
     await mount(1, 'normal', on({ colorBlind: true, selectedBar: true }));
     expect((globalThis as unknown as { __bar: { palette: string[] } }).__bar.palette).toEqual([...COLORBLIND_PALETTE]);

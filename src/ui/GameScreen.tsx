@@ -25,6 +25,7 @@ import { Button } from './Button';
 import { ComboBanner } from './ComboBanner';
 import { FireworksLayer } from './FireworksLayer';
 import { useMascotUri } from './mascots';
+import { HC_UI } from './contrastSignals';
 import { SelectionBar } from './SelectionBar';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
@@ -410,11 +411,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <Pressable onPress={onExit} style={styles.back} accessibilityRole="button" accessibilityLabel={tl('backToIslands')} testID="btn-back">
-            <Text style={styles.backText}>‹</Text>
+            <Text style={[styles.backText, contrast.high ? { color: HC_UI.ink } : null]}>‹</Text>
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>{tl('level', { n: visibleLevelNumber })}</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, contrast.high ? { color: HC_UI.ink } : null]}>{tl('level', { n: visibleLevelNumber })}</Text>
+            <Text style={[styles.subtitle, contrast.high ? { color: HC_UI.inkSoft } : null]}>
               {tl(PROFILE_KEYS[profile])} · {game.remaining} {tl('pairs')}{total > 0 ? ` · ${tl('goldLbl', { a: got, b: total })}` : ''}
             </Text>
           </View>
@@ -431,12 +432,12 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
             {onOpenSettings ? (
               <Pressable
                 onPress={onOpenSettings}
-                style={styles.headerSettingsBtn}
+                style={[styles.headerSettingsBtn, contrast.high ? { backgroundColor: HC_UI.pill } : null]}
                 accessibilityRole="button"
                 accessibilityLabel={tl('setAria')}
                 testID="btn-game-settings"
               >
-                <AppIcon name="settings" size={20} color={colors.ink} />
+                <AppIcon name="settings" size={20} color={contrast.high ? HC_UI.ink : colors.ink} />
               </Pressable>
             ) : null}
           </View>
@@ -448,7 +449,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
           </View>
         ) : null}
 
-        {settings.selectedBar ? <SelectionBar view={bar.view} recent={bar.recent} groupSize={game.g} svgs={svgs} palette={palette} /> : null}
+        {settings.selectedBar ? <SelectionBar view={bar.view} recent={bar.recent} groupSize={game.g} svgs={svgs} palette={palette} highContrast={contrast.high} /> : null}
 
         <View style={styles.boardArea} onLayout={onLayout} testID="board-area">
           {area.width > 0 && (session.phase !== 'won' || view.removing.size > 0) ? (
@@ -462,6 +463,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 // Con i segnali lo scurimento delle bloccate non segue la difficoltà: resta quello di Normale (`dm`, riga 2393)
                 profile={contrast.signals ? 'normal' : profile}
                 signals={contrast.signals}
+                highContrast={contrast.high}
                 width={column.w}
                 height={column.h}
                 free={free}
@@ -491,9 +493,9 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
         </View>
 
         <View style={styles.bar}>
-          <AidButton label={tl('hint')} icon="help" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" bigUi={effective.bigUi} />
-          <AidButton label={tl('undo')} icon="undo" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" bigUi={effective.bigUi} />
-          <AidButton label={tl('shuffle')} icon="shuffle" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" bigUi={effective.bigUi} />
+          <AidButton label={tl('hint')} icon="help" left={session.left.hints} onPress={() => dispatch({ type: 'hint' })} testID="btn-hint" bigUi={effective.bigUi} highContrast={contrast.high} />
+          <AidButton label={tl('undo')} icon="undo" left={session.left.undo} onPress={() => dispatch({ type: 'undo' })} testID="btn-undo" bigUi={effective.bigUi} highContrast={contrast.high} />
+          <AidButton label={tl('shuffle')} icon="shuffle" left={session.left.shuffles} onPress={() => dispatch({ type: 'shuffle' })} testID="btn-shuffle" bigUi={effective.bigUi} highContrast={contrast.high} />
         </View>
 
         {session.phase === 'won' && session.outcome ? (
@@ -585,14 +587,14 @@ function WinCoinReward({ coins, animated }: { coins: number; animated: boolean }
   );
 }
 
-function AidButton({ label, icon, left, onPress, testID, bigUi }: { label: string; icon: AppIconName; left: number | null; onPress: () => void; testID: string; bigUi?: boolean }) {
+function AidButton({ label, icon, left, onPress, testID, bigUi, highContrast }: { label: string; icon: AppIconName; left: number | null; onPress: () => void; testID: string; bigUi?: boolean; highContrast?: boolean }) {
   const empty = left !== null && left <= 0;
   const { t } = useTranslation();
   return (
-    <Pressable onPress={onPress} style={[styles.aid, bigUi ? styles.aidBig : null, empty ? styles.aidEmpty : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
-      <View style={styles.aidIcon}><AppIcon name={icon} size={bigUi ? 24 : 20} /></View>
-      <Text style={[styles.aidLabel, bigUi ? styles.aidLabelBig : null]}>{label}</Text>
-      <Text style={[styles.aidCount, bigUi ? styles.aidCountBig : null]}>{aidText(left)}</Text>
+    <Pressable onPress={onPress} style={[styles.aid, bigUi ? styles.aidBig : null, empty ? styles.aidEmpty : null, highContrast ? { borderWidth: HC_UI.buttonBorderWidth, borderColor: HC_UI.buttonBorder } : null]} accessibilityRole="button" accessibilityLabel={t('aidRemainingAria', { label, n: aidText(left) })} testID={testID}>
+      <View style={styles.aidIcon}><AppIcon name={icon} size={bigUi ? 24 : 20} color={highContrast ? HC_UI.ink : undefined} /></View>
+      <Text style={[styles.aidLabel, bigUi ? styles.aidLabelBig : null, highContrast ? { color: HC_UI.inkSoft } : null]}>{label}</Text>
+      <Text style={[styles.aidCount, bigUi ? styles.aidCountBig : null, highContrast ? { color: HC_UI.ink } : null]}>{aidText(left)}</Text>
     </Pressable>
   );
 }

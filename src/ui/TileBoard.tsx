@@ -46,6 +46,8 @@ export type TileBoardProps = {
   profile?: Profile;
   /** Segni che non dipendono dal colore (daltonismo o alto contrasto): tratteggio sulle bloccate e contorni bianchi o neri. */
   signals?: boolean;
+  /** Alto contrasto: faccia bianca con cornice nera, bloccate più scure, nascosta, nebbiosa e oro piatte. */
+  highContrast?: boolean;
   width: number;
   height: number;
   /** Tessere vive e libere: le sole che possono essere toccate o tolte, quindi disegnate dal vivo. */
@@ -111,6 +113,7 @@ function TileBoardComponent({
   palette,
   profile = 'normal',
   signals = false,
+  highContrast = false,
   width,
   height,
   free,
@@ -133,8 +136,8 @@ function TileBoardComponent({
   const rects = useMemo(() => tiles.map((t) => tileRect(metrics, t)), [tiles, metrics]);
   const radius = Math.max(4, metrics.tw * 0.14);
   const font = useMarkFont(Math.max(12, metrics.tw * 0.6));
-  const body = useBodyImage(metrics.tw - 3, metrics.th - 3, radius, true, palette);
-  const dimColor = useMemo(() => blockedDimOverlay(profile), [profile]);
+  const body = useBodyImage(metrics.tw - 3, metrics.th - 3, radius, true, palette, highContrast);
+  const dimColor = useMemo(() => blockedDimOverlay(profile, highContrast), [profile, highContrast]);
 
   const unlockingSet = useMemo(() => new Set(unlocking), [unlocking]);
   const revealingSet = useMemo(() => new Set(revealing), [revealing]);
@@ -229,6 +232,7 @@ function TileBoardComponent({
                 font={font}
                 dimColor={isBlocked ? dimColor : null}
                 hatch={signals && isBlocked}
+                highContrast={highContrast}
               />
             );
           })}
@@ -240,7 +244,7 @@ function TileBoardComponent({
     return () => {
       cancelled = true;
     };
-  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, signals, free, boardIn]);
+  }, [liveKey, statusesKey, width, height, rects, order, radius, svgs, designs, tiles, body, palette, font, dimColor, signals, highContrast, free, boardIn]);
 
   // Finché l'immagine non è pronta si disegna tutto dal vivo; dopo, dal vivo solo ciò che l'immagine non contiene
   // o che sta per muoversi (stessi pixel, nessun buco durante il passaggio).
@@ -320,6 +324,7 @@ function TileBoardComponent({
                       dimColor: isBlocked ? dimColor : null,
                       fade: false,
                       hatch: signals && isBlocked,
+                      highContrast,
                     };
                     return <StaticTile key={i} {...props} />;
                   })}
@@ -344,6 +349,7 @@ function TileBoardComponent({
                 dimColor: isBlocked ? dimColor : null,
                 fade: isFaded,
                 hatch: signals && isBlocked,
+                highContrast,
               };
               if (removing.has(i)) return <RemovingTile key={i} rm={rm} {...props} />;
               if (unlockingSet.has(i)) return <FlippingTile key={i} kind="unlock" {...props} />;
