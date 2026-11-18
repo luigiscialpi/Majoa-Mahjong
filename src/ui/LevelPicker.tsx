@@ -36,12 +36,13 @@ type LevelPickerProps = {
 /** Mappa della campagna e livelli dell'isola scelta (`docs/motore-livelli.md`, «Progressione e sblocco»). */
 export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: LevelPickerProps) {
   const insets = useSafeAreaInsets();
-  const [profile, setProfile] = useState<Profile>('normal');
   const [prova, setProva] = useState(true);
   const [selectedIslandId, setSelectedIslandId] = useState<string | null>(null);
   const [reason, setReason] = useState<{ text: string } | null>(null);
   const { t, lang, setLang } = useTranslation();
-  const { settings } = useSettings();
+  const { settings, updateSetting } = useSettings();
+  // Il profilo è l'impostazione «Difficoltà»: la scelta qui e quella nelle Impostazioni sono la stessa
+  const profile = settings.defaultProfile;
   const bgFeltA = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltA : colors.feltA;
   const bgFeltB = settings.bgPalette !== 'level' ? BG_PALETTE_COLORS[settings.bgPalette].feltB : colors.feltB;
   const selectedIsland = islands.find((island) => island.id === selectedIslandId);
@@ -124,7 +125,7 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
             {toggle}
             <View style={styles.chips}>
               {PROFILES.map((p) => (
-                <Pressable key={p} onPress={() => setProfile(p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={'profile-' + p}>
+                <Pressable key={p} onPress={() => void updateSetting('defaultProfile', p)} style={[styles.chip, p === profile ? styles.chipOn : null]} accessibilityRole="button" accessibilityState={{ selected: p === profile }} testID={'profile-' + p}>
                   <Text style={[styles.chipText, p === profile ? styles.chipTextOn : null]}>{t(PROFILE_KEYS[p])}</Text>
                 </Pressable>
               ))}

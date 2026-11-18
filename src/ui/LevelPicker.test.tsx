@@ -1,19 +1,26 @@
 import { StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { Profile } from '../domain/profile';
+import { DEFAULT_SETTINGS, type Settings } from '../domain/settings';
 import { newProgress, type Progress } from '../domain/progress';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
+import { createMemorySettingsStore } from '../application/settingsStore';
 import { LevelPicker, REASON_MS } from './LevelPicker';
+import { SettingsProvider } from './SettingsProvider';
 import { LanguageProvider, type Language } from '../infrastructure/i18n';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress(), lang: Language = 'it') {
-  return render(
+async function renderPicker(onPlay: (level: number, profile: Profile) => void = () => {}, progress: Progress = newProgress(), lang: Language = 'it', settings?: Settings) {
+  const store = createMemorySettingsStore(settings);
+  const view = await render(
     <LanguageProvider initial={lang}>
-      <LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />
+      <SettingsProvider store={store} initial={settings}>
+        <LevelPicker progress={progress} islands={legacyIslands} onPlay={onPlay} />
+      </SettingsProvider>
     </LanguageProvider>,
   );
+  return Object.assign(view, { store });
 }
 
 const press = async (testID: string) => {
@@ -98,6 +105,33 @@ test('il profilo scelto si applica ai livelli avviati', async () => {
   await press('profile-easy');
   await press('level-3');
   expect(calls).toEqual([[7, 'master'], [3, 'easy']]);
+});
+
+describe('profilo: è l\'impostazione «Difficoltà»', () => {
+  const chipOn = () => (['easy', 'normal', 'medium', 'hard', 'expert', 'master'] as const).filter((p) => screen.getByTestId('profile-' + p).props.accessibilityState.selected);
+
+  test('parte dal profilo delle impostazioni (non sempre da Normale) e lo applica ai livelli', async () => {
+    const calls: [number, Profile][] = [];
+    await renderPicker((level, profile) => calls.push([level, profile]), newProgress(), 'it', { ...DEFAULT_SETTINGS, defaultProfile: 'expert' });
+    await visitIsland('prologue'); // i profili si vedono dentro un'isola
+    expect(chipOn()).toEqual(['expert']);
+    await press('level-2');
+    expect(calls).toEqual([[2, 'expert']]);
+  });
+
+  test('di base è Normale', async () => {
+    await renderPicker();
+    await visitIsland('prologue');
+    expect(chipOn()).toEqual(['normal']);
+  });
+
+  test('scegliere un profilo qui lo salva nelle impostazioni, e vale anche alla riapertura', async () => {
+    const { store } = await renderPicker();
+    await visitIsland('prologue');
+    await press('profile-hard');
+    expect(chipOn()).toEqual(['hard']);
+    expect((await store.loadSettings()).defaultProfile).toBe('hard');
+  });
 });
 
 describe('modalità prova', () => {

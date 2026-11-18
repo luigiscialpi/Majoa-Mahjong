@@ -2,11 +2,13 @@ import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MASCOT_IDS, type Mascot } from '../domain/mascot';
+import { PROFILES, type Profile } from '../domain/profile';
 import { BG_PALETTES, TILE_PALETTES, type BgPalette, type TilePalette } from '../domain/settings';
 import { BG_PALETTE_COLORS, TILE_PALETTE_COLORS } from '../infrastructure/content/appearancePalettes';
 import { getSoundService } from '../infrastructure/audio/soundService';
 import { useTranslation, type Language } from '../infrastructure/i18n';
 import { Button } from './Button';
+import { PROFILE_KEYS } from './format';
 import { FeltBackground } from './FeltBackground';
 import { MascotMedallion, MEDALLION_COLOR } from './MascotMedallion';
 import { useMascotUri } from './mascots';
@@ -28,7 +30,7 @@ export type SettingsScreenProps = {
 /**
  * Schermata Impostazioni dell'app:
  * Fedele all'originale HTML (righe 3416-3496: buildSettings).
- * Include: Mascotte (76 px), Suoni e vibrazione, Aiuti di gioco, Comfort e accessibilità, Lingua, Ripristino.
+ * Include: Mascotte (76 px), Difficoltà, Aspetto, Suoni e vibrazione, Aiuti di gioco, Comfort e accessibilità, Lingua, Ripristino.
  */
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const insets = useSafeAreaInsets();
@@ -43,6 +45,9 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     },
     [updateSetting, soundService],
   );
+
+  // La difficoltà scelta vale per le partite nuove: una partita salvata conserva la sua (`S.dif`, righe 2363 e 3457 dell'originale)
+  const handleSelectProfile = useCallback((p: Profile) => void updateSetting('defaultProfile', p), [updateSetting]);
 
   const handleToggleSound = useCallback(
     (v: boolean) => {
@@ -131,7 +136,37 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             </ScrollView>
           </View>
 
-          {/* 2. Aspetto */}
+          {/* 2. Difficoltà (profilo delle partite nuove) */}
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>{t('sgDif')}</Text>
+            <View style={styles.difList}>
+              {PROFILES.map((p, i) => {
+                const selected = settings.defaultProfile === p;
+                return (
+                  <Pressable
+                    key={p}
+                    onPress={() => handleSelectProfile(p)}
+                    style={[styles.difBtn, selected ? styles.difBtnOn : null]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t(PROFILE_KEYS[p])}. ${t(`difd_${p}` as any)}`}
+                    accessibilityState={{ selected }}
+                    testID={`dif-${p}`}
+                  >
+                    <Text style={styles.difName}>{t(PROFILE_KEYS[p])}</Text>
+                    <Text style={styles.difDesc}>{t(`difd_${p}` as any)}</Text>
+                    <Text style={styles.difDots} accessibilityElementsHidden importantForAccessibility="no" testID={`dif-dots-${p}`}>
+                      {'●'.repeat(i + 1) + '○'.repeat(PROFILES.length - 1 - i)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.difNote} testID="dif-note">
+              {t('difNote') + (settings.comfort ? ' ' + t('difCfNote') : '')}
+            </Text>
+          </View>
+
+          {/* 3. Aspetto */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgApp')}</Text>
 
@@ -194,7 +229,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             </View>
           </View>
 
-          {/* 3. Suoni e vibrazione */}
+          {/* 4. Suoni e vibrazione */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgSound')}</Text>
             <SettingSwitchRow
@@ -231,7 +266,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
           </View>
 
-          {/* 3. Aiuti di gioco */}
+          {/* 5. Aiuti di gioco */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgHelp')}</Text>
             <SettingSwitchRow
@@ -257,7 +292,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
           </View>
 
-          {/* 4. Comfort e accessibilità */}
+          {/* 6. Comfort e accessibilità */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgComfort')}</Text>
             <SettingSwitchRow
@@ -303,7 +338,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
           </View>
 
-          {/* 5. Lingua */}
+          {/* 7. Lingua */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgLang')}</Text>
             <View style={styles.langRow}>
@@ -325,7 +360,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             </View>
           </View>
 
-          {/* 6. Ripristino */}
+          {/* 8. Ripristino */}
           <View style={styles.resetContainer}>
             <Button
               label={t('setReset')}
@@ -576,6 +611,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignItems: 'center',
   },
+  // `.difl`, `.difbtn` e `.difnote` dell'originale (righe 297-303)
+  difList: { gap: 8, paddingVertical: 4 },
+  difBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  difBtnOn: { backgroundColor: 'rgba(255,255,255,0.28)', borderColor: colors.accent },
+  difName: { color: colors.ink, fontSize: 16, fontFamily: fontFamilies.bodyBold },
+  difDesc: { color: colors.inkSoft, fontSize: 12.5, lineHeight: 12.5 * 1.3, fontFamily: fontFamilies.body },
+  difDots: { color: colors.accent, fontSize: 12, letterSpacing: 2 },
+  difNote: { color: colors.inkSoft, fontSize: 12.5, lineHeight: 12.5 * 1.35, marginHorizontal: 2, marginTop: 2, fontFamily: fontFamilies.body },
   swatchSection: {
     gap: 8,
     paddingVertical: 4,

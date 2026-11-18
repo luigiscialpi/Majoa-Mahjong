@@ -3,6 +3,7 @@ import { playRandomSession } from '../application/__fixtures__/play';
 import { loadHome } from '../application/saveFlow';
 import { serializeSavedGame, toSavedGame, type SavedGame } from '../application/savedGame';
 import { createMemorySaveStore, type SaveStore } from '../application/saveStore';
+import { createMemorySettingsStore } from '../application/settingsStore';
 import { startSession } from '../application/session';
 import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
@@ -11,6 +12,7 @@ import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LanguageProvider, type Language } from '../infrastructure/i18n';
 import { HomeScreen } from './HomeScreen';
+import { SettingsProvider } from './SettingsProvider';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
@@ -28,7 +30,9 @@ async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScre
   const calls = { onPlay: jest.fn(), onResume: jest.fn(), onReload: jest.fn(async () => {}) };
   const res = await render(
     <LanguageProvider initial={lang}>
-      <HomeScreen home={home} store={store} {...calls} {...extra} />
+      <SettingsProvider store={createMemorySettingsStore()}>
+        <HomeScreen home={home} store={store} {...calls} {...extra} />
+      </SettingsProvider>
     </LanguageProvider>,
   );
   return { ...res, ...calls, home };
