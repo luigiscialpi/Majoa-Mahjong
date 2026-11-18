@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS, contrastOf, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
 
 describe('impostazioni (dominio)', () => {
-  test('DEFAULT_SETTINGS ha valori predefiniti fedeli all\'originale', () => {
+  test('DEFAULT_SETTINGS ha i valori predefiniti dell\'originale, tranne l\'evidenzia-uguali che è acceso di base', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       mascot: 'collie',
       sound: true,
@@ -10,7 +10,7 @@ describe('impostazioni (dominio)', () => {
       effects: true,
       comfort: false,
       defaultProfile: 'normal',
-      highlightEqual: false,
+      highlightEqual: true,
       autoHint: false,
       bigUi: false,
       highContrast: false,
@@ -126,6 +126,29 @@ describe('impostazioni (dominio)', () => {
     });
     test('la Modalità comoda non li accende', () => {
       expect(contrastOf(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true }))).toEqual({ signals: false, high: false });
+    });
+  });
+
+  describe('evidenzia-uguali acceso di base', () => {
+    const fs: { readFileSync(path: string, encoding: string): string } = jest.requireActual('fs');
+    const html = fs.readFileSync('reference/majoa-originale/Majoa Mahjong.html', 'utf8');
+
+    test('è una scelta diversa dall\'originale, che lo ha spento (`SDEF`: `eq:0`)', () => {
+      expect(/var SDEF=\{[^}]*\beq:0\b/.test(html)).toBe(true);
+      expect(DEFAULT_SETTINGS.highlightEqual).toBe(true);
+    });
+
+    test('un valore mancante o non valido ripiega su «acceso»; uno salvato si rispetta, anche se spento', () => {
+      expect(validateSettings({}).highlightEqual).toBe(true);
+      expect(validateSettings({ highlightEqual: 'no' }).highlightEqual).toBe(true);
+      expect(validateSettings({ highlightEqual: false }).highlightEqual).toBe(false);
+      expect(validateSettings({ highlightEqual: true }).highlightEqual).toBe(true);
+      expect(parseSettings(serializeSettings({ ...DEFAULT_SETTINGS, highlightEqual: false })).highlightEqual).toBe(false);
+    });
+
+    test('la Modalità comoda non lo cambia, né da acceso né da spento', () => {
+      expect(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true }).highlightEqual).toBe(true);
+      expect(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true, highlightEqual: false }).highlightEqual).toBe(false);
     });
   });
 });

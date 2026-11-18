@@ -31,6 +31,7 @@ import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
 import { aidText, displayLevelNumber, formatTime, islandName, PROFILE_KEYS } from './format';
+import { equalFreeTiles, lacksFreeMatch } from './equalTiles';
 import { messageFor } from './messages';
 import { useTileSvgs } from './svgs';
 import { useAppActive } from './useAppActive';
@@ -49,6 +50,8 @@ import { getSoundService } from '../infrastructure/audio/soundService';
 const REMOVE_MS = 250;
 const RESCUE_DELAY_MS = 1100;
 const NOTICE_MS = 2000;
+/** Quanto resta l'avviso «Nessuna tessera uguale è libera» (`toast(..., 2400)`, riga 2127 dell'originale). */
+export const NO_MATCH_MS = 2400;
 const EMPTY: ReadonlySet<number> = new Set();
 
 export type GameScreenProps = {
@@ -153,6 +156,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const { session } = round;
   const game = session.game;
   const insets = useSafeAreaInsets();
+  const { settings } = useSettings();
   const { t: tl } = useTranslation();
   const visibleLevelNumber = displayLevelNumber(islands, level.id);
   const [area, setArea] = useState({ width: 0, height: 0 });
@@ -234,11 +238,13 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
     const feedback = round.feedback;
     if (!feedback) return;
     setHintGroup(feedback.kind === 'hint' ? feedback.group : []);
-    setNotice(messageFor(feedback));
+    // Alla prima tessera scelta, con l'evidenziazione accesa, avvisa se non ha una compagna libera (`tap`, riga 2127)
+    const noMatch = feedback.kind === 'selected' && session.selected.length === 1 && settings.highlightEqual && lacksFreeMatch(game, session.selected[0]);
+    setNotice(noMatch ? tl('tNoMatchFree') : messageFor(feedback));
     const id = setTimeout(() => {
       setHintGroup([]);
       setNotice(null);
-    }, NOTICE_MS);
+    }, noMatch ? NO_MATCH_MS : NOTICE_MS);
     return () => clearTimeout(id);
   }, [round.seq]);
 
@@ -247,15 +253,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const free = useMemo(() => new Set(game.ft.freeList()), [game]);
   const gone = useMemo(() => goneTiles(game, view.removing), [game, view.removing]);
 
-  // Tessere «uguale» alla selezionata: libere, con tipo uguale, esclusa la selezionata stessa.
-  // CSS .tile.match (riga 1928 HTML): eqOn && fr && t.type === sel.type.
-  const match = useMemo(() => {
-    if (session.selected.length === 0) return [];
-    const selType = game.tiles[session.selected[0]]?.type;
-    if (selType === undefined) return [];
-    const selSet = new Set(session.selected);
-    return [...free].filter((i) => !selSet.has(i) && game.tiles[i].type === selType);
-  }, [session.selected, game.tiles, free]);
+  // Tessere «uguale» alla selezionata (CSS .tile.match riga 1928), solo con l'evidenziazione accesa (`eff('eq')`)
+  const match = useMemo(() => (settings.highlightEqual ? equalFreeTiles(game, session.selected) : []), [settings.highlightEqual, game, session.selected]);
 
   // Tessera rifiutata e relative tessere bloccanti (CSS .tile.blocker / .tile.target righe 2061-2078 HTML).
   const [rejected, setRejected] = useState<number | null>(null);
@@ -371,7 +370,6 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const { got, total } = goldCount(session);
 
   // Scintille e scritta della combo a ogni abbinamento; spente con la riduzione del movimento del sistema o da impostazioni.
-  const { settings } = useSettings();
   const effective = effectiveSettings(settings);
   const contrast = contrastOf(settings);
   const bar = useSelectionBar({ round, island: level.island, tapped: lastTapped, enabled: settings.selectedBar });

@@ -8,12 +8,15 @@ import { startSession, type Session } from '../application/session';
 import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
+import { startRound } from '../application/round';
+import type { GameState } from '../domain/gameState';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
+import { equalFreeTiles } from './equalTiles';
 import { DEFAULT_SETTINGS, type Settings } from '../domain/settings';
 import { SettingsProvider } from './SettingsProvider';
 import { LanguageProvider, t, type Language } from '../infrastructure/i18n';
 import en from '../infrastructure/i18n/locales/en';
-import { GameScreen, type GameScreenProps } from './GameScreen';
+import { GameScreen, NO_MATCH_MS, type GameScreenProps } from './GameScreen';
 import type { Burst } from './effects';
 import type { TileBoardProps } from './TileBoard';
 
@@ -1018,6 +1021,128 @@ describe('GameScreen: daltonismo e alto contrasto', () => {
     await mount(1, 'normal', on({ colorBlind: true, selectedBar: true }));
     expect((globalThis as unknown as { __bar: { palette: string[] } }).__bar.palette).toEqual([...COLORBLIND_PALETTE]);
   });
+});
+
+describe('GameScreen: evidenzia-uguali', () => {
+  const on = (extra: Partial<Settings>): { settings: Settings } => ({ settings: { ...DEFAULT_SETTINGS, ...extra } });
+  const html = (jest.requireActual('fs') as { readFileSync(p: string, e: string): string }).readFileSync('reference/majoa-originale/Majoa Mahjong.html', 'utf8');
+  const message = 'Nessuna tessera uguale è libera per ora';
+
+  /** Il primo seme per cui la partita di quel livello soddisfa `wanted`: così la prova non dipende dalla sorte. */
+  function seedWhere(levelId: number, wanted: (game: GameState) => boolean): number {
+    for (let seed = 1; seed <= 300; seed++) {
+      const started = startRound({ spec: toSpec(legacyLevels[levelId - 1]), profile: 'normal', seed });
+      if (started.ok && wanted(started.value.session.game)) return seed;
+    }
+    throw new Error(`nessun seme adatto per il livello ${levelId}`);
+  }
+  /** Fa partire `GameScreen` (che sceglie il seme a caso) con quel seme. */
+  async function mountWithSeed(seed: number, levelId: number, extra: Partial<Settings> = {}) {
+    const random = jest.spyOn(Math, 'random').mockReturnValue((seed + 0.5) / 2147483647);
+    try {
+      await mount(levelId, 'normal', on(extra));
+    } finally {
+      random.mockRestore();
+    }
+  }
+  const lockedAt = (game: GameState, i: number) => game.tiles[i].hiddenGroup > game.unlocked;
+  const free = (game: GameState) => [...game.ft.freeList()];
+  const pairOf = (game: GameState) => free(game).find((i) => !lockedAt(game, i) && equalFreeTiles(game, [i]).length > 0);
+  const loneOf = (game: GameState) => free(game).find((i) => !lockedAt(game, i) && equalFreeTiles(game, [i]).length === 0);
+
+  test('acceso di base: la selezione evidenzia le compagne libere', async () => {
+    await mount(1, 'normal', on({}));
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(pair[0]); });
+    expect(board().match).toContain(pair[1]);
+    expect(board().match).not.toContain(pair[0]);
+  });
+
+  test('spento dalle impostazioni: nessuna evidenziazione, e le altre tessere non si scuriscono', async () => {
+    await mount(1, 'normal', on({ highlightEqual: false }));
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(pair[0]); });
+    expect(board().match).toEqual([]);
+    expect(board().selected).toEqual([pair[0]]); // la selezione resta
+  });
+
+  test('la Modalità comoda non lo accende né lo spegne: vale l\'impostazione', async () => {
+    await mount(1, 'normal', on({ comfort: true, highlightEqual: false }));
+    const pair = freePair();
+    if (!pair) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(pair[0]); });
+    expect(board().match).toEqual([]);
+    await screen.unmount();
+    await mount(1, 'normal', on({ comfort: true }));
+    const again = freePair();
+    if (!again) throw new Error('nessuna coppia libera');
+    act(() => { board().onTap(again[0]); });
+    expect(board().match.length).toBeGreaterThan(0);
+  });
+
+  test('una tessera nascosta libera dello stesso tipo non si evidenzia (svelerebbe il gioco)', async () => {
+    const level = legacyLevels.find((l) => l.id >= 11)!.id;
+    const seed = seedWhere(level, (g) => free(g).some((i) => !lockedAt(g, i) && free(g).some((l) => lockedAt(g, l) && g.tiles[l].type === g.tiles[i].type)));
+    await mountWithSeed(seed, level);
+    const b = board();
+    const visible = [...b.free].find((i) => !b.statuses[i].locked && [...b.free].some((l) => b.statuses[l].locked && b.tiles[l].type === b.tiles[i].type))!;
+    act(() => { board().onTap(visible); });
+    expect(board().match.some((i) => board().statuses[i].locked)).toBe(false);
+  });
+
+  test('avviso «Nessuna tessera uguale è libera»: alla prima tessera senza compagne, per 2400 ms', async () => {
+    expect(html).toContain("toast(tx('tNoMatchFree'),2400)");
+    expect(NO_MATCH_MS).toBe(2400);
+    const seed = seedWhere(1, (g) => loneOf(g) !== undefined);
+    await mountWithSeed(seed, 1);
+    expect(screen.queryByText(message)).toBeNull();
+    act(() => { board().onTap(loneOf(startedGame(seed))!); });
+    expect(screen.getByText(message)).toBeTruthy();
+    advance(2000); // la durata degli altri avvisi: questo resta
+    expect(screen.getByText(message)).toBeTruthy();
+    advance(NO_MATCH_MS - 2000);
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
+  test('nessun avviso se la tessera ha una compagna libera, se si cambia tessera o se l\'evidenziazione è spenta', async () => {
+    const seed = seedWhere(1, (g) => loneOf(g) !== undefined && pairOf(g) !== undefined);
+    const game = startedGame(seed);
+    await mountWithSeed(seed, 1);
+    act(() => { board().onTap(pairOf(game)!); });
+    expect(screen.queryByText(message)).toBeNull(); // ha una compagna libera
+    act(() => { board().onTap(loneOf(game)!); }); // tessere diverse: non è una «prima scelta»
+    expect(screen.queryByText(message)).toBeNull();
+    await screen.unmount();
+    await mountWithSeed(seed, 1, { highlightEqual: false });
+    act(() => { board().onTap(loneOf(game)!); });
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
+  test('nei Tris l\'avviso c\'è solo alla prima tessera scelta, non alla seconda', async () => {
+    const tris = legacyLevels.find((l) => l.groupSize === 3)!.id;
+    const oneMate = (g: GameState) => free(g).find((i) => !lockedAt(g, i) && equalFreeTiles(g, [i]).length === 1);
+    const seed = seedWhere(tris, (g) => oneMate(g) !== undefined);
+    const game = startedGame(seed, tris);
+    const first = oneMate(game)!;
+    const second = equalFreeTiles(game, [first])[0];
+    await mountWithSeed(seed, tris);
+    act(() => { board().onTap(first); });
+    expect(screen.getByText(message)).toBeTruthy(); // ne servono due e ce n'è una sola
+    advance(NO_MATCH_MS);
+    expect(screen.queryByText(message)).toBeNull();
+    act(() => { board().onTap(second); }); // seconda tessera del gruppo: nessun nuovo avviso
+    expect(board().selected).toEqual([first, second]);
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
+  /** La partita di quel seme, per sapere quali tessere toccare. */
+  function startedGame(seed: number, levelId = 1): GameState {
+    const started = startRound({ spec: toSpec(legacyLevels[levelId - 1]), profile: 'normal', seed });
+    if (!started.ok) throw new Error('la partita non parte');
+    return started.value.session.game;
+  }
 });
 
 const formatTimeOf = (session: Session) => `${Math.floor(session.seconds / 60)}:${String(session.seconds % 60).padStart(2, '0')}`;

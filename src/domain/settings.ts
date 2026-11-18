@@ -28,7 +28,10 @@ export type Settings = {
   comfort: boolean;
   /** Difficoltà/profilo predefinito per le nuove partite. */
   defaultProfile: Profile;
-  /** Illumina tessere libere uguali a quella selezionata con spunta verde. */
+  /**
+   * Illumina le tessere libere uguali a quella selezionata, con una spunta, e scurisce le altre. Acceso di base (nell'originale
+   * era spento: scelta del 18 novembre 2026) e indipendente dalla Modalità comoda.
+   */
   highlightEqual: boolean;
   /** Aiuto automatico dopo 120 secondi di inattività. */
   autoHint: boolean;
@@ -57,7 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   effects: true,
   comfort: false,
   defaultProfile: 'normal',
-  highlightEqual: false,
+  highlightEqual: true,
   autoHint: false,
   bigUi: false,
   highContrast: false,
