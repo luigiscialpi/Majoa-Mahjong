@@ -143,7 +143,7 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 | Area | Come viene verificata | Stato |
 |---|---|---|
 | Scaffold dell'app | `tsc --noEmit`, `expo export --platform android` (bundle Hermes), `expo-doctor` offline | verificato: 19 controlli su 21 di `expo-doctor` (restano i 2 che richiedono la rete); con la development build (`expo-dev-client`), prebuild nativo, compilazione (`./gradlew installDebug`), avvio e caricamento dal bundler Metro provati con successo su Redmi Note 9 Pro |
-| Dominio (`src/domain/`), sessione (`src/application/`) e campagna (`src/infrastructure/content/`) | Jest: `npm run test:all -- --watchman=false --runInBand` su Node 22 | verificato: 908 test su 75 suite, tutti PASS; comprende i livelli generati 101-170 |
+| Dominio (`src/domain/`), sessione (`src/application/`) e campagna (`src/infrastructure/content/`) | Jest: `npm run test:all -- --watchman=false --runInBand` su Node 22 | verificato: 912 test su 75 suite, tutti PASS; comprende i livelli generati 101-170 |
 | Schermata di gioco (`src/ui/`) | TypeScript, `expo export --platform android`, build Android release e prova su dispositivo | verificato: typecheck e bundle passano; APK release compilato e avviato su Galaxy A36; mappa 1-9, isola 8 con livelli visibili 141-160 e livello 141 generato con 16 coppie |
 | Prototipo S1 (rendering) | `skia-python`, Chromium, test di dominio e prova su un Android (`prototipi/s1-rendering/README.md`) | verificato su un dispositivo Android; tablet e fascia bassa no; iOS escluso dal rilascio |
 | Prototipo S4 (motore dei livelli) | Node, 14 test, bundle nativi e prova su un Android con Hermes (`prototipi/s4-generatore/README.md`) | verificato su un dispositivo Android; pesi dell'indice non calibrati su dati di gioco |
@@ -189,7 +189,7 @@ Ordine di lavoro: per vedere presto l'app giocabile si porta prima l'interfaccia
 - `DRAFT`: pesi dell'indice di difficoltà uniformi, da affinare con dati di gioco (stelle e tempo per livello).
 - `TO DO`: tolleranza e curva dell'indice di difficoltà, formula delle carte d'album per isola, generatore di forme nuove e `levelForIndex`/`islandForIndex` (il generatore infinito attuale riusa forme originali).
 - `TO DO`: Tris senza rimescolo possibile: l'originale riordina le tessere in file distanziate (cambia le posizioni), qui il rimescolo restituisce `generation-failed`; da decidere.
-- `TO DO`: livelli Tris generati; nebbia aggiuntiva dei profili alti (difetto 7, oggi replicata da `fogCount`); ricalibrazione di soglie di tempo e fattori dei profili (difetto 6, oggi quelli dell'originale).
+- `TO DO`: livelli Tris generati; nebbia in più dei profili alti: fatta (difetto 7 corretto), restano da verificare su dispositivo i livelli a Difficile, Esperto e Maestro; ricalibrazione di soglie di tempo e fattori dei profili (difetto 6, oggi quelli dell'originale).
 - `TO DO`: tetto della tessera nella colonna di gioco; accessibilità delle singole tessere; zoom o tolleranza di tocco.
 - `TO DO`: frequenza degli interstitial e limite dei rewarded per aiuti; dichiarazione del pubblico negli store; eventuale acquisto «rimuovi pubblicità».
 - `TO DO`: sincronizzazione cloud e hosting dei contenuti oltre EAS Update; limiti e costi del piano EAS.
