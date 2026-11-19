@@ -1,6 +1,7 @@
 import type { IslandInfo, Progress } from '../../domain/progress';
 import { legacyIslands, trisLevelIds } from './legacyIslands';
 import { legacyLevels, type LegacyLevel } from './legacyLevels';
+import { isTrisSlot, trisVariant } from './trisSlots';
 
 const EXTENSION_START_ID = 101;
 const INFINITE_START_ID = 151;
@@ -56,10 +57,15 @@ function infiniteLevel(id: number): LegacyLevel {
   };
 }
 
-/** Restituisce un livello originale o generato; Tris resta disponibile ma fuori dalla campagna. */
+/**
+ * Restituisce un livello originale o generato. Il primo livello di ogni isola dalla seconda in poi è un Tris (`trisSlots.ts`);
+ * i dieci Tris dell'originale restano disponibili, fuori dalla campagna. Il numero di un livello non è una garanzia sul suo
+ * contenuto: i progressi stanno per numero, quindi fino alla prima uscita pubblica si possono azzerare.
+ */
 export function campaignLevelById(id: number): LegacyLevel | undefined {
   if (!Number.isSafeInteger(id) || id < 1) return undefined;
-  return legacyById.get(id) ?? extensionById.get(id) ?? (id >= INFINITE_START_ID ? infiniteLevel(id) : undefined);
+  const level = legacyById.get(id) ?? extensionById.get(id) ?? (id >= INFINITE_START_ID ? infiniteLevel(id) : undefined);
+  return level && isTrisSlot(level) ? trisVariant(level) : level;
 }
 
 /** Tutti i livelli visibili per le isole indicate, in ordine locale. */
