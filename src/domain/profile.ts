@@ -59,8 +59,14 @@ export function effectiveTypes(types: number, poolSize: number, profile: Profile
   return Math.max(5, Math.min(types + PROFILE_RULES[profile].typesDelta, poolSize - 1));
 }
 
-/** Tessere di nebbia secondo il profilo, a partire dalla nebbia del livello. */
+/**
+ * Tessere di nebbia secondo il profilo, a partire dalla nebbia del livello: `round(nebbia × moltiplicatore) + tessere in più`.
+ * Le tessere in più (Difficile +1, Esperto +2, Maestro +3) si sommano solo ai livelli che hanno già nebbia. L'originale le
+ * sommava anche agli altri (difetto 7): a Difficile un livello 1 aveva nebbia prima che il gioco la spiegasse, e perfino i
+ * Tris, che non ne hanno (decisione del 18 novembre 2026).
+ */
 export function fogCount(baseFog: number, profile: Profile): number {
+  if (baseFog <= 0) return 0;
   const rules = PROFILE_RULES[profile];
   return Math.round(baseFog * rules.fogFactor) + rules.fogAdd;
 }

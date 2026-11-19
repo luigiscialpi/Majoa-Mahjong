@@ -3,6 +3,7 @@ import { originalIsFree } from '../../domain/__fixtures__/original';
 import { FreeTracker, buildAdjacency } from '../../domain/geometry';
 import { generateLevel } from '../../domain/generator';
 import { createRng } from '../../domain/prng';
+import { PROFILES, applyProfile } from '../../domain/profile';
 import { solve } from '../../domain/solver';
 import { legacyLevels, toSpec } from './legacyLevels';
 
@@ -86,5 +87,19 @@ describe('campagna dell\'originale', () => {
         checkInvariants(spec, gen.value);
       }
     }
+  });
+});
+
+describe('nebbia e profili sui 100 livelli (difetto 7 corretto)', () => {
+  test('i primi livelli, fino al 32, e i dieci Tris non hanno mai nebbia, nemmeno a Maestro', () => {
+    const noFog = legacyLevels.filter((l) => l.id < 33 || l.groupSize === 3);
+    expect(noFog).toHaveLength(32 + 10);
+    expect(legacyLevels.find((l) => l.fog > 0)?.id).toBe(33);
+    for (const level of noFog) for (const profile of PROFILES) expect(applyProfile(toSpec(level), profile).fog).toBe(0);
+  });
+
+  test('un livello con nebbia ne ha di più a Maestro che a Normale', () => {
+    const level = legacyLevels.find((l) => l.id === 33)!;
+    expect(applyProfile(toSpec(level), 'master').fog).toBeGreaterThan(applyProfile(toSpec(level), 'normal').fog);
   });
 });

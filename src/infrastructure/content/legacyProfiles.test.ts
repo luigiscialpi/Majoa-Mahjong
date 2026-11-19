@@ -39,7 +39,7 @@ describe('profili di difficoltà sui 100 livelli dell\'originale', () => {
     for (const l of legacyLevels) expect({ id: l.id, spec: applyProfile(toSpec(l), 'normal') }).toEqual({ id: l.id, spec: toSpec(l) });
   });
 
-  test('disegni, nebbia e aiuti di ogni livello e profilo coincidono con quelli calcolati dall\'originale', () => {
+  test('disegni, nebbia e aiuti di ogni livello e profilo coincidono con quelli calcolati dall\'originale, tranne la nebbia in più nei livelli senza nebbia', () => {
     PROFILES.forEach((profile, d) => {
       for (const l of legacyLevels) {
         const got = applyProfile(toSpec(l), profile);
@@ -48,7 +48,8 @@ describe('profili di difficoltà sui 100 livelli dell\'originale', () => {
           id: l.id,
           profile,
           types: originalNEff(l.types, poolLen, d),
-          fog: originalFogCount(l.fog, d),
+          // Unica differenza dall'originale, voluta: senza nebbia nel livello non se ne aggiunge (difetto 7, decisione del 18 novembre 2026)
+          fog: l.fog > 0 ? originalFogCount(l.fog, d) : 0,
           aids: { hints: originalScaleAid(l.aids.hints, d, 'hints'), shuffles: originalScaleAid(l.aids.shuffles, d, 'shuffles'), undo: originalScaleAid(l.aids.undo, d, 'undo') },
         });
       }

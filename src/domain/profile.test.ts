@@ -73,13 +73,22 @@ describe('effectiveTypes e fogCount', () => {
     expect(effectiveTypes(12, 14, 'master')).toBe(13); // poolSize − 1
   });
 
-  test('nebbia: moltiplicatore e tessere in più, anche se il livello non ne ha (difetto 7 replicato)', () => {
+  test('nebbia: moltiplicatore e tessere in più coincidono con l\'originale nei livelli che hanno già nebbia', () => {
     PROFILES.forEach((p, d) => {
-      for (const fog of [0, 3, 4, 5, 6, 7, 8, 10, 12, 14]) expect({ p, fog, f: fogCount(fog, p) }).toEqual({ p, fog, f: originalFogCount(fog, d) });
+      for (const fog of [3, 4, 5, 6, 7, 8, 10, 12, 14]) expect({ p, fog, f: fogCount(fog, p) }).toEqual({ p, fog, f: originalFogCount(fog, d) });
     });
-    expect(fogCount(0, 'normal')).toBe(0);
-    expect(fogCount(0, 'master')).toBe(3);
     expect(fogCount(6, 'easy')).toBe(3);
+    expect(fogCount(6, 'hard')).toBe(10);
+  });
+
+  test('difetto 7 corretto: senza nebbia nel livello non ce n\'è con nessun profilo (l\'originale ne aggiungeva fino a 3)', () => {
+    PROFILES.forEach((p, d) => {
+      expect(fogCount(0, p)).toBe(0);
+      if (d >= 3) expect(originalFogCount(0, d)).toBeGreaterThan(0); // era proprio quello che l'originale faceva
+    });
+    expect(originalFogCount(0, 5)).toBe(3);
+    expect(fogCount(0, 'master')).toBe(0);
+    expect(fogCount(-1, 'master')).toBe(0);
   });
 });
 
@@ -95,6 +104,10 @@ describe('applyProfile', () => {
       expect({ p, cells: r.cells, groupSize: r.groupSize, hidden: r.hidden, gold: r.gold, poolSize: r.poolSize, id: r.id }).toEqual({ p, cells: base.cells, groupSize: base.groupSize, hidden: base.hidden, gold: base.gold, poolSize: base.poolSize, id: base.id });
     }
     expect(applyProfile(spec(), 'hard')).toMatchObject({ types: 14, fog: 10, aids: { hints: 3, shuffles: 2, undo: 6 } });
+  });
+
+  test('un livello senza nebbia resta senza nebbia, qualunque sia il profilo', () => {
+    for (const p of PROFILES as readonly Profile[]) expect(applyProfile(spec({ fog: 0 }), p).fog).toBe(0);
   });
 
   test('non modifica la specifica ricevuta', () => {
