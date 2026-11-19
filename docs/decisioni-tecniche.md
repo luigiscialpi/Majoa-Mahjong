@@ -294,7 +294,7 @@ La proposta segue le regole di progettazione del flusso utente: ogni annuncio st
 
 **Regole di compatibilità.**
 1. Ogni pacchetto ha `contentVersion` e versione minima dell'app; l'app ignora pacchetti che non comprende.
-2. I contenuti sono **append-only**: gli identificativi (isole, livelli, carte, disegni, rompicapi) non si rinominano né si riusano.
+2. I contenuti sono **append-only** dalla prima uscita pubblica: gli identificativi (isole, livelli, carte, disegni, rompicapi) non si rinominano né si riusano. Prima si possono riusare azzerando i progressi (19 novembre 2026: i Tris al primo posto delle isole).
 3. La partita salvata registra identificativo dello spec e `contentVersion`; se un aggiornamento cambia o rimuove lo spec in uso, la partita si scarta con un messaggio (stesso meccanismo dell'hash della sezione 6).
 4. Gli aggiornamenti si applicano **all'avvio successivo**, mai a partita in corso.
 5. Prima di ogni pubblicazione, in integrazione continua: validazione dei pacchetti (schema, identificativi unici, chiavi di traduzione presenti in tutte le lingue, SVG validi, ogni spec risolvibile con un campione di semi).

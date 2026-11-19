@@ -1,6 +1,6 @@
 # Motore dei livelli e progressione
 
-> **Stato: DRAFT.** La mappa e la progressione coprono sette isole da 20 livelli e una sequenza infinita generata da forme originali verificate. Gli identificativi interni restano distinti dalla numerazione visibile. L'indice generale di difficoltà non guida ancora la generazione: la curva corrente usa il numero di disegni per isola e si ferma a 14.
+> **Stato: DRAFT.** La mappa e la progressione coprono sette isole da 20 livelli e una sequenza infinita generata da forme originali verificate. Gli identificativi interni restano distinti dalla numerazione visibile. Il primo livello di ogni isola dalla seconda è un Tris. L'indice generale di difficoltà non guida ancora la generazione: la curva corrente usa il numero di disegni per isola e si ferma a 14.
 
 Questo capitolo spiega come si descrive, si genera e si ordina un livello, e come isole e progressione si estendono all'infinito. Si legge prima di toccare il dominio dei livelli, la mappa o lo sblocco delle isole.
 
@@ -83,11 +83,11 @@ Tra un'isola e la successiva l'andamento è «a dente di sega»: i primi livelli
 
 **Isole infinite.** L'isola 8 comincia dall'ID interno 151; ogni isola successiva aggiunge 20 ID. Il tema ruota tra i cinque temi della campagna, le forme originali vengono riusate in ciclo e il generatore assegna una tavola risolvibile con seme. I tipi di disegno aumentano da 12 a 13 e poi al massimo di 14; dopo l'isola 10 questa parte della difficoltà resta al tetto. Ogni isola generata dà 5 ✨ quando si apre. La mappa prepara due isole oltre la campagna base e aggiunge un'isola per ogni isola generata completata, mantenendo visibile la prossima chiusa senza creare un array infinito.
 
-**Identificativo e numero mostrato.** L'identificativo interno serve a collegare progressi e partita salvata a uno specifico livello; per i 100 livelli originali non cambia. Il numero mostrato nella campagna è invece progressivo: `1 + livelli delle isole precedenti + posizione nell'isola`. Quando si aggiungono livelli a Dolci, Arte, Scienza, Mare e Fiori, i numeri visibili successivi slittano; i progressi salvati continuano a riferirsi agli stessi livelli. I Tris restano fuori dalla campagna e mostrano la propria numerazione. I nuovi livelli ricevono identificativi interni mai usati.
+**Identificativo e numero mostrato.** L'identificativo interno serve a collegare i progressi (stelle, record, oro e profilo) a un livello. La partita salvata non ne dipende: porta con sé la propria specifica e l'impronta della tavola. Fino alla prima uscita pubblica un identificativo può cambiare contenuto, e allora i progressi di quel livello vanno azzerati (decisione del 19 novembre 2026, presa per i Tris al primo posto delle isole); dalla prima uscita, mai. Il numero mostrato nella campagna è invece progressivo: `1 + livelli delle isole precedenti + posizione nell'isola`. Quando si aggiungono livelli a Dolci, Arte, Scienza, Mare e Fiori, i numeri visibili successivi slittano; i progressi salvati continuano a riferirsi agli stessi livelli. I dieci Tris dell'originale restano fuori dalla campagna e mostrano la propria numerazione. I nuovi livelli ricevono identificativi interni mai usati.
 
 **Temi.** Un tema è un dato: 14 disegni più la tessera stella, una tavolozza base, un nome tradotto e 14 carte d'album. Dall'ottava isola i cinque temi Dolci, Arte, Scienza, Mare e Fiori si ripetono in sequenza; anche il nome delle isole generate è progressivo («Isola 8», «Isola 9»…). Le isole riutilizzano la tavolozza base del tema. Nuovi temi possono arrivare come contenuti aggiornabili (README, sezione 5).
 
-**Livelli Tris.** Restano un insieme separato di 10 livelli con gruppi da 3, raggiungibile dalla sala Rompicapi e fuori dal percorso delle isole. L'estensione a livelli Tris generati è `TO DO`.
+**Livelli Tris.** Il primo livello di ogni isola, dalla seconda in poi, è un Tris (numeri mostrati 21, 41, 61…; decisione del 19 novembre 2026): la forma del livello che sostituisce, giocata a gruppi di 3, con il tema dell'isola. Per arrivare a un numero di tessere multiplo di 3 si tolgono una o due tessere dello strato più alto (nessuna poggia su di loro); niente tessere d'oro, nascoste o nebbiose; i disegni sono al più uno per gruppo (`src/infrastructure/content/trisSlots.ts`, applicato da `campaignLevelById`). Misurato: sulle 90 forme a coppie dell'originale la generazione riesce in 25 semi su 25, quindi non servono forme nuove. I dieci Tris dell'originale restano un insieme separato, raggiungibile dalla sala Rompicapi e fuori dalle isole; la loro regola di sblocco è `TO DO`, e così la finestra di spiegazione della regola dei Tris (i testi esistono, la schermata no).
 
 ### Progressione e sblocco
 
@@ -117,7 +117,7 @@ Regole del modello:
 | `newProgress()`, `recordWin()`, `levelProgress()` | `src/domain/progress.ts` | Progressi per livello e ✨ di una vittoria | `prog` (stelle, oro, record, profilo), `win` (2279) |
 | `isLevelUnlocked()`, `isIslandUnlocked()`, `unlockThreshold()`, `islandStars()`, `isIslandCompleted()` | `src/domain/progress.ts` | Regole di sblocco di livelli e isole | `worldState` (2472), `islandEarned` (3213) |
 | `openGifts()` | `src/domain/progress.ts` | Regalo ✨ delle isole appena aperte | campo `gift` delle isole |
-| `legacyIslands`, `campaignIslandsForProgress()`, `campaignLevelById()` | `src/infrastructure/content/legacyIslands.ts`, `campaignLevels.ts` | Isole base, contenuti generati, numerazione interna; Tris a parte | `ISLANDS` (1159) |
+| `legacyIslands`, `campaignIslandsForProgress()`, `campaignLevelById()` | `src/infrastructure/content/legacyIslands.ts`, `campaignLevels.ts` | Isole base, contenuti generati, numerazione interna; Tris al primo posto delle isole (`trisSlots.ts`); i dieci Tris originali a parte | `ISLANDS` (1159) |
 
 ## Vincoli e scartato
 
@@ -127,7 +127,7 @@ Regole del modello:
 - Non far ricalcolare l'indice dal profilo: il profilo modifica le regole di gioco, non la misura del livello.
 - Non replicare il fallback non garantito dell'originale: la generazione fallita è un errore tipizzato.
 - Non tarare i pesi dell'indice sulla campagna dell'originale: non li identifica e, cercandone il massimo, peggiora il controllo con le etichette 1-5 (0,864 contro 0,943 con pesi uniformi).
-- Non rinominare né riutilizzare identificativi di isole, livelli e temi.
+- Dalla prima uscita pubblica, non rinominare né riutilizzare identificativi di isole, livelli e temi.
 - Progressioni scartate: un solo asse di livelli senza isole (si perdono il viaggio e i traguardi); campagna fissa più modalità infinita separata (due progressioni e due economie); sola campagna fissa estesa a mano (non è infinita).
 
 ## Verifica
