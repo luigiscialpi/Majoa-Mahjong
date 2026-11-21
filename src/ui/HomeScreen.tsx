@@ -4,13 +4,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { planStart, type Home, type ResumeInfo } from '../application/saveFlow';
 import type { SaveStore } from '../application/saveStore';
 import type { Profile } from '../domain/profile';
+import { isIntroDismissed, withIntroDismissed, type IntroId } from '../domain/settings';
 import type { IslandInfo } from '../domain/progress';
 import { campaignIslandsForProgress, campaignLevelById } from '../infrastructure/content/campaignLevels';
-import { useTranslation } from '../infrastructure/i18n';
+import { locale, useTranslation } from '../infrastructure/i18n';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { displayLevelNumber, formatTime, PROFILE_KEYS } from './format';
+import { IntroDialog } from './IntroDialog';
+import { introFor, introText } from './intros';
 import { LevelPicker } from './LevelPicker';
+import { useSettings } from './SettingsProvider';
 import { loadTileSvgs } from './svgs';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -35,8 +39,10 @@ export type HomeScreenProps = {
  */
 export function HomeScreen({ home, store, onPlay, onResume, onReload, islands: suppliedIslands, onOpenSettings }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const { settings, updateSetting } = useSettings();
   const [pending, setPending] = useState<{ levelId: number; profile: Profile } | null>(null);
+  const [intro, setIntro] = useState<{ levelId: number; profile: Profile; id: IntroId } | null>(null);
   const [resetting, setResetting] = useState(false);
   const [busy, setBusy] = useState(false);
   const { resume } = home;
@@ -57,7 +63,16 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands: s
     }
   };
 
-  const pick = (levelId: number, profile: Profile) => (plan.kind === 'confirm' ? setPending({ levelId, profile }) : onPlay(levelId, profile));
+  // Con una partita salvata si chiede prima di sostituirla; senza, si parte
+  const start = (levelId: number, profile: Profile) => (plan.kind === 'confirm' ? setPending({ levelId, profile }) : onPlay(levelId, profile));
+  // Prima di un livello di un tipo con la sua spiegazione (il Tris) compare la finestra, finché non si mette la spunta «Non mostrare più».
+  // Viene per prima: chiuderla non cambia nulla, mentre sostituire la partita salvata è la scelta che costa.
+  const pick = (levelId: number, profile: Profile) => {
+    const level = campaignLevelById(levelId);
+    const id = level ? introFor(level) : null;
+    if (id && !isIntroDismissed(settings, id)) setIntro({ levelId, profile, id });
+    else start(levelId, profile);
+  };
 
   // «Ricomincia»: scarta la partita illeggibile e riavvia lo stesso livello e profilo se si leggono ancora e il livello esiste;
   // altrimenti resta nella home.
@@ -156,6 +171,17 @@ export function HomeScreen({ home, store, onPlay, onResume, onReload, islands: s
                 }),
             },
           ]}
+        />
+      ) : null}
+      {intro && introText(intro.id, locale(lang).intro) ? (
+        <IntroDialog
+          entry={introText(intro.id, locale(lang).intro)!}
+          onDismiss={() => setIntro(null)}
+          onPlay={(dontShowAgain) => {
+            if (dontShowAgain) void updateSetting('introsDismissed', withIntroDismissed(settings.introsDismissed, intro.id));
+            setIntro(null);
+            start(intro.levelId, intro.profile);
+          }}
         />
       ) : null}
       {resetDialog}

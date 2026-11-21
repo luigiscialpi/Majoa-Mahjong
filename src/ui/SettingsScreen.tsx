@@ -30,7 +30,7 @@ export type SettingsScreenProps = {
 /**
  * Schermata Impostazioni dell'app:
  * Fedele all'originale HTML (righe 3416-3496: buildSettings).
- * Include: Mascotte (76 px), Difficoltà, Aspetto, Suoni e vibrazione, Aiuti di gioco, Comfort e accessibilità, Lingua, Ripristino.
+ * Include: Mascotte (76 px), Difficoltà, Aspetto, Suoni e vibrazione, Aiuti di gioco, Comfort e accessibilità, Spiegazioni, Lingua, Ripristino.
  */
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const insets = useSafeAreaInsets();
@@ -47,6 +47,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   );
 
   // La difficoltà scelta vale per le partite nuove: una partita salvata conserva la sua (`S.dif`, righe 2363 e 3457 dell'originale)
+  // Le spiegazioni tornano tutte (la spunta «Non mostrare più» si toglie)
+  const handleRestoreIntros = useCallback(() => void updateSetting('introsDismissed', []), [updateSetting]);
   const handleSelectProfile = useCallback((p: Profile) => void updateSetting('defaultProfile', p), [updateSetting]);
 
   const handleToggleSound = useCallback(
@@ -338,7 +340,19 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             />
           </View>
 
-          {/* 7. Lingua */}
+          {/* 7. Spiegazioni: quelle che si sono nascoste con «Non mostrare più» si possono rivedere */}
+          <View style={styles.group}>
+            <Text style={styles.groupTitle}>{t('sgIntros')}</Text>
+            <Text style={styles.difNote}>{t('introsHint')}</Text>
+            {settings.introsDismissed.length === 0 ? (
+              <Text style={styles.difNote} testID="intros-status">
+                {t('introsAllOn')}
+              </Text>
+            ) : null}
+            <Button label={t('introsRestore')} onPress={handleRestoreIntros} disabled={settings.introsDismissed.length === 0} testID="btn-restore-intros" />
+          </View>
+
+          {/* 8. Lingua */}
           <View style={styles.group}>
             <Text style={styles.groupTitle}>{t('sgLang')}</Text>
             <View style={styles.langRow}>
@@ -360,7 +374,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             </View>
           </View>
 
-          {/* 8. Ripristino */}
+          {/* 9. Ripristino */}
           <View style={styles.resetContainer}>
             <Button
               label={t('setReset')}

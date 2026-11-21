@@ -3,6 +3,7 @@ import { playRandomSession } from '../application/__fixtures__/play';
 import { loadHome } from '../application/saveFlow';
 import { serializeSavedGame, toSavedGame, type SavedGame } from '../application/savedGame';
 import { createMemorySaveStore, type SaveStore } from '../application/saveStore';
+import { DEFAULT_SETTINGS } from '../domain/settings';
 import { createMemorySettingsStore } from '../application/settingsStore';
 import { startSession } from '../application/session';
 import type { Profile } from '../domain/profile';
@@ -10,7 +11,7 @@ import { newProgress, recordWin } from '../domain/progress';
 import { serializeProgress } from '../application/progressCodec';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
-import { LanguageProvider, type Language } from '../infrastructure/i18n';
+import { LanguageProvider, locale, type Language } from '../infrastructure/i18n';
 import { HomeScreen } from './HomeScreen';
 import { SettingsProvider } from './SettingsProvider';
 import { SIG, sameContent } from '../application/__fixtures__/content';
@@ -26,12 +27,12 @@ function savedGame(over: Partial<SavedGame> = {}): SavedGame {
 }
 const storeWith = (game?: SavedGame, progress?: string) => createMemorySaveStore({ game: game ? serializeSavedGame(game) : undefined, progress });
 
-async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScreen>[0]> = {}, lang: Language = 'it') {
+async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScreen>[0]> = {}, lang: Language = 'it', settingsStore = createMemorySettingsStore()) {
   const home = await loadHome(store, sameContent);
   const calls = { onPlay: jest.fn(), onResume: jest.fn(), onReload: jest.fn(async () => {}) };
   const res = await render(
     <LanguageProvider initial={lang}>
-      <SettingsProvider store={createMemorySettingsStore()}>
+      <SettingsProvider store={settingsStore}>
         <HomeScreen home={home} store={store} {...calls} {...extra} />
       </SettingsProvider>
     </LanguageProvider>,
@@ -379,5 +380,109 @@ describe('progressi illeggibili', () => {
       release();
     });
     expect(isDisabled('btn-progress-retry')).toBe(false);
+  });
+});
+
+describe('spiegazione dei Tris prima del livello', () => {
+  /** Progressi con tutto il primo gruppo di livelli a tre stelle: l'isola successiva è aperta e il suo primo livello (21) è un Tris. */
+  const opened = () => {
+    let progress = newProgress();
+    for (let id = 1; id <= 20; id++) progress = recordWin(progress, { signature: SIG, levelId: id, stars: 3, seconds: 50, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+    return serializeProgress(progress);
+  };
+  const storedSettings = async (settingsStore: ReturnType<typeof createMemorySettingsStore>) => (await settingsStore.loadSettings()).introsDismissed;
+  const requestClose = (testID: string) => fireEvent(screen.getByTestId(testID), 'requestClose');
+
+  test('avviare un Tris mostra la spiegazione prima di partire: titolo, testo e spunta spenta', async () => {
+    const { onPlay } = await mount(storeWith(undefined, opened()));
+    await press('level-21');
+    expect(has('intro-dialog')).toBe(true);
+    expect(onPlay).not.toHaveBeenCalled();
+    const entry = locale('it').intro[91]!;
+    expect(texts()).toContain(entry.t);
+    expect(screen.getByTestId('intro-dont-show').props.accessibilityState.checked).toBe(false);
+  });
+
+  test('«Gioca» avvia il livello con il profilo scelto e chiude la finestra', async () => {
+    const { onPlay } = await mount(storeWith(undefined, opened()), {}, 'it', createMemorySettingsStore({ ...DEFAULT_SETTINGS, defaultProfile: 'hard' }));
+    await press('level-21');
+    await fireEvent.press(screen.getByTestId('btn-intro-play'));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onPlay).toHaveBeenCalledWith(21, 'hard');
+    expect(has('intro-dialog')).toBe(false);
+  });
+
+  test('senza la spunta torna a ogni Tris, e non si salva nulla', async () => {
+    const settingsStore = createMemorySettingsStore();
+    const { onPlay } = await mount(storeWith(undefined, opened()), {}, 'it', settingsStore);
+    await press('level-21');
+    await fireEvent.press(screen.getByTestId('btn-intro-play'));
+    await press('level-21');
+    expect(has('intro-dialog')).toBe(true); // ancora
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(await storedSettings(settingsStore)).toEqual([]);
+  });
+
+  test('con la spunta la spiegazione non compare più: si salva nelle impostazioni e il Tris parte subito', async () => {
+    const settingsStore = createMemorySettingsStore();
+    const { onPlay } = await mount(storeWith(undefined, opened()), {}, 'it', settingsStore);
+    await press('level-21');
+    await fireEvent.press(screen.getByTestId('intro-dont-show'));
+    await fireEvent.press(screen.getByTestId('btn-intro-play'));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(await storedSettings(settingsStore)).toEqual(['tris']);
+    await press('level-21');
+    expect(has('intro-dialog')).toBe(false);
+    expect(onPlay).toHaveBeenCalledTimes(2);
+  });
+
+  test('una spiegazione già nascosta nelle impostazioni non compare nemmeno alla prima volta', async () => {
+    const settingsStore = createMemorySettingsStore({ ...DEFAULT_SETTINGS, introsDismissed: ['tris'] });
+    const { onPlay } = await mount(storeWith(undefined, opened()), {}, 'it', settingsStore);
+    await press('level-21');
+    expect(has('intro-dialog')).toBe(false);
+    expect(onPlay).toHaveBeenCalledWith(21, 'normal');
+  });
+
+  test('un livello a coppie parte subito, senza finestra', async () => {
+    const { onPlay } = await mount(storeWith(undefined, opened()));
+    await press('level-22');
+    expect(has('intro-dialog')).toBe(false);
+    expect(onPlay).toHaveBeenCalledWith(22, 'normal');
+  });
+
+  test('chiudere la finestra (indietro) non avvia nulla né salva nulla', async () => {
+    const settingsStore = createMemorySettingsStore();
+    const { onPlay } = await mount(storeWith(undefined, opened()), {}, 'it', settingsStore);
+    await press('level-21');
+    await fireEvent.press(screen.getByTestId('intro-dont-show')); // anche con la spunta messa
+    await requestClose('intro-dialog');
+    expect(has('intro-dialog')).toBe(false);
+    expect(onPlay).not.toHaveBeenCalled();
+    expect(await storedSettings(settingsStore)).toEqual([]);
+  });
+
+  test('con una partita salvata la spiegazione viene prima: chiuderla non fa perdere la partita; poi si chiede di sostituirla', async () => {
+    const store = storeWith(savedGame(), opened());
+    const { onPlay } = await mount(store);
+    await press('level-21');
+    expect(has('intro-dialog')).toBe(true);
+    expect(has('replace-dialog')).toBe(false);
+    await requestClose('intro-dialog');
+    expect(await savedOf(store)).not.toBe('illeggibile');
+    expect(has('replace-dialog')).toBe(false);
+    await press('level-21');
+    await fireEvent.press(screen.getByTestId('btn-intro-play'));
+    expect(has('replace-dialog')).toBe(true); // dopo la spiegazione, la domanda sulla partita salvata
+    expect(onPlay).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('btn-replace'));
+    expect(onPlay).toHaveBeenCalledWith(21, 'normal');
+  });
+
+  test('la spiegazione è nella lingua attiva', async () => {
+    await mount(storeWith(undefined, opened()), {}, 'en');
+    await press('level-21');
+    expect(texts()).toContain(locale('en').intro[91]!.t);
+    expect(texts()).toContain("Don't show this explanation again");
   });
 });

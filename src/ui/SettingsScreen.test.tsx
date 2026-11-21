@@ -38,6 +38,7 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Impostazioni')).toBeTruthy();
     expect(screen.getByText('Mascotte')).toBeTruthy();
     expect(screen.getByText('Difficoltà')).toBeTruthy();
+    expect(screen.getByText('Spiegazioni')).toBeTruthy();
     expect(screen.getByText('Aspetto')).toBeTruthy();
     expect(screen.getByText('Suoni e vibrazione')).toBeTruthy();
     expect(screen.getByText('Aiuti di gioco')).toBeTruthy();
@@ -222,5 +223,57 @@ describe('SettingsScreen: difficoltà', () => {
     const note = StyleSheet.flatten(screen.getByTestId('dif-note').props.style) as Record<string, unknown>;
     expect(note).toMatchObject({ fontSize: px(css('.difnote'), 'font-size'), lineHeight: 12.5 * 1.35 });
     expect(/line-height:1\.35\b/.test(css('.difnote'))).toBe(true);
+  });
+});
+
+describe('SettingsScreen: spiegazioni', () => {
+  const it = locale('it');
+  const hidden: Settings = { ...DEFAULT_SETTINGS, introsDismissed: ['tris'] };
+  const disabled = () => {
+    const props = screen.getByTestId('btn-restore-intros').props;
+    return props.accessibilityState?.disabled === true || props.disabled === true;
+  };
+
+  test('il gruppo c\'è, tra Comfort e Lingua, con la spiegazione di cosa fa', async () => {
+    await renderSettings();
+    const tree = JSON.stringify(screen.toJSON());
+    const positions = ['Comfort e accessibilità', 'Spiegazioni', 'Lingua'].map((title) => tree.indexOf(`"${title}"`));
+    expect(positions[0]).toBeGreaterThan(-1);
+    expect(positions[1]).toBeGreaterThan(positions[0]);
+    expect(positions[2]).toBeGreaterThan(positions[1]);
+    expect(screen.getByText(it.introsHint)).toBeTruthy();
+    expect(screen.getByText(it.introsRestore)).toBeTruthy();
+  });
+
+  test('senza spiegazioni nascoste dice che sono tutte attive e il pulsante è spento', async () => {
+    await renderSettings();
+    expect(screen.getByTestId('intros-status').props.children).toBe(it.introsAllOn);
+    expect(disabled()).toBe(true);
+  });
+
+  test('con una spiegazione nascosta il pulsante è attivo e non c\'è la frase «tutte attive»', async () => {
+    await renderSettings(hidden);
+    expect(screen.queryByTestId('intros-status')).toBeNull();
+    expect(disabled()).toBe(false);
+  });
+
+  test('«Rivedi le spiegazioni» le rimette tutte, le salva e spegne il pulsante', async () => {
+    const { store } = await renderSettings(hidden);
+    await fireEvent.press(screen.getByTestId('btn-restore-intros'));
+    expect((await store.loadSettings()).introsDismissed).toEqual([]);
+    expect(screen.getByTestId('intros-status').props.children).toBe(it.introsAllOn);
+    expect(disabled()).toBe(true);
+  });
+
+  test('toccare il pulsante a vuoto non cambia nulla', async () => {
+    const { store } = await renderSettings();
+    await fireEvent.press(screen.getByTestId('btn-restore-intros'));
+    expect((await store.loadSettings()).introsDismissed).toEqual([]);
+  });
+
+  test('«Ripristina» tutte le impostazioni rimette anche le spiegazioni', async () => {
+    const { store } = await renderSettings(hidden);
+    await fireEvent.press(screen.getByTestId('btn-reset-settings'));
+    expect((await store.loadSettings()).introsDismissed).toEqual([]);
   });
 });

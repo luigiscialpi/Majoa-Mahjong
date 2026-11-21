@@ -127,6 +127,13 @@ export type Locale = {
   sgDif: string;
   difNote: string;
   difCfNote: string;
+  /** Finestra con la spiegazione di un tipo di livello, prima di iniziarlo, e il suo gruppo nelle Impostazioni. */
+  introDontShow: string;
+  introPlay: string;
+  sgIntros: string;
+  introsHint: string;
+  introsAllOn: string;
+  introsRestore: string;
   dif_easy: string;
   difd_easy: string;
   dif_normal: string;

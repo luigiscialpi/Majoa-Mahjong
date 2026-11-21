@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './Button';
@@ -10,7 +11,7 @@ export type DialogAction = { label: string; onPress: () => void; /** L'azione si
  * Finestra di conferma: dice cosa si perde, con pulsanti che nominano l'azione (mai «OK»), uno per riga, e la scelta sicura in
  * rilievo. Il tasto indietro di Android la chiude senza fare nulla (`onDismiss`).
  */
-export function ConfirmDialog({ title, body, actions, onDismiss, testID }: { title: string; body: string; actions: readonly DialogAction[]; onDismiss: () => void; testID?: string }) {
+export function ConfirmDialog({ title, body, actions, onDismiss, testID, children }: { title: string; body: string; actions: readonly DialogAction[]; onDismiss: () => void; testID?: string; /** Tra il testo e i pulsanti (una spunta, per esempio). */ children?: ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
     <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
@@ -31,6 +32,7 @@ export function ConfirmDialog({ title, body, actions, onDismiss, testID }: { tit
             {title}
           </Text>
           <Text style={styles.body}>{body}</Text>
+          {children}
           <View style={styles.actions}>
             {actions.map((a) => (
               <Button key={a.label} label={a.label} kind={a.primary ? 'primary' : 'plain'} disabled={a.disabled} onPress={a.onPress} testID={a.testID} />

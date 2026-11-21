@@ -49,7 +49,22 @@ export type Settings = {
   bgPalette: BgPalette;
   /** Palette del bordo (spessore) delle tessere. 'level' = usa la tavolozza del livello. */
   tilePalette: TilePalette;
+  /** Spiegazioni che l'utente ha scelto di non vedere più (la spunta «Non mostrare più»). */
+  introsDismissed: readonly IntroId[];
 };
+
+/**
+ * Le meccaniche che hanno una spiegazione prima del livello. Una per tipo di livello, non per numero: i numeri cambiano.
+ * Per ora solo il Tris; la nebbia e le tessere nascoste hanno già i testi dell'originale.
+ */
+export const INTRO_IDS = ['tris'] as const;
+export type IntroId = (typeof INTRO_IDS)[number];
+
+/** La spiegazione si mostra, a meno che l'utente non abbia messo la spunta «Non mostrare più». */
+export const isIntroDismissed = (settings: Pick<Settings, 'introsDismissed'>, id: IntroId): boolean => settings.introsDismissed.includes(id);
+
+/** L'elenco con la spiegazione aggiunta (una sola volta). */
+export const withIntroDismissed = (dismissed: readonly IntroId[], id: IntroId): readonly IntroId[] => (dismissed.includes(id) ? dismissed : [...dismissed, id]);
 
 /** Valori predefiniti delle impostazioni (fedeli a SDEF dell'originale). */
 export const DEFAULT_SETTINGS: Settings = {
@@ -69,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   selectedBar: false,
   bgPalette: 'level',
   tilePalette: 'level',
+  introsDismissed: [],
 };
 
 /**
@@ -105,6 +121,8 @@ export function validateSettings(input: unknown): Settings {
   const tilePalette = (TILE_PALETTES as readonly string[]).includes(raw.tilePalette as string)
     ? (raw.tilePalette as TilePalette)
     : DEFAULT_SETTINGS.tilePalette;
+  // Solo spiegazioni note, una volta sola, nell'ordine di `INTRO_IDS`; qualunque altro valore si ignora
+  const introsDismissed = Array.isArray(raw.introsDismissed) ? INTRO_IDS.filter((id) => (raw.introsDismissed as unknown[]).includes(id)) : DEFAULT_SETTINGS.introsDismissed;
 
   return {
     mascot,
@@ -123,6 +141,7 @@ export function validateSettings(input: unknown): Settings {
     selectedBar,
     bgPalette,
     tilePalette,
+    introsDismissed,
   };
 }
 

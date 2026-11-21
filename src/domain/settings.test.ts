@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, contrastOf, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings } from './settings';
+import { DEFAULT_SETTINGS, contrastOf, effectiveSettings, parseSettings, serializeSettings, validateSettings, type Settings, INTRO_IDS, isIntroDismissed, withIntroDismissed, type IntroId } from './settings';
 
 describe('impostazioni (dominio)', () => {
   test('DEFAULT_SETTINGS ha i valori predefiniti dell\'originale, tranne l\'evidenzia-uguali che è acceso di base', () => {
@@ -19,6 +19,7 @@ describe('impostazioni (dominio)', () => {
       selectedBar: false,
       bgPalette: 'level',
       tilePalette: 'level',
+      introsDismissed: [],
     });
   });
 
@@ -40,6 +41,7 @@ describe('impostazioni (dominio)', () => {
       selectedBar: true,
       bgPalette: 'ocean',
       tilePalette: 'pink',
+      introsDismissed: ['tris'],
     };
     expect(validateSettings(custom)).toEqual(custom);
   });
@@ -149,6 +151,44 @@ describe('impostazioni (dominio)', () => {
     test('la Modalità comoda non lo cambia, né da acceso né da spento', () => {
       expect(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true }).highlightEqual).toBe(true);
       expect(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true, highlightEqual: false }).highlightEqual).toBe(false);
+    });
+  });
+
+  describe('spiegazioni da non mostrare più', () => {
+    test('di base non ce n\'è nessuna: tutte si mostrano', () => {
+      expect(DEFAULT_SETTINGS.introsDismissed).toEqual([]);
+      expect(isIntroDismissed(DEFAULT_SETTINGS, 'tris')).toBe(false);
+      expect(INTRO_IDS).toEqual(['tris']);
+    });
+
+    test('validateSettings: si tengono solo spiegazioni note, una volta sola; il resto si ignora', () => {
+      expect(validateSettings({ introsDismissed: ['tris'] }).introsDismissed).toEqual(['tris']);
+      expect(validateSettings({ introsDismissed: ['tris', 'tris', 'altra', 5, null] }).introsDismissed).toEqual(['tris']);
+      expect(validateSettings({ introsDismissed: [] }).introsDismissed).toEqual([]);
+      for (const bad of ['tris', 5, null, undefined, {}, true]) expect(validateSettings({ introsDismissed: bad }).introsDismissed).toEqual([]);
+      expect(validateSettings({}).introsDismissed).toEqual([]);
+    });
+
+    test('un salvataggio senza il campo (precedente) si legge: nessuna spiegazione nascosta', () => {
+      expect(parseSettings(JSON.stringify({ sound: false })).introsDismissed).toEqual([]);
+    });
+
+    test('si salva e si rilegge', () => {
+      const saved = { ...DEFAULT_SETTINGS, introsDismissed: ['tris'] as const };
+      expect(parseSettings(serializeSettings(saved)).introsDismissed).toEqual(['tris']);
+    });
+
+    test('isIntroDismissed e withIntroDismissed: aggiungono una volta sola e non toccano l\'elenco ricevuto', () => {
+      const before: readonly IntroId[] = [];
+      const after = withIntroDismissed(before, 'tris');
+      expect(after).toEqual(['tris']);
+      expect(before).toEqual([]);
+      expect(withIntroDismissed(after, 'tris')).toBe(after);
+      expect(isIntroDismissed({ introsDismissed: after }, 'tris')).toBe(true);
+    });
+
+    test('la Modalità comoda non cambia le spiegazioni scelte', () => {
+      expect(effectiveSettings({ ...DEFAULT_SETTINGS, comfort: true, introsDismissed: ['tris'] }).introsDismissed).toEqual(['tris']);
     });
   });
 });
