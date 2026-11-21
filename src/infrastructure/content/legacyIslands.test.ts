@@ -1,6 +1,7 @@
 import { isIslandUnlocked, isLevelUnlocked, newProgress, openGifts, recordWin, unlockThreshold, type Progress } from '../../domain/progress';
 import { legacyIslands, trisLevelIds } from './legacyIslands';
 import { legacyLevels } from './legacyLevels';
+import { SIG } from '../../application/__fixtures__/content';
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 /** Progressi di chi ha vinto ogni livello delle isole con `stars` stelle. */
@@ -50,7 +51,7 @@ describe('isole della campagna dell\'originale', () => {
     let p = newProgress();
     for (const id of range(1, 20)) {
       expect({ id, aperto: isLevelUnlocked(p, legacyIslands, id), prossimo: isLevelUnlocked(p, legacyIslands, id + 1) }).toEqual({ id, aperto: true, prossimo: false });
-      p = recordWin(p, { levelId: id, stars: 1, seconds: 100, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      p = recordWin(p, { signature: SIG, levelId: id, stars: 1, seconds: 100, gold: 0, profile: 'normal', noTimePressure: false }).progress;
       expect(isLevelUnlocked(p, legacyIslands, id + 1)).toBe(id < 20);
     }
     expect(isIslandUnlocked(p, legacyIslands, 1)).toBe(false); // 20 stelle su 40

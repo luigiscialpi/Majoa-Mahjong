@@ -8,6 +8,7 @@ import { startSession, type Session } from '../application/session';
 import type { Profile } from '../domain/profile';
 import { newProgress, recordWin } from '../domain/progress';
 import { STAR_TYPE } from '../domain/types';
+import { levelSignature } from '../domain/fingerprint';
 import { startRound } from '../application/round';
 import type { GameState } from '../domain/gameState';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
@@ -651,6 +652,7 @@ describe('GameScreen: salvataggi', () => {
       expect(onProgress).toHaveBeenCalledTimes(1);
       const progress = onProgress.mock.calls[0][0];
       expect(progress.levels[1].stars).toBeGreaterThanOrEqual(1);
+      expect(progress.levels[1].signature).toBe(levelSignature(legacyLevels[0])); // la firma è quella del livello
       expect(await store.loadProgress()).toEqual({ ok: true, value: progress });
       expect(screen.getByTestId('win-stars')).toBeOnTheScreen();
       const coins = progress.coins - newProgress().coins;
@@ -659,8 +661,17 @@ describe('GameScreen: salvataggi', () => {
       expect(texts()).not.toContain('Non riesco a salvare');
     });
 
+    test('in Modalità comoda la firma è comunque quella del livello (la disposizione cambia, il livello no)', async () => {
+      const level = legacyLevels[2]; // il 3: la sua disposizione comoda è diversa (nel 1 e nel 2 è uguale)
+      expect(toSpec(level, { comfort: true }).cells).not.toEqual(toSpec(level).cells);
+      const { onProgress } = await mount(level.id, 'normal', { settings: { ...DEFAULT_SETTINGS, comfort: true } });
+      playToEnd();
+      await flush();
+      expect(onProgress.mock.calls[0][0].levels[level.id].signature).toBe(levelSignature(level));
+    });
+
     test('un tempo migliore di un record esistente mostra «Nuovo record!»', async () => {
-      const slow = recordWin(newProgress(), { levelId: 1, stars: 1, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const slow = recordWin(newProgress(), { signature: levelSignature(legacyLevels[0]), levelId: 1, stars: 1, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
       await mount(1, 'normal', { progress: slow });
       playToEnd();
       await flush();
@@ -668,7 +679,7 @@ describe('GameScreen: salvataggi', () => {
     });
 
     test('una vittoria che non migliora nulla non dà ✨ né «Nuovo record!»', async () => {
-      const best = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 1, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const best = recordWin(newProgress(), { signature: levelSignature(legacyLevels[0]), levelId: 1, stars: 3, seconds: 1, gold: 0, profile: 'normal', noTimePressure: false }).progress;
       const { onProgress } = await mount(1, 'normal', { progress: best });
       playToEnd();
       await flush();
@@ -682,7 +693,7 @@ describe('GameScreen: salvataggi', () => {
         { id: 'prologue', levelIds: [1], gift: 0 },
         { id: 'animals', levelIds: [2], gift: 3 },
       ];
-      const before = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+      const before = recordWin(newProgress(), { signature: levelSignature(legacyLevels[0]), levelId: 1, stars: 3, seconds: 99999, gold: 0, profile: 'normal', noTimePressure: false }).progress;
       const { onProgress } = await mount(1, 'normal', { progress: before, islands });
       playToEnd();
       await flush();

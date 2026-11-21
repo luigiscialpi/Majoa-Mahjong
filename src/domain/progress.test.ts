@@ -1,4 +1,5 @@
-import { INITIAL_COINS, UNLOCK_RATIO, isIslandCompleted, isIslandUnlocked, isLevelUnlocked, islandStars, levelProgress, newProgress, openGifts, recordWin, unlockThreshold, type IslandInfo, type Progress, type WinRecord } from './progress';
+import { INITIAL_COINS, UNLOCK_RATIO, isIslandCompleted, isIslandUnlocked, isLevelUnlocked, islandStars, levelProgress, newProgress, openGifts, recordWin, unlockThreshold, type IslandInfo, type Progress, type WinRecord, recordOf, retainValid, type ContentSignatures } from './progress';
+import { SIG } from '../application/__fixtures__/content';
 
 // Isole di prova: a (4 livelli, soglia 8), b (3 livelli, soglia 6, regalo 5), c (2 livelli, regalo 3).
 const A: IslandInfo = { id: 'a', levelIds: [1, 2, 3, 4], gift: 0 };
@@ -9,7 +10,7 @@ const withStars = (stars: Record<number, number>): Progress => ({
   ...newProgress(),
   levels: Object.fromEntries(Object.entries(stars).map(([id, s]) => [id, { stars: s, bestSeconds: null, gold: 0, profile: null }])),
 });
-const win = (over: Partial<WinRecord> = {}): WinRecord => ({ levelId: 1, stars: 3, seconds: 100, gold: 0, profile: 'normal', noTimePressure: false, ...over });
+const win = (over: Partial<WinRecord> = {}): WinRecord => ({ signature: SIG, levelId: 1, stars: 3, seconds: 100, gold: 0, profile: 'normal', noTimePressure: false, ...over });
 
 describe('progressi iniziali', () => {
   test('3 ✨, nessun livello vinto, nessun regalo dato', () => {
@@ -95,16 +96,16 @@ describe('recordWin', () => {
     const r = recordWin(newProgress(), win({ stars: 3, gold: 2, profile: 'hard', seconds: 100 }));
     expect(r.coins).toBe(3 + 2 + 2);
     expect(r.progress.coins).toBe(INITIAL_COINS + 7);
-    expect(levelProgress(r.progress, 1)).toEqual({ stars: 3, bestSeconds: 100, gold: 2, profile: 'hard' });
+    expect(levelProgress(r.progress, 1)).toEqual({ stars: 3, bestSeconds: 100, gold: 2, profile: 'hard', signature: SIG });
   });
 
   test('una vittoria peggiore non toglie nulla e non dà ✨; una migliore dà solo la differenza', () => {
     const first = recordWin(newProgress(), win({ stars: 2, gold: 1, profile: 'medium', seconds: 100 })).progress;
     const worse = recordWin(first, win({ stars: 1, gold: 0, profile: 'easy', seconds: 150 }));
-    expect([worse.coins, levelProgress(worse.progress, 1)]).toEqual([0, { stars: 2, bestSeconds: 100, gold: 1, profile: 'medium' }]);
+    expect([worse.coins, levelProgress(worse.progress, 1)]).toEqual([0, { stars: 2, bestSeconds: 100, gold: 1, profile: 'medium', signature: SIG }]);
     const better = recordWin(first, win({ stars: 3, gold: 3, profile: 'master', seconds: 80 }));
     expect(better.coins).toBe(1 + 2 + 4); // una stella in più, due tessere d'oro in più, bonus 5 − 1
-    expect(levelProgress(better.progress, 1)).toEqual({ stars: 3, bestSeconds: 80, gold: 3, profile: 'master' });
+    expect(levelProgress(better.progress, 1)).toEqual({ stars: 3, bestSeconds: 80, gold: 3, profile: 'master', signature: SIG });
   });
 
   test('il record di tempo si aggiorna solo se è più veloce, e mai con «senza pressione del tempo»', () => {
@@ -162,5 +163,88 @@ describe('openGifts', () => {
     const snapshot = JSON.stringify(finishedA);
     openGifts(finishedA, islands);
     expect(JSON.stringify(finishedA)).toBe(snapshot);
+  });
+});
+
+describe('firma del livello', () => {
+  const OTHER = 'fedcba9876543210';
+
+  test('recordWin firma il record con la firma del livello vinto', () => {
+    expect(levelProgress(recordWin(newProgress(), win({ signature: OTHER })).progress, 1).signature).toBe(OTHER);
+  });
+
+  test('un record dello stesso livello (stessa firma) o senza firma si somma come sempre', () => {
+    const signed = recordWin(newProgress(), win({ stars: 2, seconds: 100, gold: 1 })).progress;
+    expect(levelProgress(recordWin(signed, win({ stars: 1, seconds: 120 })).progress, 1)).toMatchObject({ stars: 2, bestSeconds: 100, gold: 1 });
+    const unsigned = withStars({ 1: 2 });
+    expect(levelProgress(recordWin(unsigned, win({ stars: 1 })).progress, 1).stars).toBe(2);
+  });
+
+  test('un record di un altro livello con lo stesso numero (firma diversa) non si somma: parte da zero e dà le ✨ per intero', () => {
+    const old = recordWin(newProgress(), win({ signature: OTHER, stars: 3, seconds: 10, gold: 3, profile: 'master' })).progress;
+    const r = recordWin(old, win({ stars: 1, seconds: 500, gold: 0, profile: 'easy' }));
+    expect(levelProgress(r.progress, 1)).toEqual({ stars: 1, bestSeconds: 500, gold: 0, profile: 'easy', signature: SIG });
+    expect(r.coins).toBe(recordWin(newProgress(), win({ stars: 1, seconds: 500, gold: 0, profile: 'easy' })).coins); // come alla prima vittoria
+  });
+
+  test('recordOf: il record del livello, o uno vuoto se è di un altro livello; senza firma si assume suo', () => {
+    const signed = recordWin(newProgress(), win({ stars: 2 })).progress;
+    expect(recordOf(signed, 1, SIG).stars).toBe(2);
+    expect(recordOf(signed, 1, OTHER)).toEqual({ stars: 0, bestSeconds: null, gold: 0, profile: null });
+    expect(recordOf(withStars({ 1: 2 }), 1, OTHER).stars).toBe(2);
+    expect(recordOf(newProgress(), 9, SIG).stars).toBe(0);
+  });
+});
+
+describe('retainValid', () => {
+  const NOW = (id: number) => `n${id}`;
+  const BEFORE = (id: number) => `b${id}`;
+  const record = (stars: number, signature?: string) => ({ stars, bestSeconds: 10, gold: 0, profile: 'normal' as const, ...(signature ? { signature } : {}) });
+  const progress = (levels: Record<number, ReturnType<typeof record>>): Progress => ({ ...newProgress(), coins: 9, giftsOpened: ['a'], levels });
+  const content = (over: Partial<ContentSignatures> = {}): ContentSignatures => ({ current: NOW, base: NOW, ...over });
+
+  test('un record firmato con la firma attuale resta; con un\'altra, si scarta', () => {
+    const p = progress({ 1: record(3, 'n1'), 2: record(2, 'vecchia') });
+    expect(Object.keys(retainValid(p, content()).levels)).toEqual(['1']);
+  });
+
+  test('un record senza firma si assume guadagnato sul livello di prima: se è ancora quello, resta e si firma', () => {
+    const r = retainValid(progress({ 4: record(3) }), content());
+    expect(r.levels[4]).toEqual(record(3, 'n4'));
+  });
+
+  test('un record senza firma su un livello che adesso è un altro (il livello di prima non è l\'attuale) si scarta', () => {
+    const r = retainValid(progress({ 4: record(3), 5: record(1) }), content({ base: (id) => (id === 4 ? BEFORE(id) : NOW(id)) }));
+    expect(Object.keys(r.levels)).toEqual(['5']);
+  });
+
+  test('i record di livelli che non esistono (più) nei contenuti restano: non c\'è modo di sapere di chi sono', () => {
+    const p = progress({ 77: record(2, 'x'), 78: record(1) });
+    const r = retainValid(p, content({ current: () => undefined }));
+    expect(r.levels).toEqual(p.levels);
+  });
+
+  test('le ✨ e i regali già dati restano; la struttura non cambia', () => {
+    const r = retainValid(progress({ 1: record(3, 'altra') }), content());
+    expect([r.coins, r.giftsOpened]).toEqual([9, ['a']]);
+    expect(r.levels).toEqual({});
+  });
+
+  test('se non c\'è nulla da cambiare restituisce gli stessi progressi (stessa identità, niente ridisegni)', () => {
+    const p = progress({ 1: record(3, 'n1'), 2: record(1, 'n2') });
+    expect(retainValid(p, content())).toBe(p);
+    expect(retainValid(newProgress(), content())).toEqual(newProgress());
+  });
+
+  test('non modifica i progressi ricevuti', () => {
+    const p = progress({ 1: record(3, 'altra'), 2: record(1) });
+    const before = JSON.stringify(p);
+    retainValid(p, content());
+    expect(JSON.stringify(p)).toBe(before);
+  });
+
+  test('ripetuta non cambia più nulla', () => {
+    const once = retainValid(progress({ 1: record(3, 'altra'), 2: record(1), 3: record(2, 'n3') }), content());
+    expect(retainValid(once, content())).toBe(once);
   });
 });

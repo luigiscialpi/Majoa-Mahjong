@@ -7,7 +7,11 @@ import { startSession } from '../application/session';
 import { newProgress, recordWin } from '../domain/progress';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { LanguageProvider } from '../infrastructure/i18n';
+import { serializeProgress } from '../application/progressCodec';
+import { levelSignature } from '../domain/fingerprint';
+import { campaignLevelById } from '../infrastructure/content/campaignLevels';
 import { SaveProvider, useSaves, type Saves } from './SaveProvider';
+import { SIG } from '../application/__fixtures__/content';
 
 let current: Saves | null = null;
 function Probe() {
@@ -133,12 +137,27 @@ describe('SaveProvider', () => {
     const store = createMemorySaveStore();
     await store.saveGame(toSavedGame(midGame(), 1));
     await mount(async () => store);
-    const won = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 40, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+    const won = recordWin(newProgress(), { signature: SIG, levelId: 1, stars: 3, seconds: 40, gold: 0, profile: 'normal', noTimePressure: false }).progress;
     await act(async () => {
       current!.setProgress(won);
     });
     expect(current!.home.progress).toEqual({ ok: true, value: won });
     expect(current!.home.resume.kind).toBe('ready');
+  });
+
+  test('i progressi si leggono attraverso le firme della campagna: le stelle del livello 21, che ora è un Tris, non ci sono più', async () => {
+    const record = { stars: 3, bestSeconds: 60, gold: 0, profile: 'normal' as const };
+    const store = createMemorySaveStore({ progress: serializeProgress({ ...newProgress(), levels: { 21: record, 22: record } }) });
+    await mount(async () => store);
+    const progress = current!.home.progress;
+    if (!progress.ok) throw new Error('progressi illeggibili');
+    expect(Object.keys(progress.value.levels)).toEqual(['22']);
+    expect(progress.value.levels[22].signature).toBe(levelSignature(campaignLevelById(22)!));
+    await act(async () => {
+      await current!.reload(); // anche ricaricando
+    });
+    const again = current!.home.progress;
+    expect(again.ok && Object.keys(again.value.levels)).toEqual(['22']);
   });
 
   test('useSaves fuori dal provider è un errore', async () => {

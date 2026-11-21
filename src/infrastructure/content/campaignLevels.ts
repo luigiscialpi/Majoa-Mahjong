@@ -1,4 +1,5 @@
-import type { IslandInfo, Progress } from '../../domain/progress';
+import { levelSignature } from '../../domain/fingerprint';
+import type { ContentSignatures, IslandInfo, Progress } from '../../domain/progress';
 import { legacyIslands, trisLevelIds } from './legacyIslands';
 import { legacyLevels, type LegacyLevel } from './legacyLevels';
 import { isTrisSlot, trisVariant } from './trisSlots';
@@ -63,10 +64,31 @@ function infiniteLevel(id: number): LegacyLevel {
  * contenuto: i progressi stanno per numero, quindi fino alla prima uscita pubblica si possono azzerare.
  */
 export function campaignLevelById(id: number): LegacyLevel | undefined {
-  if (!Number.isSafeInteger(id) || id < 1) return undefined;
-  const level = legacyById.get(id) ?? extensionById.get(id) ?? (id >= INFINITE_START_ID ? infiniteLevel(id) : undefined);
+  const level = baseLevelById(id);
   return level && isTrisSlot(level) ? trisVariant(level) : level;
 }
+
+/** Il livello com'era prima di diventare un Tris al primo posto di un'isola. */
+function baseLevelById(id: number): LegacyLevel | undefined {
+  if (!Number.isSafeInteger(id) || id < 1) return undefined;
+  return legacyById.get(id) ?? extensionById.get(id) ?? (id >= INFINITE_START_ID ? infiniteLevel(id) : undefined);
+}
+
+/**
+ * Le firme dei livelli della campagna (`levelSignature`) per i progressi: stelle e record valgono solo sul livello che li ha
+ * prodotti. `base` è il livello di prima dei Tris al primo posto delle isole: a lui si attribuiscono i record scritti prima
+ * che esistessero le firme.
+ */
+export const campaignSignatures: ContentSignatures = {
+  current: (id) => {
+    const level = campaignLevelById(id);
+    return level && levelSignature(level);
+  },
+  base: (id) => {
+    const level = baseLevelById(id);
+    return level && levelSignature(level);
+  },
+};
 
 /** Tutti i livelli visibili per le isole indicate, in ordine locale. */
 export function campaignLevelsFor(island: IslandInfo): LegacyLevel[] {

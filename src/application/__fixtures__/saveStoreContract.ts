@@ -5,13 +5,14 @@ import { serializeProgress } from '../progressCodec';
 import type { SaveStore } from '../saveStore';
 import { serializeSavedGame, toSavedGame, type SavedGame } from '../savedGame';
 import { startSession } from '../session';
+import { SIG } from './content';
 
 const SPEC: LevelSpec = { id: 'test', cells: pyramid90(), groupSize: 2, types: 12, poolSize: 24, hidden: [], fog: 0, gold: 0, aids: { hints: 5, shuffles: 3, undo: null } };
 const started = startSession({ spec: SPEC, profile: 'normal', seed: 5 });
 if (!started.ok) throw new Error('avvio');
 
 export const sampleGame: SavedGame = toSavedGame(started.value, 7);
-export const sampleProgress: Progress = recordWin(newProgress(), { levelId: 7, stars: 3, seconds: 60, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+export const sampleProgress: Progress = recordWin(newProgress(), { signature: SIG, levelId: 7, stars: 3, seconds: 60, gold: 0, profile: 'normal', noTimePressure: false }).progress;
 
 /** Crea un archivio nuovo, eventualmente con contenuti scritti a mano (anche illeggibili). */
 export type StoreFactory = (initial?: { progress?: string; game?: string }) => SaveStore | Promise<SaveStore>;

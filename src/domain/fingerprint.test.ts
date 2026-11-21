@@ -1,4 +1,4 @@
-import { boardFingerprint, fingerprint } from './fingerprint';
+import { boardFingerprint, fingerprint, levelSignature } from './fingerprint';
 import { GameState } from './gameState';
 import type { PlacedTile } from './types';
 
@@ -63,5 +63,37 @@ describe('boardFingerprint', () => {
     const a = [tile({ x: 1, y: 11 })];
     const b = [tile({ x: 11, y: 1 })];
     expect(boardFingerprint(new GameState(a, 2, 3))).not.toBe(boardFingerprint(new GameState(b, 2, 3)));
+  });
+});
+
+describe('levelSignature', () => {
+  const GOLDEN = '3b044d467f96abd7'; // fissato: cambiarlo azzererebbe i progressi di tutti
+  const cells = [{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 1, y: 1, z: 1 }];
+  const level = { groupSize: 3, cells };
+
+  test('sono 16 cifre esadecimali, sempre le stesse per lo stesso livello (valore fissato)', () => {
+    expect(levelSignature(level)).toMatch(/^[0-9a-f]{16}$/);
+    expect(levelSignature({ ...level, cells: cells.map((c) => ({ ...c })) })).toBe(levelSignature(level));
+    expect(levelSignature(level)).toBe(GOLDEN);
+  });
+
+  test('cambiano con il gruppo, con ogni coordinata, con il numero e con l\'ordine delle celle', () => {
+    const base = levelSignature(level);
+    expect(levelSignature({ ...level, groupSize: 2 })).not.toBe(base);
+    for (const key of ['x', 'y', 'z'] as const) {
+      expect(levelSignature({ ...level, cells: cells.map((c, i) => (i === 1 ? { ...c, [key]: c[key] + 1 } : c)) })).not.toBe(base);
+    }
+    expect(levelSignature({ ...level, cells: cells.slice(1) })).not.toBe(base);
+    expect(levelSignature({ ...level, cells: [...cells, { x: 3, y: 3, z: 0 }] })).not.toBe(base);
+    expect(levelSignature({ ...level, cells: [cells[1], cells[0], cells[2]] })).not.toBe(base);
+  });
+
+  test('non dipendono da altro: disegni, nebbia, oro e aiuti di un livello non la cambiano', () => {
+    const decorated = { ...level, types: 9, fog: 4, gold: 2, hidden: [3], aids: { hint: 1 }, name: 'x' };
+    expect(levelSignature(decorated)).toBe(levelSignature(level));
+  });
+
+  test('due celle non si confondono con una sola con coordinate «attaccate»', () => {
+    expect(levelSignature({ groupSize: 2, cells: [{ x: 1, y: 23, z: 4 }] })).not.toBe(levelSignature({ groupSize: 2, cells: [{ x: 12, y: 3, z: 4 }] }));
   });
 });

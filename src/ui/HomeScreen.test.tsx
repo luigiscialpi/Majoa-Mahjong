@@ -13,6 +13,7 @@ import { legacyIslands } from '../infrastructure/content/legacyIslands';
 import { LanguageProvider, type Language } from '../infrastructure/i18n';
 import { HomeScreen } from './HomeScreen';
 import { SettingsProvider } from './SettingsProvider';
+import { SIG, sameContent } from '../application/__fixtures__/content';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
@@ -26,7 +27,7 @@ function savedGame(over: Partial<SavedGame> = {}): SavedGame {
 const storeWith = (game?: SavedGame, progress?: string) => createMemorySaveStore({ game: game ? serializeSavedGame(game) : undefined, progress });
 
 async function mount(store: SaveStore, extra: Partial<Parameters<typeof HomeScreen>[0]> = {}, lang: Language = 'it') {
-  const home = await loadHome(store);
+  const home = await loadHome(store, sameContent);
   const calls = { onPlay: jest.fn(), onResume: jest.fn(), onReload: jest.fn(async () => {}) };
   const res = await render(
     <LanguageProvider initial={lang}>
@@ -126,7 +127,7 @@ describe('senza partita salvata', () => {
   });
 
   test('i progressi si vedono nel selettore', async () => {
-    const progress = recordWin(newProgress(), { levelId: 1, stars: 3, seconds: 50, gold: 0, profile: 'normal', noTimePressure: false }).progress;
+    const progress = recordWin(newProgress(), { signature: SIG, levelId: 1, stars: 3, seconds: 50, gold: 0, profile: 'normal', noTimePressure: false }).progress;
     await mount(storeWith(undefined, serializeProgress(progress)));
     expect(texts()).toContain('3 / 60 stelle');
   });

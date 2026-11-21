@@ -18,6 +18,19 @@ export function fingerprint(parts: Iterable<string>): string {
   return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
 }
 
+/**
+ * Firma di un livello: gruppo e celle, nell'ordine dato. Dice «quale livello è» ai progressi: stelle e record valgono
+ * solo se la firma è quella del livello che li ha prodotti. Non dipende da disegni, nebbia, oro né aiuti (ritoccarli non
+ * azzera le stelle) né dalla Modalità comoda, che gioca lo stesso livello su un'altra disposizione.
+ */
+export function levelSignature(level: { groupSize: number; cells: readonly { x: number; y: number; z: number }[] }): string {
+  function* parts(): Generator<string> {
+    yield `g${level.groupSize};`;
+    for (const c of level.cells) yield `${c.x},${c.y},${c.z};`;
+  }
+  return fingerprint(parts());
+}
+
 function* boardParts(state: GameState): Generator<string> {
   for (let i = 0; i < state.tiles.length; i++) {
     const t = state.tiles[i];

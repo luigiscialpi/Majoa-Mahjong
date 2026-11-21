@@ -1,5 +1,5 @@
 import type { Profile } from '../domain/profile';
-import { levelProgress, openGifts, recordWin, type IslandInfo, type Progress } from '../domain/progress';
+import { openGifts, recordOf, recordWin, retainValid, type ContentSignatures, type IslandInfo, type Progress } from '../domain/progress';
 import type { Result } from '../domain/types';
 import type { SaveError } from './saveFormat';
 import { restoreSession, toSavedGame, type SavedGame } from './savedGame';
@@ -25,8 +25,10 @@ export type Home = { progress: Result<Progress, SaveError>; resume: Resume };
  * viceversa. Una partita che si legge ma non si ricostruisce (`start-failed`, `event-rejected`, `board-mismatch`) tiene
  * il documento letto, così si sa quale livello e profilo ripartire.
  */
-export async function loadHome(store: SaveStore): Promise<Home> {
-  const [progress, game] = await Promise.all([store.loadProgress(), store.loadGame()]);
+export async function loadHome(store: SaveStore, content: ContentSignatures): Promise<Home> {
+  const [stored, game] = await Promise.all([store.loadProgress(), store.loadGame()]);
+  // Le stelle di un livello che non è più quello che le ha prodotte non si vedono (`retainValid`)
+  const progress: Result<Progress, SaveError> = stored.ok ? { ok: true, value: retainValid(stored.value, content) } : stored;
   if (!game.ok) return { progress, resume: { kind: 'broken', error: game.error, saved: null } };
   const saved = game.value;
   if (saved === null) return { progress, resume: { kind: 'none' } };
@@ -85,11 +87,11 @@ export type Finished = {
 export type PreparedWin = { progress: Progress; rewards: Rewards };
 
 /** Calcola l'esito di una vittoria senza I/O, così la scheda può mostrarlo prima della scrittura su disco. */
-export function prepareWin(progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[]): PreparedWin {
+export function prepareWin(progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[], signature: string): PreparedWin {
   const outcome = session.outcome;
   if (session.phase !== 'won' || !outcome) throw new Error('finishWin: la partita non è vinta');
-  const before = levelProgress(progress, levelId);
-  const win = recordWin(progress, { levelId, stars: outcome.stars, seconds: outcome.seconds, gold: outcome.gold, profile: session.profile, noTimePressure: session.noTimePressure });
+  const before = recordOf(progress, levelId, signature);
+  const win = recordWin(progress, { levelId, signature, stars: outcome.stars, seconds: outcome.seconds, gold: outcome.gold, profile: session.profile, noTimePressure: session.noTimePressure });
   const gifts = openGifts(win.progress, islands);
   const newRecord = !session.noTimePressure && before.bestSeconds !== null && outcome.seconds < before.bestSeconds;
   const giftCoins = gifts.opened.reduce((sum, island) => sum + island.gift, 0);
@@ -101,8 +103,8 @@ export function prepareWin(progress: Progress, session: Session, levelId: number
  * transazione (`finishGame`). «Nuovo record» solo se esisteva un record e il tempo lo migliora, e mai con «senza pressione
  * del tempo».
  */
-export async function finishWin(store: SaveStore, progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[]): Promise<Finished> {
-  const prepared = prepareWin(progress, session, levelId, islands);
+export async function finishWin(store: SaveStore, progress: Progress, session: Session, levelId: number, islands: readonly IslandInfo[], signature: string): Promise<Finished> {
+  const prepared = prepareWin(progress, session, levelId, islands, signature);
   const saved = await store.finishGame(prepared.progress);
   return { ...prepared, saved };
 }

@@ -19,6 +19,11 @@ export type LevelProgress = {
   gold: number;
   /** Profilo più alto battuto. */
   profile: Profile | null;
+  /**
+   * Firma del livello che ha prodotto il record (`levelSignature`). Senza firma il record è precedente alle firme: si
+   * assume guadagnato sul livello di prima (`retainValid`).
+   */
+  signature?: string;
 };
 
 export type Progress = {
@@ -40,6 +45,15 @@ const NONE: LevelProgress = { stars: 0, bestSeconds: null, gold: 0, profile: nul
 
 export function levelProgress(progress: Progress, levelId: number): LevelProgress {
   return progress.levels[levelId] ?? NONE;
+}
+
+/**
+ * Il record di un livello, solo se è di quel livello: uno di un altro livello con lo stesso numero (firma diversa) non
+ * conta e non si somma. Senza firma si assume che sia suo; mai giocato = record vuoto.
+ */
+export function recordOf(progress: Progress, levelId: number, signature: string): LevelProgress {
+  const found = levelProgress(progress, levelId);
+  return found.signature !== undefined && found.signature !== signature ? NONE : found;
 }
 
 /** Somma delle stelle dei livelli dell'isola. */
@@ -80,6 +94,8 @@ export function isLevelUnlocked(progress: Progress, islands: readonly IslandInfo
 
 export type WinRecord = {
   levelId: number;
+  /** Firma del livello vinto (`levelSignature`). */
+  signature: string;
   stars: number;
   seconds: number;
   /** Tessere d'oro prese in questa partita. */
@@ -93,11 +109,11 @@ export type WinRecord = {
  * del tempo»), e dà le ✨ di `coinsForWin`. Restituisce i progressi nuovi e le ✨ guadagnate.
  */
 export function recordWin(progress: Progress, win: WinRecord): { progress: Progress; coins: number } {
-  const previous = levelProgress(progress, win.levelId);
+  const previous = recordOf(progress, win.levelId, win.signature);
   const coins = coinsForWin({ stars: win.stars, previousStars: previous.stars, gold: win.gold, previousGold: previous.gold, profile: win.profile, previousProfile: previous.profile ?? undefined });
   const record = win.noTimePressure || (previous.bestSeconds !== null && previous.bestSeconds <= win.seconds) ? previous.bestSeconds : win.seconds;
   const highest = previous.profile !== null && PROFILES.indexOf(previous.profile) >= PROFILES.indexOf(win.profile) ? previous.profile : win.profile;
-  const level: LevelProgress = { stars: Math.max(previous.stars, win.stars), bestSeconds: record, gold: Math.max(previous.gold, win.gold), profile: highest };
+  const level: LevelProgress = { stars: Math.max(previous.stars, win.stars), bestSeconds: record, gold: Math.max(previous.gold, win.gold), profile: highest, signature: win.signature };
   return { progress: { ...progress, levels: { ...progress.levels, [win.levelId]: level }, coins: progress.coins + coins }, coins };
 }
 
@@ -109,4 +125,42 @@ export function openGifts(progress: Progress, islands: readonly IslandInfo[], rh
   const opened = islands.filter((island, index) => island.gift > 0 && !progress.giftsOpened.includes(island.id) && isIslandUnlocked(progress, islands, index, rho));
   if (opened.length === 0) return { progress, opened };
   return { progress: { ...progress, coins: progress.coins + opened.reduce((sum, island) => sum + island.gift, 0), giftsOpened: [...progress.giftsOpened, ...opened.map((island) => island.id)] }, opened };
+}
+
+/** Le firme dei livelli come sono ora (`current`) e come erano prima delle firme (`base`); `undefined` se il livello non esiste. */
+export type ContentSignatures = {
+  current(levelId: number): string | undefined;
+  base(levelId: number): string | undefined;
+};
+
+/**
+ * Tiene solo i record dei livelli che sono ancora quelli che li hanno prodotti: cambiare il livello sotto un numero (un
+ * Tris al posto di un livello a coppie) non lascia le sue stelle a quello nuovo. Un record senza firma, precedente alle firme,
+ * si assume guadagnato sul livello `base` e, se questo coincide con l'attuale, si firma. I record di livelli che non esistono
+ * più nei contenuti restano (non c'è modo di sapere). Le ✨ già guadagnate restano. Restituisce gli stessi `progress` se non c'è
+ * nulla da cambiare.
+ */
+export function retainValid(progress: Progress, content: ContentSignatures): Progress {
+  let changed = false;
+  const levels: Record<number, LevelProgress> = {};
+  for (const [key, record] of Object.entries(progress.levels)) {
+    const id = Number(key);
+    const current = content.current(id);
+    if (current === undefined) {
+      levels[id] = record;
+      continue;
+    }
+    const recorded = record.signature ?? content.base(id);
+    if (recorded !== current) {
+      changed = true;
+      continue;
+    }
+    if (record.signature === undefined) {
+      changed = true;
+      levels[id] = { ...record, signature: current };
+    } else {
+      levels[id] = record;
+    }
+  }
+  return changed ? { ...progress, levels } : progress;
 }

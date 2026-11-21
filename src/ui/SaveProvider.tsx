@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { loadHome, type Home } from '../application/saveFlow';
+import { campaignSignatures } from '../infrastructure/content/campaignLevels';
 import type { SaveStore } from '../application/saveStore';
 import type { Progress } from '../domain/progress';
 import { useTranslation } from '../infrastructure/i18n';
@@ -42,7 +43,7 @@ export function SaveProvider({ open, children }: { open: () => Promise<SaveStore
       try {
         const store = storeRef.current ?? (await open());
         storeRef.current = store;
-        const home = await loadHome(store);
+        const home = await loadHome(store, campaignSignatures);
         if (!cancelled) setState({ kind: 'ready', store, home });
       } catch {
         if (!cancelled) setState({ kind: 'failed' });
@@ -56,7 +57,7 @@ export function SaveProvider({ open, children }: { open: () => Promise<SaveStore
   const reload = useCallback(async () => {
     const store = storeRef.current;
     if (!store) return;
-    const home = await loadHome(store);
+    const home = await loadHome(store, campaignSignatures);
     setState((s) => (s.kind === 'ready' ? { ...s, home } : s));
   }, []);
   const setProgress = useCallback((progress: Progress) => setState((s) => (s.kind === 'ready' ? { ...s, home: { ...s.home, progress: { ok: true, value: progress } } } : s)), []);

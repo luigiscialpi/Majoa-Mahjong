@@ -1,7 +1,8 @@
 import { newProgress, recordWin, type Progress } from '../domain/progress';
+import { SIG } from './__fixtures__/content';
 import { parseProgress, PROGRESS_VERSION, serializeProgress } from './progressCodec';
 
-const win = { levelId: 20, stars: 2, seconds: 83.5, gold: 3, profile: 'hard', noTimePressure: false } as const;
+const win = { signature: SIG, levelId: 20, stars: 2, seconds: 83.5, gold: 3, profile: 'hard', noTimePressure: false } as const;
 const played: Progress = { ...recordWin(recordWin(newProgress(), win).progress, { ...win, levelId: 3, stars: 3, profile: 'master' }).progress, giftsOpened: ['animals', 'sea'] };
 
 const malformed = (field: string) => ({ ok: false, error: { kind: 'malformed', field } });
@@ -44,7 +45,7 @@ describe('serializeProgress e parseProgress', () => {
   });
 
   test('un\'altra versione intera: `unsupported-version`, anche se il resto è diverso', () => {
-    expect(parseProgress(doc((d) => (d.version = 2)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 2 } });
+    expect(parseProgress(doc((d) => (d.version = 3)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 3 } });
     expect(parseProgress(doc((d) => (d.version = 0)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 0 } });
     expect(parseProgress(JSON.stringify({ version: 7, livelli: [] }))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 7 } });
   });
@@ -103,5 +104,42 @@ describe('serializeProgress e parseProgress', () => {
       d.coins = 0;
     }));
     expect(parsed.ok).toBe(true);
+  });
+});
+
+describe('firme nei progressi (versione 2) e lettura della versione 1', () => {
+  const SIG2 = 'fedcba9876543210';
+  const withSignature = (): Progress => ({ ...newProgress(), levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard', signature: SIG2 } } });
+  const v1 = (): string => JSON.stringify({ version: 1, levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard' } }, coins: 3, giftsOpened: [] });
+
+  test('la versione scritta è la 2 e i record firmati tornano uguali, con la firma', () => {
+    expect(PROGRESS_VERSION).toBe(2);
+    const parsed = parseProgress(serializeProgress(withSignature()));
+    expect(parsed).toEqual({ ok: true, value: withSignature() });
+    expect(JSON.parse(serializeProgress(withSignature())).levels[7].signature).toBe(SIG2);
+  });
+
+  test('un record senza firma si scrive senza la chiave e si rilegge senza firma', () => {
+    const unsigned: Progress = { ...newProgress(), levels: { 7: { stars: 1, bestSeconds: null, gold: 0, profile: null } } };
+    expect(Object.hasOwn(JSON.parse(serializeProgress(unsigned)).levels[7], 'signature')).toBe(false);
+    const parsed = parseProgress(serializeProgress(unsigned));
+    expect(parsed).toEqual({ ok: true, value: unsigned });
+    expect(parsed.ok && Object.hasOwn(parsed.value.levels[7], 'signature')).toBe(false);
+  });
+
+  test('un documento della versione 1 si legge ancora, con i record senza firma', () => {
+    const parsed = parseProgress(v1());
+    expect(parsed).toEqual({ ok: true, value: { levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard' } }, coins: 3, giftsOpened: [] } });
+  });
+
+  test('un documento della versione 1 non può avere firme; un\'altra versione non si legge', () => {
+    const d = JSON.parse(v1());
+    d.levels[7].signature = SIG2;
+    expect(parseProgress(JSON.stringify(d))).toEqual(malformed('levels.7.signature'));
+    expect(parseProgress(JSON.stringify({ ...JSON.parse(v1()), version: 3 }))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 3 } });
+  });
+
+  test.each([['non è una stringa', 5], ['è vuota', ''], ['ha lettere maiuscole', 'FEDCBA9876543210'], ['è troppo corta', 'fedcba987654321'], ['è troppo lunga', 'fedcba98765432100'], ['non è esadecimale', 'fedcba987654321g'], ['è nulla', null]])('una firma che %s: malformato su quel campo', (_, value) => {
+    expect(parseProgress(doc((d) => (d.levels[3].signature = value)))).toEqual(malformed('levels.3.signature'));
   });
 });

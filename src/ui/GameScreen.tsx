@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reduceRound, resumeRound, startRound, type Round } from '../application/round';
 import { finaleOf } from '../application/finale';
 import { createAutosaver, finishWin, prepareWin } from '../application/saveFlow';
+import { levelSignature } from '../domain/fingerprint';
 import type { SaveError } from '../application/saveFormat';
 import type { SaveStore } from '../application/saveStore';
 import { goldCount, isStuck, type Session } from '../application/session';
@@ -170,7 +171,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   // ponytail: calcola i premi prima dell'I/O, così la scheda appare già alla sua altezza finale.
   const victoryRewards = useMemo(() => {
     if (session.phase !== 'won' || !session.outcome) return null;
-    return prepareWin(progressAtStart.current, session, level.id, islands).rewards;
+    return prepareWin(progressAtStart.current, session, level.id, islands, levelSignature(level)).rewards;
   }, [session, level.id, islands]);
 
   // Tessere che si stanno togliendo (animazione di 250 ms). Si ricava durante il render, non in un effetto, perché le
@@ -215,7 +216,7 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
     if (closed.current) return;
     if (session.phase === 'won') {
       closed.current = true;
-      void finishWin(store, progress, session, level.id, islands).then((done) => {
+      void finishWin(store, progress, session, level.id, islands, levelSignature(level)).then((done) => {
         onProgress(done.progress);
         setProgressNotSaved(!done.saved.ok);
       });
