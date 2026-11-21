@@ -76,7 +76,7 @@ Nota: Expo ha dichiarato di valutare una cadenza di release diversa a partire da
 
 Conseguenze tecniche già decise, indipendenti da come si ridisegna la progressione:
 - Il progresso si registra **per indice di livello, in modo sparso**, senza un massimo.
-- Le spiegazioni al primo incontro dell'originale (livelli 1, 3, 4, 8, 11, 13, 16, 19, 23, 33, 91) diventano spiegazioni legate alla **prima comparsa della meccanica**, non al numero di livello: l'unico modo per funzionare con livelli infiniti.
+- Le spiegazioni al primo incontro dell'originale (livelli 1, 3, 4, 8, 11, 13, 16, 19, 23, 33, 91) diventano spiegazioni legate alla **meccanica**, non al numero di livello: l'unico modo per funzionare con livelli infiniti. Si mostrano prima del livello, a ogni livello di quel tipo, finché l'utente non mette la spunta «Non mostrare più» (nelle Impostazioni, `introsDismissed`, con «Rivedi le spiegazioni» per rimetterle; decisione del 20 novembre 2026). Oggi solo il Tris.
 - Le isole non possono più essere blocchi a soglia fissa di stelle su un numero finito di livelli.
 
 **[Deciso] — progressione e isole.** Il motore infinito rende obsoleta la struttura a isole finite con soglie fisse. Un vincolo ricavato dall'originale: la soglia per aprire un'isola lascia sempre un **margine costante di 40 stelle** sul massimo disponibile (80 stelle su 120 possibili nei primi 40 livelli, poi 110 su 150, 140 su 180, 170 su 210, 200 su 240). Su isole infinite una regola così richiede in percentuale sempre più stelle, fino a quasi tre stelle ovunque: va sostituita, non estesa.
