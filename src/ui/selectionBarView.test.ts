@@ -2,7 +2,7 @@ import type { Feedback } from '../application/session';
 import type { GameState } from '../domain/gameState';
 import { designOf } from '../infrastructure/content/legacyThemes';
 import { legacyLevels } from '../infrastructure/content/legacyLevels';
-import { BAR_MATCH_MS, BAR_RECENT, BAR_REJECT_MS, barName, selectionView, transientView } from './selectionBar';
+import { BAR_MATCH_MS, BAR_RECENT, BAR_REJECT_MS, barName, selectionView, transientView } from './selectionBarView';
 
 // Durate e numeri si leggono dall'HTML dell'originale (`tap`, righe 2122-2151; `sbShow`, riga 1968), non si scrivono a occhio.
 const fs: { readFileSync(path: string, encoding: string): string } = jest.requireActual('fs');

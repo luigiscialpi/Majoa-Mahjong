@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, PixelRatio, StyleSheet, View } from 'react-native';
 import { Group, ImageFormat, drawAsImage, matchFont, type SkFont, type SkSVG } from '@shopify/react-native-skia';
 import type { Palette } from '../infrastructure/content/legacyThemes';
-import type { BarSlot } from './selectionBar';
+import type { BarSlot } from './selectionBarView';
 import { StaticTile } from './tile';
 
 /** La faccia della miniatura nella barra (`.sbslot .mt`, riga 196 dell'originale: 42×54, raggio 9) e il margine per il bordo laterale. */

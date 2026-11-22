@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Round } from '../application/round';
 import { designOf } from '../infrastructure/content/legacyThemes';
-import { selectionView, transientView, type BarView } from './selectionBar';
+import { selectionView, transientView, type BarView } from './selectionBarView';
 
 const EMPTY: BarView = { slots: [], status: null };
 

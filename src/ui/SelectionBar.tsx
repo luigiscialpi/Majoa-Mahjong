@@ -5,7 +5,7 @@ import type { Palette } from '../infrastructure/content/legacyThemes';
 import { AppIcon } from './AppIcon';
 import { HC_UI } from './contrastSignals';
 import { MINI_FACE, MINI_RECENT, MiniTile } from './miniTiles';
-import { BAR_RECENT, barName, type BarStatus, type BarView } from './selectionBar';
+import { BAR_RECENT, barName, type BarStatus, type BarView } from './selectionBarView';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
 

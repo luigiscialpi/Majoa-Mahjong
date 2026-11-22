@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import { LanguageProvider, locale, type Language } from '../infrastructure/i18n';
 import type { Palette } from '../infrastructure/content/legacyThemes';
 import { SelectionBar } from './SelectionBar';
-import type { BarView } from './selectionBar';
+import type { BarView } from './selectionBarView';
 
 // Ogni casella è una `MiniTile` finta che espone ciò che riceve: il disegno vero è provato in miniTiles.test.tsx.
 jest.mock('./miniTiles', () => {

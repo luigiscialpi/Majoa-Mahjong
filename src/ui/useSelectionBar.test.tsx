@@ -4,7 +4,7 @@ import { reduceRound, resumeRound, startRound, type Round, type RoundAction } fr
 import { STAR_TYPE } from '../domain/types';
 import { designOf } from '../infrastructure/content/legacyThemes';
 import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
-import { BAR_MATCH_MS, BAR_REJECT_MS } from './selectionBar';
+import { BAR_MATCH_MS, BAR_REJECT_MS } from './selectionBarView';
 import { useSelectionBar } from './useSelectionBar';
 
 const level = legacyLevels[0];
