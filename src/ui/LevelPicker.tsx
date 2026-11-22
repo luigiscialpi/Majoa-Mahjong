@@ -6,6 +6,7 @@ import { islandStars, levelProgress, type IslandInfo, type Progress } from '../d
 import { campaignLevelById, campaignLevelsFor, trisLevelIds } from '../infrastructure/content/campaignLevels';
 import { PROFILE_KEYS, displayLevelNumber, islandName, starsText } from './format';
 import { islandStatus, levelStatus } from './levelStatus';
+import { opensWithSpecialLevel } from './teaser';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
 import { fontFamilies } from './theme/typography';
@@ -21,7 +22,7 @@ const LANGS: readonly Language[] = ['it', 'en', 'fr'];
 const LANG_LABELS: Record<Language, string> = { it: 'IT', en: 'EN', fr: 'FR' };
 const LANG_NAMES: Record<Language, string> = { it: 'Italiano', en: 'English', fr: 'Français' };
 
-type IslandRow = { island: IslandInfo; index: number; open: boolean; reason?: string };
+type IslandRow = { island: IslandInfo; index: number; open: boolean; reason?: string; teaser: boolean };
 
 type LevelPickerProps = {
   progress: Progress;
@@ -61,7 +62,8 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
   const firstClosed = islands.findIndex((island, index) => !islandStatus(progress, islands, index, false, t).open);
   const mapRows: IslandRow[] = islands.flatMap((island, index) => {
     const status = islandStatus(progress, islands, index, prova, t);
-    return status.open || index === firstClosed ? [{ island, index, open: status.open, reason: status.open ? undefined : status.reason }] : [];
+    // L'isola chiusa che segue lascia intravedere un livello speciale, per invogliare a finire quella prima
+    return status.open || index === firstClosed ? [{ island, index, open: status.open, reason: status.open ? undefined : status.reason, teaser: !status.open && opensWithSpecialLevel(island) }] : [];
   });
 
   const toggle = (
@@ -186,7 +188,7 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
                 const stars = islandStars(progress, item.island);
                 const maxStars = item.island.levelIds.length * 3;
                 const name = islandName(item.island.id, t);
-                const label = [t('islandLabel', { n: item.index + 1 }), name, t('islandProgress', { stars, max: maxStars }), item.reason].filter(Boolean).join('. ');
+                const label = [t('islandLabel', { n: item.index + 1 }), name, t('islandProgress', { stars, max: maxStars }), item.reason, item.teaser ? t('teaserLocked') : undefined].filter(Boolean).join('. ');
                 return (
                   <Pressable
                     onPress={() => item.open && setSelectedIslandId(item.island.id)}
@@ -206,6 +208,11 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
                       {item.open ? <Text style={styles.chevron}>›</Text> : <AppIcon name="lock" size={22} color={colors.inkSoft} />}
                     </View>
                     {item.reason ? <Text style={styles.islandReason}>{item.reason}</Text> : null}
+                    {item.teaser ? (
+                      <Text style={styles.islandTeaser} testID={'teaser-' + item.island.id}>
+                        {t('teaserLocked')}
+                      </Text>
+                    ) : null}
                   </Pressable>
                 );
               }}
@@ -279,5 +286,6 @@ const styles = StyleSheet.create({
   islandName: { color: colors.ink, fontSize: 20, fontFamily: fontFamilies.title },
   islandProgress: { color: colors.inkSoft, fontSize: 14, fontFamily: fontFamilies.bodyBold },
   islandReason: { color: colors.ink, fontSize: 13, fontFamily: fontFamilies.body },
+  islandTeaser: { color: colors.accent, fontSize: 13, fontFamily: fontFamilies.bodyBold },
   chevron: { color: colors.accent, fontSize: 30, fontWeight: '300', paddingLeft: 8 },
 });

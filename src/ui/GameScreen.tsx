@@ -28,6 +28,7 @@ import { FireworksLayer } from './FireworksLayer';
 import { useMascotUri } from './mascots';
 import { HC_UI } from './contrastSignals';
 import { SelectionBar } from './SelectionBar';
+import { islandAfter, opensWithSpecialLevel } from './teaser';
 import { SparkLayer } from './SparkLayer';
 import { TileBoard } from './TileBoard';
 import { goneTiles, newlyRemoved, tileStatuses } from './boardView';
@@ -168,6 +169,8 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
   const appActive = useAppActive();
   const autosaver = useMemo(() => createAutosaver(store, level.id, setTrouble, logSaveError), [store, level.id]);
   const progressAtStart = useRef(progress);
+  // Chi finisce un'isola il cui seguito si apre con un livello speciale lo sa già dalla scheda di vittoria
+  const nextIsland = useMemo(() => islandAfter(level.id, islands), [level.id, islands]);
   // ponytail: calcola i premi prima dell'I/O, così la scheda appare già alla sua altezza finale.
   const victoryRewards = useMemo(() => {
     if (session.phase !== 'won' || !session.outcome) return null;
@@ -514,6 +517,11 @@ function RoundView({ level, profile, palette, svgs, initial, store, progress, on
                 {tl('giftIsland', { name: islandName(island.id, tl), n: island.gift })}
               </Text>
             ))}
+            {nextIsland && opensWithSpecialLevel(nextIsland) ? (
+              <Text style={styles.overlayReward} testID="win-teaser">
+                {tl('teaserNext')}
+              </Text>
+            ) : null}
             {progressNotSaved ? <Text style={styles.overlayWarning}>{tl('progressSaveTrouble')}</Text> : null}
             <OverlayButtons onRestart={onRestart} onExit={onExit} restartLabel={tl('again')} />
           </Overlay>

@@ -130,6 +130,8 @@ const locale: Locale = {
   introsHint: 'Prima di un tipo di livello nuovo compare una spiegazione, finché non scegli di non vederla più.',
   introsAllOn: 'Tutte le spiegazioni sono attive.',
   introsRestore: 'Rivedi le spiegazioni',
+  teaserNext: "Nell'isola successiva ti aspetta un livello speciale.",
+  teaserLocked: 'Ti aspetta un livello speciale.',
   dif_easy: 'Facile',
   difd_easy: 'Più aiuti, meno disegni diversi, tessere bloccate ben scure',
   dif_normal: 'Normale',

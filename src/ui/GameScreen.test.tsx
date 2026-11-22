@@ -15,7 +15,7 @@ import { legacyLevels, toSpec } from '../infrastructure/content/legacyLevels';
 import { equalFreeTiles } from './equalTiles';
 import { DEFAULT_SETTINGS, type Settings } from '../domain/settings';
 import { SettingsProvider } from './SettingsProvider';
-import { LanguageProvider, t, type Language } from '../infrastructure/i18n';
+import { LanguageProvider, locale, t, type Language } from '../infrastructure/i18n';
 import en from '../infrastructure/i18n/locales/en';
 import { GameScreen, NO_MATCH_MS, type GameScreenProps } from './GameScreen';
 import type { Burst } from './effects';
@@ -686,6 +686,65 @@ describe('GameScreen: salvataggi', () => {
       expect(onProgress.mock.calls[0][0].coins).toBe(best.coins);
       expect(texts()).not.toContain('✨');
       expect(texts()).not.toContain('Nuovo record!');
+    });
+
+    describe('anticipazione del livello speciale', () => {
+      /** Il livello 1 è l'ultimo della prima isola; la seconda si apre con `opener`. */
+      const win = async (opener: number, extraFirst: number[] = [], lang: Language = 'it') => {
+        const islands = [
+          { id: 'prologue', levelIds: [...extraFirst, 1].sort((a, b) => (a === 1 ? 1 : b === 1 ? -1 : a - b)), gift: 0 },
+          { id: 'animals', levelIds: [opener, opener + 1], gift: 0 },
+        ];
+        await mount(1, 'normal', { progress: newProgress(), islands }, lang);
+        const doneText = lang === 'en' ? 'complete!' : 'superato!';
+        for (let n = 0; n < 600 && !texts().includes(doneText); n++) {
+          const pair = freePair();
+          if (pair) playPair(pair);
+          else advance(1200);
+          advance(300);
+        }
+        expect(texts()).toContain(doneText);
+        await flush();
+      };
+
+      test("dopo l'ultimo livello di un'isola che precede un Tris, la scheda di vittoria lo anticipa senza dire quale", async () => {
+        await win(21); // il 21 è un Tris
+        expect(screen.getByTestId('win-teaser').props.children).toBe(locale('it').teaserNext);
+        expect(texts()).not.toContain('Tris');
+      });
+
+      test("nella lingua attiva", async () => {
+        await win(21, [], 'en');
+        expect(screen.getByTestId('win-teaser').props.children).toBe(locale('en').teaserNext);
+      });
+
+      test("se l'isola successiva si apre con un livello a coppie, niente", async () => {
+        await win(22);
+        expect(screen.queryByTestId('win-teaser')).toBeNull();
+      });
+
+      test("un livello che non è l'ultimo dell'isola non anticipa nulla", async () => {
+        const islands = [
+          { id: 'prologue', levelIds: [1, 2], gift: 0 },
+          { id: 'animals', levelIds: [21, 22], gift: 0 },
+        ];
+        await mount(1, 'normal', { progress: newProgress(), islands });
+        playToEnd();
+        await flush();
+        expect(screen.queryByTestId('win-teaser')).toBeNull();
+      });
+
+      test("l'ultima isola che si conosce non ha un seguito da anticipare", async () => {
+        await mount(1, 'normal', { progress: newProgress(), islands: [{ id: 'prologue', levelIds: [1], gift: 0 }] });
+        playToEnd();
+        await flush();
+        expect(screen.queryByTestId('win-teaser')).toBeNull();
+      });
+
+      test("durante la partita non si vede", async () => {
+        await mount(1, 'normal', { progress: newProgress(), islands: [{ id: 'prologue', levelIds: [1], gift: 0 }, { id: 'animals', levelIds: [21], gift: 0 }] });
+        expect(screen.queryByTestId('win-teaser')).toBeNull();
+      });
     });
 
     test("aprire un'isola mostra il regalo, una volta sola", async () => {

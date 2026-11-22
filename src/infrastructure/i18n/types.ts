@@ -134,6 +134,9 @@ export type Locale = {
   introsHint: string;
   introsAllOn: string;
   introsRestore: string;
+  /** Anticipazione del livello speciale che apre l'isola successiva: sulla scheda di fine isola e sull'isola ancora chiusa. */
+  teaserNext: string;
+  teaserLocked: string;
   dif_easy: string;
   difd_easy: string;
   dif_normal: string;

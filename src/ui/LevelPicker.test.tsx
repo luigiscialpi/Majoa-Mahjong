@@ -2,12 +2,12 @@ import { StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { Profile } from '../domain/profile';
 import { DEFAULT_SETTINGS, type Settings } from '../domain/settings';
-import { newProgress, type Progress } from '../domain/progress';
+import { newProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { legacyIslands, trisLevelIds } from '../infrastructure/content/legacyIslands';
 import { createMemorySettingsStore } from '../application/settingsStore';
 import { LevelPicker, REASON_MS } from './LevelPicker';
 import { SettingsProvider } from './SettingsProvider';
-import { LanguageProvider, type Language } from '../infrastructure/i18n';
+import { LanguageProvider, locale, type Language } from '../infrastructure/i18n';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
@@ -227,5 +227,64 @@ describe('cambio lingua al volo', () => {
     );
     await press('btn-settings');
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('anticipazione del livello speciale sulla mappa', () => {
+  const it = locale('it');
+  const twoStarsEverywhere = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { stars: 2, bestSeconds: null, gold: 0, profile: null }])) as Progress['levels'];
+
+  test('l\'isola chiusa che segue lascia intravedere un livello speciale, senza dire quale', async () => {
+    await renderPicker();
+    await toggle(false);
+    expect(screen.getByTestId('teaser-animals').props.children).toBe(it.teaserLocked);
+    expect(islandText('animals')).toContain(it.teaserLocked);
+    expect(islandText('animals')).not.toContain('Tris');
+    expect(screen.queryByTestId('teaser-prologue')).toBeNull(); // un\'isola aperta non ne ha bisogno
+  });
+
+  test('quando l\'isola si apre, la frase passa a quella chiusa che viene dopo', async () => {
+    await renderPicker(() => {}, { ...newProgress(), levels: twoStarsEverywhere });
+    await toggle(false);
+    expect(screen.queryByTestId('teaser-animals')).toBeNull(); // aperta
+    expect(screen.getByTestId('teaser-sweets').props.children).toBe(it.teaserLocked);
+    expect(screen.queryByTestId('teaser-art')).toBeNull(); // la mappa mostra una sola chiusa
+  });
+
+  test('è anche nell\'etichetta per i lettori di schermo, dopo il motivo della chiusura', async () => {
+    await renderPicker();
+    await toggle(false);
+    const label: string = screen.getByTestId('island-animals').props.accessibilityLabel;
+    expect(label).toContain(it.teaserLocked);
+    expect(label.indexOf('Servono 40')).toBeLessThan(label.indexOf(it.teaserLocked));
+  });
+
+  test('in Modalità prova tutte le isole sono aperte: niente da anticipare', async () => {
+    await renderPicker();
+    expect(screen.queryByTestId('teaser-animals')).toBeNull();
+    expect(screen.queryByTestId('teaser-sweets')).toBeNull();
+  });
+
+  test('un\'isola chiusa che si apre con un livello a coppie non anticipa nulla', async () => {
+    const islands: IslandInfo[] = [
+      { id: 'prologue', levelIds: legacyIslands[0].levelIds, gift: 0 },
+      { id: 'animals', levelIds: [22, 23, 24, 25], gift: 0 }, // il primo, il 22, è a coppie
+    ];
+    await render(
+      <LanguageProvider initial="it">
+        <SettingsProvider store={createMemorySettingsStore()}>
+          <LevelPicker progress={newProgress()} islands={islands} onPlay={() => {}} />
+        </SettingsProvider>
+      </LanguageProvider>,
+    );
+    await toggle(false);
+    expect(screen.getByTestId('island-animals')).toBeTruthy(); // è la prossima chiusa
+    expect(screen.queryByTestId('teaser-animals')).toBeNull();
+  });
+
+  test('nella lingua attiva', async () => {
+    await renderPicker(() => {}, newProgress(), 'en');
+    await toggle(false);
+    expect(screen.getByTestId('teaser-animals').props.children).toBe(locale('en').teaserLocked);
   });
 });

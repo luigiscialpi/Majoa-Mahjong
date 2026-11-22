@@ -130,6 +130,8 @@ const locale: Locale = {
   introsHint: 'Before a new kind of level, an explanation appears until you choose to hide it.',
   introsAllOn: 'All explanations are on.',
   introsRestore: 'Show explanations again',
+  teaserNext: 'A special level awaits you on the next island.',
+  teaserLocked: 'A special level awaits you.',
   dif_easy: 'Easy',
   difd_easy: 'More helpers, fewer different pictures, clearly darkened blocked tiles',
   dif_normal: 'Normal',
