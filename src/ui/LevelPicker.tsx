@@ -5,7 +5,7 @@ import { PROFILES, type Profile } from '../domain/profile';
 import { islandStars, levelProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { campaignLevelById, campaignLevelsFor, trisLevelIds } from '../infrastructure/content/campaignLevels';
 import { PROFILE_KEYS, displayLevelNumber, islandName, starsText } from './format';
-import { islandStatus, levelStatus } from './levelStatus';
+import { isTrisRoomOpen, islandStatus, levelStatus } from './levelStatus';
 import { opensWithSpecialLevel } from './teaser';
 import { FeltBackground } from './FeltBackground';
 import { colors } from './theme/colors';
@@ -216,7 +216,7 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
                   </Pressable>
                 );
               }}
-              ListFooterComponent={prova && trisLevelIds.length > 0 ? (
+              ListFooterComponent={isTrisRoomOpen(progress, islands, prova) && trisLevelIds.length > 0 ? (
                 <Pressable
                   onPress={() => setSelectedIslandId('tris')}
                   style={({ pressed }) => [styles.islandCard, styles.trisCard, pressed ? styles.islandPressed : null]}
@@ -226,7 +226,7 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
                 >
                   <View style={styles.islandCardTop}>
                     <View style={styles.islandMain}>
-                      <Text style={styles.islandNumber}>{t('testModeShort')}</Text>
+                      <Text style={styles.islandNumber}>{prova ? t('testModeShort') : t('trisRoomNote')}</Text>
                       <Text style={styles.islandName}>{t('trisLabel')}</Text>
                       <Text style={styles.islandProgress}>{t('islandProgress', { stars: trisStars, max: trisLevelIds.length * 3 })}</Text>
                     </View>

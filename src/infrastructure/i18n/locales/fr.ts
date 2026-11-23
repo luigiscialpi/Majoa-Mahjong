@@ -132,6 +132,7 @@ const locale: Locale = {
   introsRestore: 'Revoir les explications',
   teaserNext: "Un niveau spécial t'attend sur l'île suivante.",
   teaserLocked: "Un niveau spécial t'attend.",
+  trisRoomNote: 'Des défis par trois, plus grands que ceux du parcours.',
   dif_easy: 'Facile',
   difd_easy: 'Plus d\'aides, moins de dessins différents, tuiles bloquées bien sombres',
   dif_normal: 'Normal',

@@ -137,6 +137,8 @@ export type Locale = {
   /** Anticipazione del livello speciale che apre l'isola successiva: sulla scheda di fine isola e sull'isola ancora chiusa. */
   teaserNext: string;
   teaserLocked: string;
+  /** Sotto il nome della sala dei Tris dell'originale, quando si è aperta con il percorso. */
+  trisRoomNote: string;
   dif_easy: string;
   difd_easy: string;
   dif_normal: string;

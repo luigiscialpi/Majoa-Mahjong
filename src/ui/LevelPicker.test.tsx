@@ -173,12 +173,51 @@ describe('progressi e accessibilità', () => {
     expect(label(3)).toBe('Livello 3, bloccato. Vinci il livello 2 per aprire questo');
   });
 
-  test('i Tris restano fuori dalla campagna e si provano solo in modalità prova', async () => {
-    const tris = trisLevelIds[0];
+  test('la sala dei Tris dell\'originale non c\'è finché non si finisce il primo Tris del percorso', async () => {
     await renderPicker();
-    await visitIsland('tris');
     await toggle(false);
-    expect(label(tris)).toContain('bloccato. Si sbloccano più avanti');
+    expect(screen.queryByTestId('island-tris')).toBeNull();
+    await screen.unmount();
+    await renderPicker(() => {}, progressWith({ 21: 0 }));
+    await toggle(false);
+    expect(screen.queryByTestId('island-tris')).toBeNull(); // giocato, non vinto
+  });
+
+  describe('sala dei Tris dell\'originale, aperta dal percorso', () => {
+    const open = (extra: Record<number, number> = {}) => progressWith({ 21: 1, ...extra });
+
+    test('compare in fondo alla mappa con la sua nota, senza «Modalità prova»', async () => {
+      await renderPicker(() => {}, open());
+      await toggle(false);
+      expect(screen.getByTestId('island-tris')).toBeTruthy();
+      expect(islandText('tris')).toContain(locale('it').trisRoomNote);
+      expect(islandText('tris')).not.toContain('Modalità prova');
+      expect(islandText('tris')).toContain('0 / 30 stelle');
+    });
+
+    test('il primo livello si gioca, gli altri si aprono in sequenza', async () => {
+      const onPlay = jest.fn();
+      await renderPicker(onPlay, open());
+      await visitIsland('tris');
+      await toggle(false);
+      expect(label(trisLevelIds[0])).not.toContain('bloccato');
+      expect(label(trisLevelIds[1])).toContain('bloccato. Vinci il livello 1 per aprire questo');
+      await press(`level-${trisLevelIds[0]}`);
+      expect(onPlay).toHaveBeenCalledWith(trisLevelIds[0], 'normal');
+    });
+
+    test('vinto il primo, si apre il secondo', async () => {
+      await renderPicker(() => {}, open({ [trisLevelIds[0]]: 1 }));
+      await visitIsland('tris');
+      await toggle(false);
+      expect(label(trisLevelIds[1])).not.toContain('bloccato');
+      expect(label(trisLevelIds[2])).toContain('bloccato. Vinci il livello 2 per aprire questo');
+    });
+
+    test('in Modalità prova la scheda dice «Modalità prova»', async () => {
+      await renderPicker();
+      expect(islandText('tris')).toContain('Modalità prova');
+    });
   });
 
   test('il motivo di blocco si aggiorna e sparisce dopo REASON_MS', async () => {
@@ -228,6 +267,11 @@ describe('cambio lingua al volo', () => {
     await press('btn-settings');
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
+});
+
+const progressWith = (stars: Record<number, number>): Progress => ({
+  ...newProgress(),
+  levels: Object.fromEntries(Object.entries(stars).map(([id, n]) => [id, { stars: n, bestSeconds: null, gold: 0, profile: null }])),
 });
 
 describe('anticipazione del livello speciale sulla mappa', () => {

@@ -132,6 +132,7 @@ const locale: Locale = {
   introsRestore: 'Show explanations again',
   teaserNext: 'A special level awaits you on the next island.',
   teaserLocked: 'A special level awaits you.',
+  trisRoomNote: 'Three-of-a-kind challenges, bigger than the ones on the path.',
   dif_easy: 'Easy',
   difd_easy: 'More helpers, fewer different pictures, clearly darkened blocked tiles',
   dif_normal: 'Normal',

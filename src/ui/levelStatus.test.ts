@@ -1,6 +1,6 @@
 import { newProgress, type IslandInfo, type Progress } from '../domain/progress';
 import { legacyIslands } from '../infrastructure/content/legacyIslands';
-import { islandStatus, levelStatus } from './levelStatus';
+import { isTrisRoomOpen, islandStatus, levelStatus } from './levelStatus';
 
 const ISLANDS: IslandInfo[] = [
   { id: 'prologue', levelIds: [1, 2, 3], gift: 0 },
@@ -84,10 +84,42 @@ describe('levelStatus', () => {
     expect(status(stars({ 1: 3, 2: 3, 3: 3, 4: 2, 5: 2, 6: 2 }), 7)).toEqual({ open: true });
   });
 
-  test('un livello fuori dalle isole (Tris) resta chiuso finché non c\'è una regola', () => {
-    expect(status(stars({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 }), 91)).toEqual(locked('Si sbloccano più avanti'));
+  test('un livello fuori dalle isole e che non è uno dei Tris dell\'originale resta chiuso', () => {
+    expect(status(stars({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3 }), 999)).toEqual(locked('Si sbloccano più avanti'));
   });
 
+  test('la sala dei Tris dell\'originale si apre finendo il primo Tris del percorso, e i suoi livelli in sequenza', () => {
+    const first = legacyIslands[1].levelIds[0]; // il 21, in apertura della seconda isola
+    expect(status(newProgress(), 91, false, legacyIslands)).toEqual(locked('Si sbloccano più avanti'));
+    expect(status(stars({ [first]: 0 }), 91, false, legacyIslands)).toEqual(locked('Si sbloccano più avanti')); // giocato ma non vinto
+    expect(status(stars({ [first]: 1 }), 91, false, legacyIslands)).toEqual({ open: true });
+    expect(status(stars({ [first]: 1 }), 92, false, legacyIslands)).toEqual(locked('Vinci il livello 1 per aprire questo'));
+    expect(status(stars({ [first]: 1, 91: 1 }), 92, false, legacyIslands)).toEqual({ open: true });
+    expect(status(stars({ [first]: 1, 91: 1 }), 93, false, legacyIslands)).toEqual(locked('Vinci il livello 2 per aprire questo'));
+    expect(status(stars({ [first]: 3, 91: 3, 92: 3, 93: 3, 94: 3, 95: 3, 96: 3, 97: 3, 98: 3, 99: 3 }), 100, false, legacyIslands)).toEqual({ open: true });
+  });
+});
+
+describe('isTrisRoomOpen', () => {
+  test('con la Modalità prova è sempre aperta', () => {
+    expect(isTrisRoomOpen(newProgress(), ISLANDS, true)).toBe(true);
+    expect(isTrisRoomOpen(newProgress(), [], true)).toBe(true);
+  });
+
+  test('si apre con una stella sul primo livello della seconda isola, qualunque sia il suo numero', () => {
+    expect(isTrisRoomOpen(newProgress(), ISLANDS, false)).toBe(false);
+    expect(isTrisRoomOpen(stars({ 4: 1 }), ISLANDS, false)).toBe(true); // il 4 apre la seconda isola di prova
+    expect(isTrisRoomOpen(stars({ 1: 3, 2: 3, 3: 3, 5: 3, 6: 3 }), ISLANDS, false)).toBe(false); // altri livelli non contano
+    expect(isTrisRoomOpen(stars({ 21: 3 }), ISLANDS, false)).toBe(false); // nemmeno il 21, se qui non è il primo Tris
+  });
+
+  test('senza una seconda isola non c\'è un primo Tris: chiusa', () => {
+    expect(isTrisRoomOpen(stars({ 1: 3 }), [ISLANDS[0]], false)).toBe(false);
+    expect(isTrisRoomOpen(stars({ 1: 3 }), [], false)).toBe(false);
+  });
+});
+
+describe('levelStatus nella campagna', () => {
   test('con le isole della campagna: «Servono 40 ★ per aprire Animali»', () => {
     expect(status(newProgress(), 21, false, legacyIslands)).toEqual(locked('Servono 40 ★ per aprire Animali'));
     expect(status(newProgress(), 1, false, legacyIslands)).toEqual({ open: true });
