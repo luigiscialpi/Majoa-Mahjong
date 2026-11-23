@@ -86,7 +86,7 @@ I progressi illeggibili (`malformed` o `unsupported-version` nella lettura dei p
 
 ### Scelte per la UI
 
-Scelte visibili al giocatore, tutte approvate e costruite (la 3, la 6 e la 8 nella schermata di gioco; la 1, la 2, la 4, la 5 e la 7 nella home). Una regola resta provvisoria: i Tris (livelli 91-100) non hanno ancora una regola di sblocco e nel selettore sono bloccati con «Si sbloccano più avanti», aperti solo con «Modalità prova».
+Scelte visibili al giocatore, tutte approvate e costruite (la 3, la 6 e la 8 nella schermata di gioco; la 1, la 2, la 4, la 5 e la 7 nella home). I Tris dell'originale (livelli 91-100) stanno in una sala che compare in fondo alla mappa quando si vince il primo Tris del percorso; prima, il messaggio «Si sbloccano più avanti» compare solo se si arriva a un loro livello per altra via, e la Modalità prova li apre.
 
 1. **Home**: in cima la scheda «Continua» (titolo «Livello 20», sotto «Normale · 4:12 · 40 tessere»), poi il selettore dei livelli. Senza partita salvata la scheda non c'è.
 2. **Conferma di sostituzione**: titolo «Hai una partita in corso», testo «La partita del livello 20 (Normale, 4:12) andrà persa.», pulsanti «Continua quella» (predefinito, riprende la salvata) e «Sostituisci».
