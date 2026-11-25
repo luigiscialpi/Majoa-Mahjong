@@ -31,11 +31,10 @@ type LevelPickerProps = {
   /** Sopra la mappa: la scheda «Continua» e gli avvisi della home. */
   top?: ReactNode;
   /** Apre la schermata delle impostazioni. */
-  onOpenSettings?: () => void;
 };
 
 /** Mappa della campagna e livelli dell'isola scelta (`docs/motore-livelli.md`, «Progressione e sblocco»). */
-export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: LevelPickerProps) {
+export function LevelPicker({ progress, islands, onPlay, top }: LevelPickerProps) {
   const insets = useSafeAreaInsets();
   const [prova, setProva] = useState(true);
   const [selectedIslandId, setSelectedIslandId] = useState<string | null>(null);
@@ -92,17 +91,6 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
               </Pressable>
             ))}
           </View>
-          {onOpenSettings ? (
-            <Pressable
-              onPress={onOpenSettings}
-              style={styles.settingsBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('setAria')}
-              testID="btn-settings"
-            >
-              <AppIcon name="settings" size={20} color={colors.ink} />
-            </Pressable>
-          ) : null}
         </View>
         <Text style={styles.title} accessibilityRole="header">
           Majoa Mahjong
@@ -245,7 +233,6 @@ export function LevelPicker({ progress, islands, onPlay, top, onOpenSettings }: 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 4, position: 'relative' },
-  settingsBtn: { position: 'absolute', right: 16, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center' },
   langRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   langChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.panel, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
   langChipOn: { backgroundColor: colors.feltA, borderWidth: 1.5, borderColor: colors.accent },

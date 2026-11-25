@@ -24,7 +24,8 @@ const LANG_OPTIONS: readonly { id: Language; label: string }[] = [
 ];
 
 export type SettingsScreenProps = {
-  onBack: () => void;
+  /** Torna indietro: assente quando le impostazioni sono una scheda della barra in basso. */
+  onBack?: () => void;
 };
 
 /**
@@ -112,9 +113,13 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       <View style={[styles.root, { paddingTop: insets.top + 6, paddingBottom: insets.bottom }]}>
         {/* Intestazione */}
         <View style={styles.header}>
-          <Pressable onPress={onBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('backToLevels')} testID="btn-settings-back">
-            <Text style={styles.backText}>‹</Text>
-          </Pressable>
+          {onBack ? (
+            <Pressable onPress={onBack} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('backToLevels')} testID="btn-settings-back">
+              <Text style={styles.backText}>‹</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
           <Text style={styles.headerTitle} accessibilityRole="header">
             {t('setTitle')}
           </Text>

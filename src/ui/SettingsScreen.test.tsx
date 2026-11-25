@@ -56,6 +56,18 @@ describe('SettingsScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  test('senza onBack (scheda della barra in basso) non c\'è il pulsante Indietro e il titolo resta', async () => {
+    await render(
+      <LanguageProvider initial="it">
+        <SettingsProvider store={createMemorySettingsStore()} initial={DEFAULT_SETTINGS}>
+          <SettingsScreen />
+        </SettingsProvider>
+      </LanguageProvider>,
+    );
+    expect(screen.queryByTestId('btn-settings-back')).toBeNull();
+    expect(screen.getByText('Impostazioni')).toBeTruthy();
+  });
+
   test('permette di selezionare una mascotte diversa', async () => {
     const { store } = await renderSettings();
 

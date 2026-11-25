@@ -59,6 +59,8 @@ const locale: Locale = {
   continueInfo: 'Niveau {n} · {name} · {t} · {p} paires',
   setBtn: 'Réglages',
   setTitle: 'Réglages',
+  tabMap: 'Carte',
+  tabSettings: 'Réglages',
   setAria: 'Réglages',
   sgApp: 'Apparence',
   slBg: 'Fond',

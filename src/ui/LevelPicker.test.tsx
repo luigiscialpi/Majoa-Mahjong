@@ -237,7 +237,7 @@ describe('progressi e accessibilità', () => {
 
   test('i controlli principali rispettano 48 dp', async () => {
     await renderPicker();
-    for (const id of ['prova-row', 'lang-it', 'btn-settings']) {
+    for (const id of ['prova-row', 'lang-it']) {
       const node = screen.queryByTestId(id);
       if (node) {
         const style = StyleSheet.flatten(node.props.style);
@@ -257,15 +257,9 @@ describe('cambio lingua al volo', () => {
     expect(texts()).toContain('Mappa delle isole');
   });
 
-  test('il pulsante impostazioni chiama onOpenSettings se fornito', async () => {
-    const onOpenSettings = jest.fn();
-    await render(
-      <LanguageProvider initial="it">
-        <LevelPicker progress={newProgress()} islands={legacyIslands} onPlay={() => {}} onOpenSettings={onOpenSettings} />
-      </LanguageProvider>,
-    );
-    await press('btn-settings');
-    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  test('la mappa non ha più l\'ingranaggio: le impostazioni sono una scheda della barra in basso', async () => {
+    await renderPicker();
+    expect(screen.queryByTestId('btn-settings')).toBeNull();
   });
 });
 

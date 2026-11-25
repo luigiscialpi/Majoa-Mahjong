@@ -62,6 +62,9 @@ export type Locale = {
   continueInfo: string;
   setBtn: string;
   setTitle: string;
+  /** Schede della barra in basso. */
+  tabMap: string;
+  tabSettings: string;
   setAria: string;
   sgApp: string;
   slBg: string;

@@ -59,6 +59,8 @@ const locale: Locale = {
   continueInfo: 'Livello {n} · {name} · {t} · {p} coppie',
   setBtn: 'Impostazioni',
   setTitle: 'Impostazioni',
+  tabMap: 'Mappa',
+  tabSettings: 'Impostazioni',
   setAria: 'Impostazioni',
   sgApp: 'Aspetto',
   slBg: 'Sfondo',
