@@ -50,7 +50,7 @@ describe('formule delle carte guadagnate giocando', () => {
     expect(animalsPlayCards(stars)).toBe(cards);
   });
 
-  test('album di tema: le stelle e i boss della sua isola, e solo quelli', () => {
+  test('album di tema: le stelle e i boss delle isole del suo tema, e solo quelli', () => {
     const p = progressWith({ 1: 3, 2: 3, 5: 3, 6: 2, 7: 0, 8: 1 });
     expect(playCards('sweets', p, ISLANDS)).toBe(Math.floor(6 / 5) + 1);
     expect(playCards('art', p, ISLANDS)).toBe(0);
@@ -58,8 +58,12 @@ describe('formule delle carte guadagnate giocando', () => {
     expect(playCards('sweets', progressWith({ 5: 3, 6: 2, 8: 0 }), ISLANDS)).toBe(1);
   });
 
-  test('un\'isola che ripete il tema non conta per l\'album (da decidere)', () => {
-    expect(playCards('sweets', progressWith({ 9: 3, 10: 3 }), ISLANDS)).toBe(0);
+  test('le isole che ripetono il tema contano con la prima: stelle sommate prima di dividere e boss di tutte', () => {
+    // 3 + 3 stelle in due isole dello stesso tema: 6 stelle, una carta (due isole prese una per una ne darebbero zero)
+    expect(playCards('sweets', progressWith({ 5: 3, 9: 3 }), ISLANDS)).toBe(1);
+    // 12 stelle (2 carte) e il boss dell'isola che ripete il tema (1); il boss dell'altra isola ha zero stelle
+    expect(playCards('sweets', progressWith({ 5: 3, 6: 3, 9: 3, 10: 3 }), ISLANDS)).toBe(2 + 1);
+    expect(playCards('art', progressWith({ 9: 3, 10: 3 }), ISLANDS)).toBe(0);
   });
 
   test('«Animali»: le stelle di tutte le isole, boss e isole generate comprese', () => {

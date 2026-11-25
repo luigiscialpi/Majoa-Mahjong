@@ -33,9 +33,9 @@ export const STARS_PER_THEME_CARD = 5;
 /** Stelle per ogni carta guadagnata giocando: album «Animali», per le stelle di tutta la campagna. */
 export const STARS_PER_ANIMAL_CARD = 8;
 
-/** Carte di un album di tema guadagnate giocando: una ogni 5 stelle dell'isola più una per ogni boss vinto, al massimo 13. */
-export function themePlayCards(islandStars: number, bossesWon: number): number {
-  return Math.min(THEME_CARDS - 1, Math.floor(islandStars / STARS_PER_THEME_CARD) + bossesWon);
+/** Carte di un album di tema guadagnate giocando: una ogni 5 stelle delle isole del tema più una per ogni boss vinto, al massimo 13. */
+export function themePlayCards(themeStars: number, bossesWon: number): number {
+  return Math.min(THEME_CARDS - 1, Math.floor(themeStars / STARS_PER_THEME_CARD) + bossesWon);
 }
 
 /** Carte di «Animali» guadagnate giocando: una ogni 8 stelle della campagna, al massimo 41. Boss e Tris dell'originale non contano. */
@@ -51,10 +51,9 @@ function bossesWon(progress: Progress, island: IslandInfo): number {
 /** Quante carte di `album` si sono guadagnate giocando. */
 export function playCards(album: AlbumId, progress: Progress, islands: readonly IslandInfo[]): number {
   if (album === 'animals') return animalsPlayCards(islands.reduce((sum, island) => sum + islandStars(progress, island), 0));
-  // ponytail: conta solo la prima isola del tema (quella dell'originale). Come contano le isole che ripetono il tema dall'isola 8
-  // è ancora da decidere (`docs/motore-livelli.md`, punto 7): fino ad allora danno solo la carta del regalo.
-  const island = islands.find((candidate) => candidate.album === album);
-  return island ? themePlayCards(islandStars(progress, island), bossesWon(progress, island)) : 0;
+  // Le isole che ripetono il tema (dall'isola 8) contano con la prima: si sommano le stelle di tutte e poi si dividono
+  const themed = islands.filter((candidate) => candidate.album === album);
+  return themePlayCards(themed.reduce((sum, island) => sum + islandStars(progress, island), 0), themed.reduce((sum, island) => sum + bossesWon(progress, island), 0));
 }
 
 /**

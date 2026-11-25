@@ -365,6 +365,13 @@ describe('carte d\'album alla vittoria', () => {
     expect(prepareWin(progressWith({ 1: 3, 2: 3, 3: 1 }), wonWith(1), 5, ALBUM_ISLANDS, SIG).rewards.cards).toEqual(['dogs0', 'sweets0']);
   });
 
+  test('un\'isola che ripete il tema conta insieme alla prima', () => {
+    const islands: IslandInfo[] = [...ALBUM_ISLANDS, { id: 'c', levelIds: [6, 7, 8], gift: 0, album: 'sweets', bossLevelIds: [8] }];
+    // 3 stelle nell'isola b e 2 con la vittoria nell'isola c: 5 stelle del tema, una carta
+    const done = prepareWin(progressWith({ 3: 3 }), wonWith(2), 7, islands, SIG);
+    expect(done.rewards.cards).toEqual(['sweets0']);
+  });
+
   test('nessuna carta nuova se non si supera una soglia', () => {
     expect(prepareWin(progressWith({}), wonWith(1), 4, ALBUM_ISLANDS, SIG).rewards.cards).toEqual([]);
   });
