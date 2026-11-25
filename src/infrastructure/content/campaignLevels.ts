@@ -1,3 +1,4 @@
+import { isAlbumId, type AlbumId } from '../../domain/album';
 import { levelSignature } from '../../domain/fingerprint';
 import type { ContentSignatures, IslandInfo, Progress } from '../../domain/progress';
 import { legacyIslands, trisLevelIds } from './legacyIslands';
@@ -95,6 +96,24 @@ export function campaignLevelsFor(island: IslandInfo): LegacyLevel[] {
   return island.levelIds.map(campaignLevelById).filter((level): level is LegacyLevel => level !== undefined);
 }
 
+// I livelli boss di un'isola non cambiano: si calcolano una volta (la mappa chiama `campaignIslandsForProgress` a ogni schermata).
+const bossIdsByIsland = new Map<string, readonly number[]>();
+function bossLevelIdsOf(island: IslandInfo): readonly number[] {
+  let ids = bossIdsByIsland.get(island.id);
+  if (!ids) {
+    ids = island.levelIds.filter((id) => campaignLevelById(id)?.boss);
+    bossIdsByIsland.set(island.id, ids);
+  }
+  return ids;
+}
+
+/** Album di tema di un'isola: la stessa per le originali che ne hanno uno, il tema in rotazione per le generate; nessuno per i livelli iniziali. */
+function islandAlbum(islandId: string): AlbumId | undefined {
+  const generated = /^generated-(\d+)$/.exec(islandId);
+  if (generated) return GENERATED_THEMES[(Number(generated[1]) - 8) % GENERATED_THEMES.length];
+  return isAlbumId(islandId) ? islandId : undefined;
+}
+
 /**
  * Costruisce la campagna fino a due isole oltre l'ultimo livello generato salvato. Questo mantiene visibile una prossima
  * isola chiusa senza allocare in memoria un catalogo infinito; il limite avanza man mano che l'utente gioca.
@@ -124,7 +143,10 @@ export function campaignIslandsForProgress(progress: Progress): readonly IslandI
       gift: 5,
     };
   });
-  return [...original, ...infinite];
+  return [...original, ...infinite].map((island) => {
+    const album = islandAlbum(island.id);
+    return { ...island, ...(album ? { album } : {}), bossLevelIds: bossLevelIdsOf(island) };
+  });
 }
 
 /** ID dei livelli Tris, separati dal percorso della campagna. */

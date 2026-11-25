@@ -215,7 +215,7 @@ describe('finishWin', () => {
     const done = await finishWin(store, newProgress(), session, 1, ISLANDS, SIG);
     const expected = recordWin(newProgress(), { signature: SIG, levelId: 1, stars: session.outcome!.stars, seconds: 60, gold: session.outcome!.gold, profile: 'normal', noTimePressure: false });
     expect(done.progress).toEqual(expected.progress);
-    expect(done.rewards).toEqual({ stars: session.outcome!.stars, coins: expected.coins, newRecord: false, gifts: [], giftCoins: 0 });
+    expect(done.rewards).toEqual({ stars: session.outcome!.stars, coins: expected.coins, newRecord: false, gifts: [], giftCoins: 0, cards: [] });
     expect(done.saved).toEqual({ ok: true, value: undefined });
     expect(await store.loadProgress()).toEqual({ ok: true, value: expected.progress });
     expect(await store.loadGame()).toEqual({ ok: true, value: null });
@@ -332,5 +332,77 @@ describe('firme dei livelli nei progressi', () => {
   test('lo stesso livello: il record precedente conta e un tempo migliore è «Nuovo record!»', () => {
     const before = recordWin(newProgress(), { signature: NEW, levelId: 1, stars: 1, seconds: 60, gold: 0, profile: 'normal', noTimePressure: false }).progress;
     expect(prepareWin(before, won(59), 1, ISLANDS, NEW).rewards.newRecord).toBe(true);
+  });
+});
+
+describe('carte d\'album alla vittoria', () => {
+  const ALBUM_ISLANDS: IslandInfo[] = [
+    { id: 'a', levelIds: [1, 2], gift: 3, album: 'animals' },
+    { id: 'b', levelIds: [3, 4, 5], gift: 5, album: 'sweets', bossLevelIds: [5] },
+  ];
+  const progressWith = (levels: Record<number, number>, over: Partial<Progress> = {}): Progress => ({
+    ...newProgress(),
+    giftsOpened: ['a', 'b'],
+    levels: Object.fromEntries(Object.entries(levels).map(([id, s]) => [id, { stars: s, bestSeconds: null, gold: 0, profile: null, signature: SIG }])),
+    ...over,
+  });
+  /** Una vittoria con le stelle volute. */
+  const wonWith = (count: 1 | 2 | 3): Session => {
+    const session = won(50);
+    return { ...session, outcome: { ...session.outcome!, stars: count } };
+  };
+
+  test('le stelle dell\'isola e il boss vinto danno le carte dell\'album di tema, nell\'ordine fisso', () => {
+    // isola b: 3 + 1 stelle prima, 3 con la vittoria del boss: 7 stelle (1 carta) più il boss (1 carta)
+    const done = prepareWin(progressWith({ 3: 3, 4: 1 }), wonWith(3), 5, ALBUM_ISLANDS, SIG);
+    expect(done.rewards.cards).toEqual(['sweets0', 'sweets1']);
+    expect(done.progress.giftCards).toEqual([]);
+  });
+
+  test('le stelle di tutta la campagna danno le carte di «Animali», una ogni 8, a giro tra le categorie', () => {
+    const done = prepareWin(progressWith({ 1: 3, 2: 3, 3: 1 }), wonWith(1), 4, ALBUM_ISLANDS, SIG);
+    expect(done.rewards.cards).toEqual(['dogs0']);
+    expect(prepareWin(progressWith({ 1: 3, 2: 3, 3: 1 }), wonWith(1), 5, ALBUM_ISLANDS, SIG).rewards.cards).toEqual(['dogs0', 'sweets0']);
+  });
+
+  test('nessuna carta nuova se non si supera una soglia', () => {
+    expect(prepareWin(progressWith({}), wonWith(1), 4, ALBUM_ISLANDS, SIG).rewards.cards).toEqual([]);
+  });
+
+  test('il regalo dell\'isola aperta dà una carta del suo album, dopo quelle guadagnate giocando, e il calcolo si ripete uguale', () => {
+    const before = progressWith({ 1: 3, 2: 3 }, { giftsOpened: ['a'], giftCards: [] });
+    const done = prepareWin(before, wonWith(1), 3, ALBUM_ISLANDS, SIG);
+    expect(done.rewards.gifts.map((i) => i.id)).toEqual(['b']);
+    expect(done.rewards.cards).toHaveLength(1);
+    expect(done.rewards.cards[0]).toMatch(/^sweets\d+$/);
+    expect(done.progress.giftCards).toEqual(done.rewards.cards);
+    expect(prepareWin(before, wonWith(1), 3, ALBUM_ISLANDS, SIG)).toEqual(done);
+  });
+
+  test('una vittoria che dà una carta giocata e apre un\'isola: prima la carta giocata, poi quella del regalo, diversa', () => {
+    // isola b: 3 stelle prima e 3 con la vittoria (6 stelle: 1 carta giocata); la vittoria apre b e il suo regalo
+    const done = prepareWin(progressWith({ 1: 3, 2: 3, 3: 3 }, { giftsOpened: ['a'] }), wonWith(3), 4, ALBUM_ISLANDS, SIG);
+    expect(done.rewards.gifts.map((i) => i.id)).toEqual(['b']);
+    expect(done.rewards.cards).toHaveLength(2);
+    expect(done.rewards.cards[0]).toBe('sweets0');
+    expect(done.rewards.cards[1]).toMatch(/^sweets([1-9]|1[0-3])$/);
+    expect(done.progress.giftCards).toEqual([done.rewards.cards[1]]);
+  });
+
+  test('il regalo dà la carta che manca; a collezione completa solo le ✨', () => {
+    const owned = Array.from({ length: 13 }, (_, i) => `sweets${i}`);
+    const last = prepareWin(progressWith({ 1: 3, 2: 3 }, { giftsOpened: ['a'], giftCards: owned }), wonWith(1), 3, ALBUM_ISLANDS, SIG);
+    expect(last.rewards.cards).toEqual(['sweets13']);
+    expect(last.progress.giftCards).toEqual([...owned, 'sweets13']);
+    const full = prepareWin(progressWith({ 1: 3, 2: 3 }, { giftsOpened: ['a'], giftCards: [...owned, 'sweets13'] }), wonWith(1), 3, ALBUM_ISLANDS, SIG);
+    expect(full.rewards.cards).toEqual([]);
+    expect(full.rewards.giftCoins).toBe(5);
+  });
+
+  test('un\'isola senza album non dà carte con il regalo', () => {
+    const bare: IslandInfo[] = [{ id: 'a', levelIds: [1], gift: 3 }];
+    const done = prepareWin(newProgress(), wonWith(1), 1, bare, SIG);
+    expect(done.rewards.giftCoins).toBe(3);
+    expect(done.rewards.cards).toEqual([]);
   });
 });

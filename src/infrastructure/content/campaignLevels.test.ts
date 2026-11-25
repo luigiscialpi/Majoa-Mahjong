@@ -8,6 +8,23 @@ import { trisLevelIds } from './legacyIslands';
 type Cells = readonly { x: number; y: number; z: number }[];
 
 describe('campagna estesa e livelli generati', () => {
+  test('ogni isola ha il suo album di tema (assente nei livelli iniziali) e i suoi livelli boss', () => {
+    const islands = campaignIslandsForProgress(newProgress());
+    expect(islands.map((island) => island.album)).toEqual([undefined, 'animals', 'sweets', 'art', 'science', 'sea', 'flowers', 'sweets', 'art']);
+    for (const island of islands) {
+      expect(island.bossLevelIds).toEqual(island.levelIds.filter((id) => campaignLevelById(id)?.boss));
+    }
+    expect(islands[1].bossLevelIds).toHaveLength(4);
+  });
+
+  test('le isole generate ripetono i cinque temi in ordine', () => {
+    // un progresso con le prime cinque isole generate finite: la mappa arriva alla quattordicesima isola
+    const last = [170, 190, 210, 230, 250];
+    const progress = { ...newProgress(), levels: Object.fromEntries(last.map((id) => [id, { stars: 1, bestSeconds: null, gold: 0, profile: null }])) };
+    const albums = campaignIslandsForProgress(progress).filter((island) => island.id.startsWith('generated-')).map((island) => island.album);
+    expect(albums).toEqual(['sweets', 'art', 'science', 'sea', 'flowers', 'sweets', 'art']);
+  });
+
   test('mantiene i 100 riferimenti originali e completa le sette isole a 20 livelli', () => {
     const islands = campaignIslandsForProgress(newProgress());
     const campaign = islands.slice(0, 7);

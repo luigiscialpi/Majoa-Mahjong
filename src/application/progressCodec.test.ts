@@ -3,7 +3,7 @@ import { SIG } from './__fixtures__/content';
 import { parseProgress, PROGRESS_VERSION, serializeProgress } from './progressCodec';
 
 const win = { signature: SIG, levelId: 20, stars: 2, seconds: 83.5, gold: 3, profile: 'hard', noTimePressure: false } as const;
-const played: Progress = { ...recordWin(recordWin(newProgress(), win).progress, { ...win, levelId: 3, stars: 3, profile: 'master' }).progress, giftsOpened: ['animals', 'sea'] };
+const played: Progress = { ...recordWin(recordWin(newProgress(), win).progress, { ...win, levelId: 3, stars: 3, profile: 'master' }).progress, giftsOpened: ['animals', 'sea'], giftCards: ['dogs0', 'sweets3'] };
 
 const malformed = (field: string) => ({ ok: false, error: { kind: 'malformed', field } });
 const doc = (mutate: (d: Record<string, any>) => void = () => {}): string => {
@@ -45,12 +45,12 @@ describe('serializeProgress e parseProgress', () => {
   });
 
   test('un\'altra versione intera: `unsupported-version`, anche se il resto è diverso', () => {
-    expect(parseProgress(doc((d) => (d.version = 3)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 3 } });
+    expect(parseProgress(doc((d) => (d.version = 4)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 4 } });
     expect(parseProgress(doc((d) => (d.version = 0)))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 0 } });
     expect(parseProgress(JSON.stringify({ version: 7, livelli: [] }))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 7 } });
   });
 
-  test.each(['version', 'levels', 'coins', 'giftsOpened'])('senza il campo %s: malformato su quel campo', (key) => {
+  test.each(['version', 'levels', 'coins', 'giftsOpened', 'giftCards'])('senza il campo %s: malformato su quel campo', (key) => {
     expect(parseProgress(doc((d) => delete d[key]))).toEqual(malformed(key));
   });
 
@@ -88,6 +88,10 @@ describe('serializeProgress e parseProgress', () => {
     ['regalo non testo', (d) => (d.giftsOpened = ['animals', 3]), 'giftsOpened[1]'],
     ['regalo vuoto', (d) => (d.giftsOpened = ['']), 'giftsOpened[0]'],
     ['regalo doppio', (d) => (d.giftsOpened = ['animals', 'sea', 'animals']), 'giftsOpened[2]'],
+    ['carte regalate non array', (d) => (d.giftCards = 'dogs0'), 'giftCards'],
+    ['carta regalata non testo', (d) => (d.giftCards = ['dogs0', 3]), 'giftCards[1]'],
+    ['carta regalata vuota', (d) => (d.giftCards = ['']), 'giftCards[0]'],
+    ['carta regalata doppia', (d) => (d.giftCards = ['dogs0', 'sweets3', 'dogs0']), 'giftCards[2]'],
   ])('%s', (_, mutate, field) => {
     expect(parseProgress(doc(mutate))).toEqual(malformed(field));
   });
@@ -107,13 +111,13 @@ describe('serializeProgress e parseProgress', () => {
   });
 });
 
-describe('firme nei progressi (versione 2) e lettura della versione 1', () => {
+describe('firme nei progressi (versione 2), carte regalate (versione 3) e lettura delle versioni 1 e 2', () => {
   const SIG2 = 'fedcba9876543210';
   const withSignature = (): Progress => ({ ...newProgress(), levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard', signature: SIG2 } } });
   const v1 = (): string => JSON.stringify({ version: 1, levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard' } }, coins: 3, giftsOpened: [] });
 
-  test('la versione scritta è la 2 e i record firmati tornano uguali, con la firma', () => {
-    expect(PROGRESS_VERSION).toBe(2);
+  test('la versione scritta è la 3 e i record firmati tornano uguali, con la firma', () => {
+    expect(PROGRESS_VERSION).toBe(3);
     const parsed = parseProgress(serializeProgress(withSignature()));
     expect(parsed).toEqual({ ok: true, value: withSignature() });
     expect(JSON.parse(serializeProgress(withSignature())).levels[7].signature).toBe(SIG2);
@@ -129,14 +133,32 @@ describe('firme nei progressi (versione 2) e lettura della versione 1', () => {
 
   test('un documento della versione 1 si legge ancora, con i record senza firma', () => {
     const parsed = parseProgress(v1());
-    expect(parsed).toEqual({ ok: true, value: { levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard' } }, coins: 3, giftsOpened: [] } });
+    expect(parsed).toEqual({ ok: true, value: { levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard' } }, coins: 3, giftsOpened: [], giftCards: [] } });
   });
 
   test('un documento della versione 1 non può avere firme; un\'altra versione non si legge', () => {
     const d = JSON.parse(v1());
     d.levels[7].signature = SIG2;
     expect(parseProgress(JSON.stringify(d))).toEqual(malformed('levels.7.signature'));
-    expect(parseProgress(JSON.stringify({ ...JSON.parse(v1()), version: 3 }))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 3 } });
+    expect(parseProgress(JSON.stringify({ ...JSON.parse(v1()), version: 4 }))).toEqual({ ok: false, error: { kind: 'unsupported-version', found: 4 } });
+  });
+
+  const v2 = (): string => JSON.stringify({ version: 2, levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard', signature: SIG2 } }, coins: 3, giftsOpened: ['animals'] });
+
+  test('un documento della versione 2 si legge ancora, con le firme e nessuna carta regalata', () => {
+    expect(parseProgress(v2())).toEqual({ ok: true, value: { levels: { 7: { stars: 3, bestSeconds: 60, gold: 1, profile: 'hard', signature: SIG2 } }, coins: 3, giftsOpened: ['animals'], giftCards: [] } });
+  });
+
+  test('i documenti delle versioni 1 e 2 non possono avere carte regalate; quello della 3 deve averle', () => {
+    expect(parseProgress(JSON.stringify({ ...JSON.parse(v2()), giftCards: [] }))).toEqual(malformed('giftCards'));
+    expect(parseProgress(JSON.stringify({ ...JSON.parse(v1()), giftCards: [] }))).toEqual(malformed('giftCards'));
+    expect(parseProgress(JSON.stringify({ ...JSON.parse(v2()), version: 3 }))).toEqual(malformed('giftCards'));
+  });
+
+  test('le carte regalate si scrivono e tornano uguali, nell\'ordine in cui sono arrivate', () => {
+    const progress: Progress = { ...newProgress(), giftCards: ['zoo3', 'sweets0', 'dogs0'] };
+    expect(JSON.parse(serializeProgress(progress)).giftCards).toEqual(['zoo3', 'sweets0', 'dogs0']);
+    expect(parseProgress(serializeProgress(progress))).toEqual({ ok: true, value: progress });
   });
 
   test.each([['non è una stringa', 5], ['è vuota', ''], ['ha lettere maiuscole', 'FEDCBA9876543210'], ['è troppo corta', 'fedcba987654321'], ['è troppo lunga', 'fedcba98765432100'], ['non è esadecimale', 'fedcba987654321g'], ['è nulla', null]])('una firma che %s: malformato su quel campo', (_, value) => {

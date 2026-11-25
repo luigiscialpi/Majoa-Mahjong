@@ -1,3 +1,4 @@
+import { allOwnedCards, cardsNotIn, drawGiftCards } from '../domain/album';
 import type { Profile } from '../domain/profile';
 import { openGifts, recordOf, recordWin, retainValid, type ContentSignatures, type IslandInfo, type Progress } from '../domain/progress';
 import type { Result } from '../domain/types';
@@ -73,8 +74,11 @@ export function createAutosaver(store: SaveStore, levelId: number, onTrouble: (t
   };
 }
 
-/** Ricompense della vittoria da mostrare. `coins` sono le ✨ della partita e `giftCoins` quelle dei regali delle isole aperte. */
-export type Rewards = { stars: number; coins: number; newRecord: boolean; gifts: IslandInfo[]; giftCoins: number };
+/**
+ * Ricompense della vittoria da mostrare. `coins` sono le ✨ della partita e `giftCoins` quelle dei regali delle isole aperte;
+ * `cards` le carte d'album nuove: prima quelle guadagnate giocando, poi quelle dei regali (id di `album.ts`).
+ */
+export type Rewards = { stars: number; coins: number; newRecord: boolean; gifts: IslandInfo[]; giftCoins: number; cards: readonly string[] };
 
 export type Finished = {
   /** Progressi nuovi, da usare anche se la scrittura è fallita. */
@@ -93,9 +97,13 @@ export function prepareWin(progress: Progress, session: Session, levelId: number
   const before = recordOf(progress, levelId, signature);
   const win = recordWin(progress, { levelId, signature, stars: outcome.stars, seconds: outcome.seconds, gold: outcome.gold, profile: session.profile, noTimePressure: session.noTimePressure });
   const gifts = openGifts(win.progress, islands);
+  const withCards = drawGiftCards(gifts.progress, gifts.opened, islands);
+  const cardsBefore = allOwnedCards(progress, islands);
+  const cardsAfterWin = allOwnedCards(win.progress, islands);
+  const cards = [...cardsNotIn(cardsBefore, cardsAfterWin), ...cardsNotIn(cardsAfterWin, allOwnedCards(withCards, islands))];
   const newRecord = !session.noTimePressure && before.bestSeconds !== null && outcome.seconds < before.bestSeconds;
   const giftCoins = gifts.opened.reduce((sum, island) => sum + island.gift, 0);
-  return { progress: gifts.progress, rewards: { stars: outcome.stars, coins: win.coins, newRecord, gifts: gifts.opened, giftCoins } };
+  return { progress: withCards, rewards: { stars: outcome.stars, coins: win.coins, newRecord, gifts: gifts.opened, giftCoins, cards } };
 }
 
 /**

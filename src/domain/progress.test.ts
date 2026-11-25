@@ -14,7 +14,7 @@ const win = (over: Partial<WinRecord> = {}): WinRecord => ({ signature: SIG, lev
 
 describe('progressi iniziali', () => {
   test('3 ✨, nessun livello vinto, nessun regalo dato', () => {
-    expect(newProgress()).toEqual({ levels: {}, coins: INITIAL_COINS, giftsOpened: [] });
+    expect(newProgress()).toEqual({ levels: {}, coins: INITIAL_COINS, giftsOpened: [], giftCards: [] });
     expect(INITIAL_COINS).toBe(3);
     expect(levelProgress(newProgress(), 7)).toEqual({ stars: 0, bestSeconds: null, gold: 0, profile: null });
   });

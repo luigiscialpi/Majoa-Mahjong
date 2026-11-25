@@ -1,3 +1,4 @@
+import type { AlbumId } from './album';
 import { PROFILES, type Profile } from './profile';
 import { coinsForWin } from './stars';
 
@@ -32,13 +33,18 @@ export type Progress = {
   readonly coins: number;
   /** Isole il cui regalo è già stato dato. */
   readonly giftsOpened: readonly string[];
+  /** Carte d'album arrivate dai regali delle isole (id), nell'ordine in cui sono arrivate (`album.ts`). */
+  readonly giftCards: readonly string[];
 };
 
-/** Un'isola della mappa: i suoi livelli in ordine e le ✨ regalate all'apertura (0 = nessuna). */
-export type IslandInfo = { id: string; levelIds: readonly number[]; gift: number };
+/**
+ * Un'isola della mappa: i suoi livelli in ordine e le ✨ regalate all'apertura (0 = nessuna). `album` è l'album di tema
+ * dell'isola (assente per i livelli iniziali) e `bossLevelIds` i suoi livelli boss: servono alle carte d'album (`album.ts`).
+ */
+export type IslandInfo = { id: string; levelIds: readonly number[]; gift: number; album?: AlbumId; bossLevelIds?: readonly number[] };
 
 export function newProgress(): Progress {
-  return { levels: {}, coins: INITIAL_COINS, giftsOpened: [] };
+  return { levels: {}, coins: INITIAL_COINS, giftsOpened: [], giftCards: [] };
 }
 
 const NONE: LevelProgress = { stars: 0, bestSeconds: null, gold: 0, profile: null };
