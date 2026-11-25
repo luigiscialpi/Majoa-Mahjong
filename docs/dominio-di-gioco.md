@@ -84,6 +84,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `comfortCellsForLevel()`, `COMFORT_LEVEL_COUNT` | `src/infrastructure/content/legacyComfortLevels.ts` | Layout dedicati a 5 colonne per Modalità comoda (livelli 1-20) |
 | `starsFor()`, `coinsForWin()` | `src/domain/stars.ts` | Stelle e ✨ di una vittoria |
 | `newProgress()`, `recordWin()`, `isLevelUnlocked()`, `isIslandUnlocked()`, `openGifts()` | `src/domain/progress.ts` | Progressi e sblocco (`docs/motore-livelli.md`) |
+| `ALBUM_CARDS`, `playCards()`, `ownedCards()`, `allOwnedCards()`, `drawGiftCards()` | `src/domain/album.ts` | Carte d'album: catalogo, formule, carte possedute e carta del regalo (`docs/motore-livelli.md`, punto 7) |
 | `solve()`, `solveFrom()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità, partite simulate |
 | `staticMeasures()`, `dynamicMeasures()`, `difficultyIndex()`, `difficultyLabel()` | `src/domain/difficulty.ts`, `src/domain/weights.ts` | Misure e indice di difficoltà (`docs/motore-livelli.md`) |
 | `grid()`, `pyramid90()` | `src/domain/__fixtures__/shapes.ts` | Forme sintetiche per i test |
