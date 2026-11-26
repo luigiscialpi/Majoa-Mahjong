@@ -84,6 +84,7 @@ Il generatore usa mulberry32 con `hashSeed` per derivare i semi. I valori prodot
 | `comfortCellsForLevel()`, `COMFORT_LEVEL_COUNT` | `src/infrastructure/content/legacyComfortLevels.ts` | Layout dedicati a 5 colonne per Modalità comoda (livelli 1-20) |
 | `starsFor()`, `coinsForWin()` | `src/domain/stars.ts` | Stelle e ✨ di una vittoria |
 | `newProgress()`, `recordWin()`, `isLevelUnlocked()`, `isIslandUnlocked()`, `openGifts()` | `src/domain/progress.ts` | Progressi e sblocco (`docs/motore-livelli.md`) |
+| `createMemory()`, `flipCard()`, `settle()`, `hintMemory()`, `isFaceUp()`, `memoryStars()`, `canRefundMemory()` | `src/domain/memoryPuzzle.ts` | Memory: macchina a stati pura (carte, tentativi, attesa, aiuto, stelle e rimborso) con i valori di `buildMemory` dell'originale |
 | `PUZZLE_KEYS`, `startPuzzle()`, `refundPuzzle()`, `effectiveStars()`, `recordPuzzleWin()` | `src/domain/puzzles.ts` | Telaio dei rompicapi: costo, rimborso, aiuti, stelle migliori per coppia e ✨ della prima vittoria (`docs/gioco-originale.md`, sezione 8) |
 | `ALBUM_CARDS`, `playCards()`, `ownedCards()`, `allOwnedCards()`, `drawGiftCards()` | `src/domain/album.ts` | Carte d'album: catalogo, formule, carte possedute e carta del regalo (`docs/motore-livelli.md`, punto 7) |
 | `solve()`, `solveFrom()`, `playRandom()`, `simulate()` | `src/domain/solver.ts` | Verifica di risolvibilità, partite simulate |
