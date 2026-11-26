@@ -138,7 +138,7 @@ La verifica distingue ciò che è provato da ciò che non lo è: dichiararlo è 
 
 - **Build e test**: `npm install`, poi `npm test` (Jest, solo `src/`), `npm run typecheck` (`tsc --noEmit`) e `npx expo-doctor`; bundle Android con `npx expo export --platform android`. `expo-doctor` richiede la rete per due controlli (schema di `app.json`, directory di React Native). **Avvio**: l'app non gira più in Expo Go ma in una development build (`expo-dev-client`): `npm run android` (`expo run:android`) compila e installa la build su un dispositivo o emulatore (serve l'SDK Android) e `npm start` apre il bundler per la build; in alternativa `eas build --profile development --platform android` (`eas.json`). La cartella `android/` si genera con `expo prebuild` e non si versiona.
 - **Dominio**: test automatici su ogni regola.
-- **UI e integrazioni native**: verifica manuale su dispositivo reale e su emulatori di tablet e pieghevole.
+- **UI e integrazioni native**: verifica manuale su dispositivo reale e su emulatori di tablet e pieghevole; elenco delle prove e comandi `adb` in `docs/prove-su-dispositivo.md`.
 
 | Area | Come viene verificata | Stato |
 |---|---|---|
