@@ -1,13 +1,14 @@
 import { PROFILES, type Profile } from '../domain/profile';
 import type { Progress } from '../domain/progress';
+import { PUZZLE_KEYS, type PuzzleKey, type PuzzleResults } from '../domain/puzzles';
 import type { Result } from '../domain/types';
 import { at, isInt, isRecord, isSeconds, keysMismatch, malformed, parseJson, versionError, type JsonRecord, type SaveError } from './saveFormat';
 
-/** La 3 aggiunge le carte regalate (`giftCards`); la 2 la firma del livello a ogni record. La 1 e la 2 si leggono ancora. */
-export const PROGRESS_VERSION = 3;
+/** La 4 aggiunge le stelle dei rompicapi (`puzzles`), la 3 le carte regalate (`giftCards`), la 2 la firma del livello a ogni record. Dalla 1 alla 3 si leggono ancora. */
+export const PROGRESS_VERSION = 4;
 
 export function serializeProgress(progress: Progress): string {
-  return JSON.stringify({ version: PROGRESS_VERSION, levels: progress.levels, coins: progress.coins, giftsOpened: progress.giftsOpened, giftCards: progress.giftCards });
+  return JSON.stringify({ version: PROGRESS_VERSION, levels: progress.levels, coins: progress.coins, giftsOpened: progress.giftsOpened, giftCards: progress.giftCards, puzzles: progress.puzzles });
 }
 
 /** In JSON le chiavi di `levels` sono stringhe: solo interi positivi in forma canonica. */
@@ -42,10 +43,19 @@ function badIds(list: unknown, field: string): string | null {
   return null;
 }
 
+/** Stelle dei rompicapi: solo le 30 coppie note, ognuna con 1, 2 o 3 stelle. Restituisce il primo percorso non valido o `null`. */
+function badPuzzles(value: unknown): string | null {
+  if (!isRecord(value)) return 'puzzles';
+  for (const [key, stars] of Object.entries(value)) {
+    if (!PUZZLE_KEYS.includes(key as PuzzleKey) || !isInt(stars, 1, 3)) return at('puzzles', key);
+  }
+  return null;
+}
+
 /** Primo campo non valido di un documento di una versione che si legge, oppure `null`. */
 function badField(r: JsonRecord, version: number): string | null {
   const signed = version >= 2;
-  const keys = keysMismatch(r, version >= 3 ? ['version', 'levels', 'coins', 'giftsOpened', 'giftCards'] : ['version', 'levels', 'coins', 'giftsOpened'], '');
+  const keys = keysMismatch(r, ['version', 'levels', 'coins', 'giftsOpened', ...(version >= 3 ? ['giftCards'] : []), ...(version >= 4 ? ['puzzles'] : [])], '');
   if (keys) return keys;
   if (!isRecord(r.levels)) return 'levels';
   for (const [key, level] of Object.entries(r.levels)) {
@@ -55,7 +65,7 @@ function badField(r: JsonRecord, version: number): string | null {
     if (bad) return bad;
   }
   if (!isInt(r.coins, 0)) return 'coins';
-  return badIds(r.giftsOpened, 'giftsOpened') ?? (version >= 3 ? badIds(r.giftCards, 'giftCards') : null);
+  return badIds(r.giftsOpened, 'giftsOpened') ?? (version >= 3 ? badIds(r.giftCards, 'giftCards') : null) ?? (version >= 4 ? badPuzzles(r.puzzles) : null);
 }
 
 /** Legge e valida un testo JSON: nessuna correzione nascosta, solo `Progress` valido o un errore tipizzato. */
@@ -64,11 +74,11 @@ export function parseProgress(text: string): Result<Progress, SaveError> {
   if (!json.ok) return json;
   const root = json.value;
   if (!isRecord(root)) return malformed('root');
-  // Si leggono la versione 3 e, con migrazione (nessuna carta regalata), la 2 e la 1 (senza nemmeno le firme)
+  // Si leggono la versione 4 e, con migrazione (nessuna carta regalata né rompicapo vinto), dalla 3 alla 1 (la 1 senza nemmeno le firme)
   const error = versionError(root, PROGRESS_VERSION);
-  if (error && !(error.kind === 'unsupported-version' && (error.found === 1 || error.found === 2))) return { ok: false, error };
+  if (error && !(error.kind === 'unsupported-version' && error.found >= 1 && error.found <= 3)) return { ok: false, error };
   const version = root.version as number;
   const field = badField(root, version);
   if (field !== null) return malformed(field);
-  return { ok: true, value: { levels: root.levels as Progress['levels'], coins: root.coins as number, giftsOpened: root.giftsOpened as string[], giftCards: version >= 3 ? (root.giftCards as string[]) : [] } };
+  return { ok: true, value: { levels: root.levels as Progress['levels'], coins: root.coins as number, giftsOpened: root.giftsOpened as string[], giftCards: version >= 3 ? (root.giftCards as string[]) : [], puzzles: version >= 4 ? (root.puzzles as PuzzleResults) : {} } };
 }

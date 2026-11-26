@@ -1,5 +1,6 @@
 import type { AlbumId } from './album';
 import { PROFILES, type Profile } from './profile';
+import type { PuzzleResults } from './puzzles';
 import { coinsForWin } from './stars';
 
 // Progressi del giocatore e regole di sblocco di livelli e isole (`docs/motore-livelli.md`, «Progressione e sblocco»).
@@ -35,6 +36,8 @@ export type Progress = {
   readonly giftsOpened: readonly string[];
   /** Carte d'album arrivate dai regali delle isole (id), nell'ordine in cui sono arrivate (`album.ts`). */
   readonly giftCards: readonly string[];
+  /** Stelle migliori dei rompicapi per coppia rompicapo + difficoltà (`puzzles.ts`). */
+  readonly puzzles: PuzzleResults;
 };
 
 /**
@@ -44,7 +47,7 @@ export type Progress = {
 export type IslandInfo = { id: string; levelIds: readonly number[]; gift: number; album?: AlbumId; bossLevelIds?: readonly number[] };
 
 export function newProgress(): Progress {
-  return { levels: {}, coins: INITIAL_COINS, giftsOpened: [], giftCards: [] };
+  return { levels: {}, coins: INITIAL_COINS, giftsOpened: [], giftCards: [], puzzles: {} };
 }
 
 const NONE: LevelProgress = { stars: 0, bestSeconds: null, gold: 0, profile: null };
