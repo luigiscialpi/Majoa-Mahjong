@@ -34,7 +34,7 @@ Convenzioni di lettura. **[Verificato]** indica un'informazione controllata nell
 
 ## 2. Stack e piattaforma
 
-**Decisione.** Expo con TypeScript in modalità `strict`, su **Expo SDK 57** (React Native 0.86, React 19.2 **[Verificato]**: SDK pubblicata il 30/06/2026), con **development build** tramite EAS Build. Navigazione con Expo Router: barra in basso (`expo-router/js-tabs`) con le schede Mappa e Impostazioni, a cui si aggiungeranno Giochi e Album (decisione del 25 novembre 2026), e partita a tutto schermo fuori dalla barra. Solo Android: iOS è escluso dal rilascio (non è prevista una pubblicazione su App Store).
+**Decisione.** Expo con TypeScript in modalità `strict`, su **Expo SDK 57** (React Native 0.86, React 19.2 **[Verificato]**: SDK pubblicata il 30/06/2026), con **development build** tramite EAS Build. Navigazione con Expo Router: barra in basso (`expo-router/js-tabs`) con le schede Mappa, Giochi e Impostazioni, a cui si aggiungerà l'Album (decisione del 25 novembre 2026), e partita e rompicapi a tutto schermo fuori dalla barra. Solo Android: iOS è escluso dal rilascio (non è prevista una pubblicazione su App Store).
 
 **Motivo.**
 - È lo stack già in uso (Kotlin/Compose, React Native/Expo, TypeScript): nessun costo di apprendimento e strumenti già noti.

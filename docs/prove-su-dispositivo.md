@@ -17,7 +17,7 @@ Pacchetto: `it.luigiscialpi.majoa`. Serve un dispositivo o un emulatore Android 
 
 ### P1. Barra di navigazione in basso (patch 0194)
 Da fare. Su telefono con navigazione a gesti, con tre pulsanti e su emulatore di tablet.
-1. Aprire l'app: la mappa mostra la barra con «Mappa» e «Impostazioni».
+1. Aprire l'app: la mappa mostra la barra con «Mappa», «Giochi» e «Impostazioni», in questo ordine.
 2. Toccare «Impostazioni»: si apre senza pulsante Indietro; toccare «Mappa»: si torna.
 3. Guardare lo spazio tra l'ultimo contenuto e la barra, sia nella mappa sia nelle impostazioni: nessuno spazio vuoto in più (la barra prende il margine inferiore, `TabScreen` lo toglie alle schermate).
 4. Avviare un livello: la barra non c'è e la partita è a tutto schermo; uscendo si torna alla mappa con la barra.
@@ -57,7 +57,7 @@ Atteso: nessun arresto; se compare, conservare lo stack completo e la versione d
 Da fare, una riga ciascuna: difficoltà nelle Impostazioni (sei profili, punti ●○ e nota sulla Modalità comoda), daltonismo e alto contrasto in partita, evidenzia-uguali acceso di base e spegnibile, lingue IT/EN/FR dalla mappa, audio e vibrazione. Esito atteso: come nelle tabelle di `docs/resa-visiva.md`. Automatizzabile: parziale (screenshot da confrontare a occhio).
 
 ### P8. Memory (patch 0201)
-Da fare. Finché non c'è la scheda Giochi si apre con il link: `adb shell am start -a android.intent.action.VIEW -d "majoa://puzzle?id=memory&difficulty=easy" it.luigiscialpi.majoa` (anche `medium` e `hard`).
+Da fare. Si apre dalla scheda Giochi (P9) o, per automatizzare, con il link: `adb shell am start -a android.intent.action.VIEW -d "majoa://puzzle?id=memory&difficulty=easy" it.luigiscialpi.majoa` (anche `medium` e `hard`).
 1. Il costo: all'apertura le ✨ calano di 1 e `majoa.db` lo mostra subito (`progress.coins`). Griglie: facile 3×4, medio 4×4, difficile 4×5; carte larghe circa 70-100 dp, senza uscire dallo schermo.
 2. Due carte uguali restano girate, due diverse si rigirano dopo circa 0,8 s e nel frattempo le altre carte non si girano; «Tentativi» sale a ogni coppia girata.
 3. Aiuto: mostra tutte le carte per circa 1,5 s, ne restano 3, 2, 1, 0; dopo il terzo compare «Non ci sono più aiuti»; con un aiuto usato compare «con aiuto: massimo 2 ★».
@@ -66,5 +66,14 @@ Da fare. Finché non c'è la scheda Giochi si apre con il link: `adb shell am st
 6. Senza ✨: con `coins` a 0 nel database (documento v4 `{"version":4,"levels":{},"coins":0,"giftsOpened":[],"giftCards":[],"puzzles":{}}`) compare l'avviso e nessuna carta.
 Atteso: nessuna perdita di ✨ chiudendo l'app a metà (il costo è già scritto). Automatizzabile: in gran parte (`resource-id` `memory-card-N`, `memory-hint`, `memory-back`, `memory-attempts`; per trovare le coppie serve lo screenshot o l'aiuto, perché i disegni sono immagini).
 
+### P9. Scheda Giochi (patch 0203)
+Da fare.
+1. Toccare «Giochi» nella barra: titolo «Giochi», le ✨ a destra, dieci righe con i nomi dell'originale (Memory, Pezzo mancante, Sudoku degli animali, Puzzle scorrevole, Labirinto, Trova le differenze, Smista i barattoli, Collega le coppie, Cerca parole, Unisci i puntini).
+2. Solo Memory ha i pulsanti «Facile», «Medio» e «Difficile», ognuno con le stelle migliori (☆☆☆ se mai vinto); gli altri nove dicono «In arrivo» e non rispondono al tocco.
+3. Toccare «Facile»: si apre Memory 3×4 e le ✨ calano di 1; vincere e tornare indietro: sulla scheda le stelle e le ✨ sono aggiornate.
+4. Con 0 ✨ (documento v4 con `coins` a 0, come in P8) i tre pulsanti sono grigi e non aprono niente; con 1 ✨ si apre.
+5. Cambiare la lingua dalla mappa (IT, EN, FR): titolo e nomi cambiano («Games», «Jeux»).
+Atteso: la scheda resta nella barra anche dopo aver giocato. Automatizzabile: sì (`resource-id` `tab-games`, `games-memory-easy|medium|hard`, `games-memory-<difficoltà>-stars`, `games-coins`).
+
 ## Prove future
-Le prove della scheda Giochi e degli altri rompicapi si aggiungono con le loro patch.
+Le prove degli altri rompicapi si aggiungono con le loro patch.
