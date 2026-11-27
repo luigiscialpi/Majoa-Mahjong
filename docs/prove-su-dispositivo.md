@@ -56,5 +56,15 @@ Atteso: nessun arresto; se compare, conservare lo stack completo e la versione d
 ### P7. Funzioni già costruite ma non ancora provate sul dispositivo
 Da fare, una riga ciascuna: difficoltà nelle Impostazioni (sei profili, punti ●○ e nota sulla Modalità comoda), daltonismo e alto contrasto in partita, evidenzia-uguali acceso di base e spegnibile, lingue IT/EN/FR dalla mappa, audio e vibrazione. Esito atteso: come nelle tabelle di `docs/resa-visiva.md`. Automatizzabile: parziale (screenshot da confrontare a occhio).
 
+### P8. Memory (patch 0201)
+Da fare. Finché non c'è la scheda Giochi si apre con il link: `adb shell am start -a android.intent.action.VIEW -d "majoa://puzzle?id=memory&difficulty=easy" it.luigiscialpi.majoa` (anche `medium` e `hard`).
+1. Il costo: all'apertura le ✨ calano di 1 e `majoa.db` lo mostra subito (`progress.coins`). Griglie: facile 3×4, medio 4×4, difficile 4×5; carte larghe circa 70-100 dp, senza uscire dallo schermo.
+2. Due carte uguali restano girate, due diverse si rigirano dopo circa 0,8 s e nel frattempo le altre carte non si girano; «Tentativi» sale a ogni coppia girata.
+3. Aiuto: mostra tutte le carte per circa 1,5 s, ne restano 3, 2, 1, 0; dopo il terzo compare «Non ci sono più aiuti»; con un aiuto usato compare «con aiuto: massimo 2 ★».
+4. Vittoria: dopo circa 0,7 s compare «Bravo!» con le stelle (3 fino a metà coppie di errori, 2 fino a un numero di errori uguale alle coppie, poi 1) e «+2 ✨» solo alla prima vittoria della coppia gioco e difficoltà; `progress.puzzles` ha la chiave `memory:easy` con le stelle migliori.
+5. Uscita: con il tasto ‹ o con il tasto Indietro di sistema, prima di ogni tentativo la ✨ torna (anche con una carta girata); dopo un tentativo no.
+6. Senza ✨: con `coins` a 0 nel database (documento v4 `{"version":4,"levels":{},"coins":0,"giftsOpened":[],"giftCards":[],"puzzles":{}}`) compare l'avviso e nessuna carta.
+Atteso: nessuna perdita di ✨ chiudendo l'app a metà (il costo è già scritto). Automatizzabile: in gran parte (`resource-id` `memory-card-N`, `memory-hint`, `memory-back`, `memory-attempts`; per trovare le coppie serve lo screenshot o l'aiuto, perché i disegni sono immagini).
+
 ## Prove future
-Le prove dei rompicapi e della scheda Giochi si aggiungono con le loro patch.
+Le prove della scheda Giochi e degli altri rompicapi si aggiungono con le loro patch.
