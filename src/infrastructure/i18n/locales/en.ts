@@ -59,6 +59,8 @@ const locale: Locale = {
   continueInfo: 'Level {n} · {name} · {t} · {p} pairs',
   setBtn: 'Settings',
   setTitle: 'Settings',
+  tabGames: 'Games',
+  puzzleSoon: 'Coming soon',
   tabMap: 'Map',
   tabSettings: 'Settings',
   pzCard: 'Card {n}',

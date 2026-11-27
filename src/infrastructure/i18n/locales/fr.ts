@@ -59,6 +59,8 @@ const locale: Locale = {
   continueInfo: 'Niveau {n} · {name} · {t} · {p} paires',
   setBtn: 'Réglages',
   setTitle: 'Réglages',
+  tabGames: 'Jeux',
+  puzzleSoon: 'Bientôt',
   tabMap: 'Carte',
   tabSettings: 'Réglages',
   pzCard: 'Carte {n}',

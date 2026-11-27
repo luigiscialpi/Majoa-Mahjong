@@ -63,6 +63,9 @@ export type Locale = {
   setBtn: string;
   setTitle: string;
   /** Schede della barra in basso. */
+  /** Scheda dei rompicapi e scritta sui rompicapi non ancora giocabili. */
+  tabGames: string;
+  puzzleSoon: string;
   tabMap: string;
   tabSettings: string;
   /** Carta di un rompicapo (nome per chi usa il lettore di schermo) e ritorno alla sala dei giochi. */
