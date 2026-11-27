@@ -61,6 +61,8 @@ const locale: Locale = {
   setTitle: 'Impostazioni',
   tabMap: 'Mappa',
   tabSettings: 'Impostazioni',
+  pzCard: 'Carta {n}',
+  backToGames: 'Torna ai giochi',
   setAria: 'Impostazioni',
   sgApp: 'Aspetto',
   slBg: 'Sfondo',

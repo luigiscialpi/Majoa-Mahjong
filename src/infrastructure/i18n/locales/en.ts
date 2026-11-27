@@ -61,6 +61,8 @@ const locale: Locale = {
   setTitle: 'Settings',
   tabMap: 'Map',
   tabSettings: 'Settings',
+  pzCard: 'Card {n}',
+  backToGames: 'Back to games',
   setAria: 'Settings',
   sgApp: 'Appearance',
   slBg: 'Background',

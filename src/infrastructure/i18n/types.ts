@@ -65,6 +65,9 @@ export type Locale = {
   /** Schede della barra in basso. */
   tabMap: string;
   tabSettings: string;
+  /** Carta di un rompicapo (nome per chi usa il lettore di schermo) e ritorno alla sala dei giochi. */
+  pzCard: string;
+  backToGames: string;
   setAria: string;
   sgApp: string;
   slBg: string;
