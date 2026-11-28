@@ -69,11 +69,22 @@ Atteso: nessuna perdita di ✨ chiudendo l'app a metà (il costo è già scritto
 ### P9. Scheda Giochi (patch 0203)
 Da fare.
 1. Toccare «Giochi» nella barra: titolo «Giochi», le ✨ a destra, dieci righe con i nomi dell'originale (Memory, Pezzo mancante, Sudoku degli animali, Puzzle scorrevole, Labirinto, Trova le differenze, Smista i barattoli, Collega le coppie, Cerca parole, Unisci i puntini).
-2. Solo Memory ha i pulsanti «Facile», «Medio» e «Difficile», ognuno con le stelle migliori (☆☆☆ se mai vinto); gli altri nove dicono «In arrivo» e non rispondono al tocco.
+2. Memory e Sudoku hanno i pulsanti «Facile», «Medio» e «Difficile», ognuno con le stelle migliori (☆☆☆ se mai vinto); gli altri otto dicono «In arrivo» e non rispondono al tocco.
 3. Toccare «Facile»: si apre Memory 3×4 e le ✨ calano di 1; vincere e tornare indietro: sulla scheda le stelle e le ✨ sono aggiornate.
 4. Con 0 ✨ (documento v4 con `coins` a 0, come in P8) i tre pulsanti sono grigi e non aprono niente; con 1 ✨ si apre.
 5. Cambiare la lingua dalla mappa (IT, EN, FR): titolo e nomi cambiano («Games», «Jeux»).
-Atteso: la scheda resta nella barra anche dopo aver giocato. Automatizzabile: sì (`resource-id` `tab-games`, `games-memory-easy|medium|hard`, `games-memory-<difficoltà>-stars`, `games-coins`).
+Atteso: la scheda resta nella barra anche dopo aver giocato. Automatizzabile: sì (`resource-id` `tab-games`, `games-memory-easy|medium|hard`, `games-sudoku-easy|medium|hard`, `games-<rompicapo>-<difficoltà>-stars`, `games-coins`).
+
+### P10. Sudoku degli animali (patch 0207)
+Da fare. Si apre dalla scheda Giochi (P9) o con il link `adb shell am start -a android.intent.action.VIEW -d "majoa://puzzle?id=sudoku&difficulty=easy" it.luigiscialpi.majoa` (anche `medium` e `hard`).
+1. Il costo: all'apertura le ✨ calano di 1 e `majoa.db` lo mostra subito. La cornice (indietro, titolo, ✨, errori, aiuto) è la stessa di Memory (P8).
+2. La griglia 4×4 ha 6, 8 o 10 caselle vuote (facile, medio, difficile); le caselle date sono chiare e non si scelgono; sotto ci sono i quattro animali e la gomma ⌫. Griglia e animali stanno nello schermo, anche su un telefono stretto (se non ci stanno scorre).
+3. Si sceglie una casella vuota (bordo evidenziato) e poi un animale: quello giusto entra e la casella resta scelta; uno sbagliato non entra, «Errori» sale e la casella lampeggia in rosso per circa 0,45 s. La gomma svuota una casella.
+4. Aiuto: riempie una casella sbagliata o vuota a caso e toglie la scelta; ne restano 2, 1, 0; dopo il terzo compare «Non ci sono più aiuti»; con un aiuto usato compare «con aiuto: massimo 2 ★».
+5. Vittoria: dopo circa 0,4 s compare «Bravo!»: 3 stelle senza errori, 2 con uno o due errori, 1 con più errori (al massimo 2 con un aiuto), e «+2 ✨» solo alla prima vittoria della coppia; `progress.puzzles` ha la chiave `sudoku:easy` (o `medium`, `hard`) con le stelle migliori.
+6. Uscita: con ‹ o con il tasto Indietro di sistema la ✨ torna solo se non si è messo né tolto nessun animale (scegliere una casella o usare l'aiuto non conta); dopo un animale, anche sbagliato, no.
+7. Senza ✨ (documento v4 con `coins` a 0, come in P8) compare l'avviso e nessuna griglia.
+Atteso: nessuna perdita di ✨ chiudendo l'app a metà. Automatizzabile: in gran parte (`resource-id` `sudoku-cell-N`, `sudoku-pick-N`, `sudoku-erase`, `sudoku-errors`, `sudoku-hint`, `sudoku-back`, `sudoku-coins`; per sapere quale animale è giusto serve lo screenshot o l'aiuto).
 
 ## Prove future
 Le prove degli altri rompicapi si aggiungono con le loro patch.
