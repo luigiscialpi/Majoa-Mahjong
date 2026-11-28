@@ -66,6 +66,11 @@ export type Locale = {
   /** Scheda dei rompicapi e scritta sui rompicapi non ancora giocabili. */
   tabGames: string;
   puzzleSoon: string;
+  /** Sudoku: nomi per il lettore di schermo (casella, animale, cancella) e avviso di un animale sbagliato. */
+  pzCell: string;
+  pzAnimal: string;
+  pzErase: string;
+  pzWrong: string;
   tabMap: string;
   tabSettings: string;
   /** Carta di un rompicapo (nome per chi usa il lettore di schermo) e ritorno alla sala dei giochi. */

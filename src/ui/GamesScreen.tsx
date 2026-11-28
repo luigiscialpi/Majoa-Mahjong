@@ -21,6 +21,9 @@ const PUZZLE_NAME = {
   dots: 'pz_dots',
 } as const satisfies Record<PuzzleId, string>;
 
+/** I rompicapi già giocabili, nell'ordine dell'elenco. Gli altri dicono «In arrivo». */
+const PLAYABLE: readonly PuzzleId[] = ['memory', 'sudoku'];
+
 const DIFFICULTY_LABEL = { easy: 'dif_easy', medium: 'dif_medium', hard: 'dif_hard' } as const satisfies Record<PuzzleDifficulty, string>;
 
 /** ★ per le stelle migliori (0 = mai vinto): sempre tre simboli, così le righe restano allineate. */
@@ -30,11 +33,11 @@ export function starsText(stars: number): string {
 
 export type GamesScreenProps = {
   progress: Progress;
-  /** Avvia un rompicapo giocabile. Solo i rompicapi già pronti lo chiamano. */
+  /** Avvia un rompicapo giocabile (`PLAYABLE`). Solo i rompicapi già pronti lo chiamano. */
   onPlay: (id: PuzzleId, difficulty: PuzzleDifficulty) => void;
 };
 
-/** Scheda Giochi: ✨ in testa, Memory con le tre difficoltà e le sue stelle, gli altri nove in arrivo. */
+/** Scheda Giochi: ✨ in testa, i rompicapi giocabili con le tre difficoltà e le loro stelle, gli altri in arrivo. */
 export function GamesScreen({ progress, onPlay }: GamesScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -50,7 +53,7 @@ export function GamesScreen({ progress, onPlay }: GamesScreenProps) {
         </View>
 
         {PUZZLE_IDS.map((id) => {
-          if (id !== 'memory') {
+          if (!PLAYABLE.includes(id)) {
             return (
               <View key={id} style={[styles.row, styles.rowOff]} testID={`games-row-${id}`}>
                 <Text style={styles.nameOff}>{t(PUZZLE_NAME[id])}</Text>
@@ -59,23 +62,23 @@ export function GamesScreen({ progress, onPlay }: GamesScreenProps) {
             );
           }
           return (
-            <View key={id} style={styles.row} testID="games-row-memory">
-              <Text style={styles.name}>{t(PUZZLE_NAME.memory)}</Text>
+            <View key={id} style={styles.row} testID={`games-row-${id}`}>
+              <Text style={styles.name}>{t(PUZZLE_NAME[id])}</Text>
               <View style={styles.levels}>
                 {PUZZLE_DIFFICULTIES.map((difficulty) => {
-                  const stars = progress.puzzles[puzzleKey('memory', difficulty)] ?? 0;
+                  const stars = progress.puzzles[puzzleKey(id, difficulty)] ?? 0;
                   return (
                     <Pressable
                       key={difficulty}
-                      onPress={() => onPlay('memory', difficulty)}
+                      onPress={() => onPlay(id, difficulty)}
                       disabled={!canStart}
                       accessibilityRole="button"
-                      accessibilityLabel={`${t(PUZZLE_NAME.memory)} ${t(DIFFICULTY_LABEL[difficulty])}`}
+                      accessibilityLabel={`${t(PUZZLE_NAME[id])} ${t(DIFFICULTY_LABEL[difficulty])}`}
                       style={[styles.level, !canStart && styles.levelOff]}
-                      testID={`games-memory-${difficulty}`}
+                      testID={`games-${id}-${difficulty}`}
                     >
                       <Text style={styles.levelName}>{t(DIFFICULTY_LABEL[difficulty])}</Text>
-                      <Text style={styles.stars} testID={`games-memory-${difficulty}-stars`}>{starsText(stars)}</Text>
+                      <Text style={styles.stars} testID={`games-${id}-${difficulty}-stars`}>{starsText(stars)}</Text>
                     </Pressable>
                   );
                 })}

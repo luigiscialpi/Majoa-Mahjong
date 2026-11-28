@@ -75,7 +75,7 @@ describe('avvio', () => {
     const { store, onProgress } = await setup(3);
     expect(await screen.findByTestId(card(11))).toBeTruthy();
     expect(screen.queryByTestId(card(12))).toBeNull();
-    expect(screen.getByTestId('memory-coins').props.children.join('')).toBe('✨ 2');
+    expect(screen.getByTestId('memory-coins').props.children).toBe('✨ 2');
     expect((await saved(store)).coins).toBe(2);
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ coins: 2 }));
     expect(screen.getByTestId('memory-attempts').props.children).toBe('Tentativi: 0');

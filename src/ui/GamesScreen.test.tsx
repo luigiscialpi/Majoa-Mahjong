@@ -32,19 +32,22 @@ describe('elenco dei rompicapi', () => {
     await setup(undefined, 'en');
     expect(screen.getByText('Games')).toBeTruthy();
     expect(screen.getByText('Spot the differences')).toBeTruthy();
-    expect(screen.getAllByText('Coming soon')).toHaveLength(9);
+    expect(screen.getAllByText('Coming soon')).toHaveLength(8);
   });
 
   test('in francese titolo e scritta «in arrivo»', async () => {
     await setup(undefined, 'fr');
     expect(screen.getByText('Jeux')).toBeTruthy();
-    expect(screen.getAllByText('Bientôt')).toHaveLength(9);
+    expect(screen.getAllByText('Bientôt')).toHaveLength(8);
   });
 
-  test('solo Memory si può giocare: gli altri nove sono «In arrivo» e non hanno pulsanti', async () => {
+  test('si possono giocare Memory e Sudoku: gli altri otto sono «In arrivo» e non hanno pulsanti', async () => {
     await setup();
-    expect(screen.getAllByText('In arrivo')).toHaveLength(9);
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getAllByText('In arrivo')).toHaveLength(8);
+    expect(screen.getAllByRole('button')).toHaveLength(6);
+    for (const id of ['missingPiece', 'sliding', 'maze', 'differences', 'jars', 'links', 'wordSearch', 'dots']) {
+      expect(within(screen.getByTestId(`games-row-${id}`)).getByText('In arrivo')).toBeTruthy();
+    }
   });
 
   test('mostra le ✨ che ci sono', async () => {
@@ -67,6 +70,8 @@ describe('Memory: difficoltà e stelle', () => {
   test('le stelle di un altro rompicapo non contano', async () => {
     await setup({ ...newProgress(), coins: 3, puzzles: { 'sudoku:easy': 3 } });
     expect(screen.getByTestId('games-memory-easy-stars').props.children).toBe('☆☆☆');
+    expect(screen.getByTestId('games-sudoku-easy-stars').props.children).toBe('★★★');
+    expect(screen.getByTestId('games-sudoku-hard-stars').props.children).toBe('☆☆☆');
   });
 
   test('toccare una difficoltà avvia Memory con quella difficoltà', async () => {
@@ -78,6 +83,14 @@ describe('Memory: difficoltà e stelle', () => {
     expect(onPlay).toHaveBeenLastCalledWith('memory', 'hard');
   });
 
+  test('toccare una difficoltà del Sudoku avvia il Sudoku', async () => {
+    const { onPlay } = await setup();
+    await fireEvent.press(screen.getByTestId('games-sudoku-hard'));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onPlay).toHaveBeenCalledWith('sudoku', 'hard');
+    expect(within(screen.getByTestId('games-sudoku-medium')).getByText('Medio')).toBeTruthy();
+  });
+
   test('con una sola ✨ si può iniziare', async () => {
     const { onPlay } = await setup({ ...newProgress(), coins: 1 });
     expect(screen.getByTestId('games-memory-easy').props.accessibilityState.disabled).toBe(false);
@@ -87,9 +100,11 @@ describe('Memory: difficoltà e stelle', () => {
 
   test('senza ✨ le difficoltà sono grigie e non avviano niente', async () => {
     const { onPlay } = await setup({ ...newProgress(), coins: 0 });
-    for (const difficulty of ['easy', 'medium', 'hard']) {
-      expect(screen.getByTestId(`games-memory-${difficulty}`).props.accessibilityState.disabled).toBe(true);
-      await fireEvent.press(screen.getByTestId(`games-memory-${difficulty}`));
+    for (const id of ['memory', 'sudoku']) {
+      for (const difficulty of ['easy', 'medium', 'hard']) {
+        expect(screen.getByTestId(`games-${id}-${difficulty}`).props.accessibilityState.disabled).toBe(true);
+        await fireEvent.press(screen.getByTestId(`games-${id}-${difficulty}`));
+      }
     }
     expect(onPlay).not.toHaveBeenCalled();
   });
